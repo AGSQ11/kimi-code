@@ -77,6 +77,7 @@ export interface RunSubagentOptions {
   readonly signal: AbortSignal;
   readonly onReady?: () => void;
   readonly suppressRateLimitFailureEvent?: boolean;
+  readonly model?: string;
 }
 
 export interface SpawnSubagentOptions extends RunSubagentOptions {
@@ -122,7 +123,7 @@ export class SessionSubagentHost {
     const completion = this.runWithActiveChild(id, options, async (runOptions) => {
       this.emitSubagentSpawned(parent, id, profile.name, runOptions);
       try {
-        await this.configureChild(parent, agent, profile);
+        await this.configureChild(parent, agent, profile, options);
         return await this.runPromptTurn(parent, id, agent, profile.name, runOptions);
       } catch (error) {
         this.emitSubagentFailed(parent, id, runOptions, error);
@@ -143,7 +144,9 @@ export class SessionSubagentHost {
     const completion = this.runWithActiveChild(agentId, options, async (runOptions) => {
       this.emitSubagentSpawned(parent, agentId, profileName, runOptions);
       try {
-        child.config.update({ modelAlias: parent.config.modelAlias });
+        child.config.update({
+          modelAlias: this.resolveChildModel(parent, profileName, options.model),
+        });
         return await this.runPromptTurn(parent, agentId, child, profileName, runOptions);
       } catch (error) {
         this.emitSubagentFailed(parent, agentId, runOptions, error);
@@ -159,7 +162,9 @@ export class SessionSubagentHost {
     const completion = this.runWithActiveChild(agentId, options, async (runOptions) => {
       try {
         runOptions.signal.throwIfAborted();
-        child.config.update({ modelAlias: parent.config.modelAlias });
+        child.config.update({
+          modelAlias: this.resolveChildModel(parent, profileName, options.model),
+        });
         this.emitSubagentStarted(parent, agentId);
         const turnId = child.turn.retry('agent-host');
         if (turnId === null) {
@@ -354,17 +359,33 @@ export class SessionSubagentHost {
     parent: Agent,
     child: Agent,
     profile: ResolvedAgentProfile,
+    options?: RunSubagentOptions,
   ): Promise<void> {
-    // A subagent always inherits the parent agent's model.
+    const modelAlias = this.resolveChildModel(parent, profile.name, options?.model);
     child.config.update({
       cwd: parent.config.cwd,
-      modelAlias: parent.config.modelAlias,
+      modelAlias,
       thinkingLevel: parent.config.thinkingLevel,
     });
 
     const context = await prepareSystemPromptContext(child.kaos);
     child.useProfile(profile, context);
     child.tools.inheritUserTools(parent.tools);
+  }
+
+  private resolveChildModel(
+    parent: Agent,
+    profileName: string,
+    explicitModel?: string,
+  ): string | undefined {
+    if (explicitModel !== undefined && explicitModel.length > 0) {
+      return explicitModel;
+    }
+    const roleModel = parent.kimiConfig?.roles?.[profileName];
+    if (roleModel !== undefined && roleModel.length > 0) {
+      return roleModel;
+    }
+    return parent.config.modelAlias;
   }
 
   private async triggerSubagentStart(

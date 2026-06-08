@@ -71,6 +71,12 @@ export const AgentToolInputSchema = z.preprocess(
       .describe(
         'One of the available agent types (see "Available agent types" in this tool description). Defaults to "coder" when omitted.',
       ),
+    model: z
+      .string()
+      .optional()
+      .describe(
+        'Optional model alias to use for this subagent. Overrides the role-based model from config.toml [roles] and the parent agent model. Must match a [models] entry in config.toml.',
+      ),
     resume: z
       .string()
       .optional()
@@ -196,6 +202,7 @@ export class AgentTool implements BuiltinTool<AgentToolInput> {
         description: args.description,
         runInBackground,
         signal: backgroundController?.signal ?? foregroundDeadline?.signal ?? signal,
+        model: args.model,
       };
 
       let handle: SubagentHandle;

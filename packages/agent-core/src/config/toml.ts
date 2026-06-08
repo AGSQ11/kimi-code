@@ -123,6 +123,8 @@ export function transformTomlData(data: Record<string, unknown>): Record<string,
       result[targetKey] = transformRecord(value, transformProviderData);
     } else if (targetKey === 'models' && isPlainObject(value)) {
       result[targetKey] = transformRecord(value, transformModelData);
+    } else if (targetKey === 'roles' && isPlainObject(value)) {
+      result[targetKey] = cloneRecord(value);
     } else if (targetKey === 'thinking' && isPlainObject(value)) {
       result[targetKey] = transformPlainObject(value);
     } else if (targetKey === 'permission' && isPlainObject(value)) {
@@ -301,6 +303,7 @@ export function configToTomlData(config: KimiConfig): Record<string, unknown> {
 
   setRecordSection(out, 'providers', config.providers, providerToToml);
   setRecordSection(out, 'models', config.models, modelToToml);
+  setSection(out, 'roles', config.roles, rolesToToml);
   setSection(out, 'thinking', config.thinking, thinkingToToml);
   setSection(out, 'services', config.services, servicesToToml);
   setSection(out, 'loop_control', config.loopControl, loopControlToToml);
@@ -379,6 +382,10 @@ function modelToToml(model: ModelAlias, rawModel: unknown): Record<string, unkno
     }
   }
   return out;
+}
+
+function rolesToToml(roles: Record<string, string>, _rawRoles: unknown): Record<string, unknown> {
+  return { ...roles };
 }
 
 function thinkingToToml(thinking: ThinkingConfig, rawThinking: unknown): Record<string, unknown> {
