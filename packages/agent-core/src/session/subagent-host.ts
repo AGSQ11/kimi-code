@@ -144,7 +144,14 @@ export class SessionSubagentHost {
     const completion = this.runWithActiveChild(agentId, options, async (runOptions) => {
       this.emitSubagentSpawned(parent, agentId, profileName, runOptions);
       try {
-        child.config.update({ modelAlias: parent.config.modelAlias });
+        // Re-resolve the model using the same 3-tier priority as configureChild:
+        // [subagent_models] config → parent model. The per-invocation override
+        // does not survive across resume boundaries (no model param on resume).
+        const subagentModels = this.session.options.config?.subagentModels;
+        const effectiveModel = subagentModels?.[profileName] ?? parent.config.modelAlias;
+        child.config.update({
+          ...(effectiveModel !== undefined ? { modelAlias: effectiveModel } : {}),
+        });
         return await this.runPromptTurn(parent, agentId, child, profileName, runOptions);
       } catch (error) {
         this.emitSubagentFailed(parent, agentId, runOptions, error);
@@ -160,7 +167,9 @@ export class SessionSubagentHost {
     const completion = this.runWithActiveChild(agentId, options, async (runOptions) => {
       try {
         runOptions.signal.throwIfAborted();
-        child.config.update({ modelAlias: parent.config.modelAlias });
+        // Preserve the child's current model — it was already resolved during the
+        // initial spawn (via [subagent_models] config or per-invocation override).
+        // Resetting to parent.config.modelAlias would lose a role-based model.
         this.emitSubagentStarted(parent, agentId);
         const turnId = child.turn.retry('agent-host');
         if (turnId === null) {
