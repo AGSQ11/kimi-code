@@ -135,6 +135,10 @@ export function transformTomlData(data: Record<string, unknown>): Record<string,
       result[targetKey] = transformPlainObject(value);
     } else if (targetKey === 'experimental' && isPlainObject(value)) {
       result[targetKey] = cloneRecord(value);
+    } else if (targetKey === 'subagentModels' && isPlainObject(value)) {
+      // Record<string, string> — keys are profile names, values are model aliases.
+      // No per-entry transform needed; just clone the strings through.
+      result[targetKey] = cloneRecord(value);
     } else if (!isPlainObject(value)) {
       result[targetKey] = value;
     }
@@ -307,6 +311,7 @@ export function configToTomlData(config: KimiConfig): Record<string, unknown> {
   setSection(out, 'background', config.background, backgroundToToml);
   setSection(out, 'experimental', config.experimental, experimentalToToml);
   setSection(out, 'permission', config.permission, permissionToToml);
+  setSection(out, 'subagent_models', config.subagentModels, subagentModelsToToml);
   setHooks(out, config.hooks);
 
   return out;
@@ -473,6 +478,17 @@ function experimentalToToml(
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(experimental)) {
+    setDefined(out, key, value);
+  }
+  return out;
+}
+
+function subagentModelsToToml(
+  subagentModels: Record<string, string>,
+  _raw: unknown,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(subagentModels)) {
     setDefined(out, key, value);
   }
   return out;

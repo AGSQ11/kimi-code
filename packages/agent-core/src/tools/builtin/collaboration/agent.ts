@@ -75,6 +75,12 @@ export const AgentToolInputSchema = z.preprocess(
       .string()
       .optional()
       .describe('Optional agent ID to resume instead of creating a new instance'),
+    model: z
+      .string()
+      .optional()
+      .describe(
+        'Model alias from config.toml to use for this subagent. Overrides the default model for the subagent role. Only used when spawning a new agent, not when resuming.',
+      ),
     run_in_background: z
       .boolean()
       .optional()
@@ -195,6 +201,7 @@ export class AgentTool implements BuiltinTool<AgentToolInput> {
         prompt: args.prompt,
         description: args.description,
         runInBackground,
+        model: args.model,
         signal: backgroundController?.signal ?? foregroundDeadline?.signal ?? signal,
       };
 

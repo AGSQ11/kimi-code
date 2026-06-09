@@ -6,6 +6,11 @@ Writing the prompt:
 - Investigations (figure out X, find why Y): give the question, not prescribed steps — fixed steps become dead weight when the premise is wrong.
 - Do not delegate understanding. If the task hinges on a file path or line number, find it yourself first and write it into the prompt.
 
+Model selection:
+- By default, subagents inherit the parent agent's model.
+- The user can configure per-role model aliases in config.toml under `[subagent_models]` (e.g., `coder = "gpt-5.2"`). When set, that role always uses the configured model.
+- You can also pass `model` to override the model for a single invocation. The value must be a model alias defined in config.toml. This takes highest priority. Only use this when the user explicitly asks you to use a specific model for a task.
+
 Usage notes:
 - When the task continues earlier work a subagent already did, prefer resuming that agent (pass its `resume` id) over spawning a fresh instance — the resumed agent keeps its prior context.
 - A subagent's result is only visible to you, not to the user. When the user needs to see what a subagent produced, summarize the relevant parts yourself in your own reply.

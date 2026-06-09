@@ -661,3 +661,93 @@ describe('config value env override helpers', () => {
     ).toBe(false);
   });
 });
+
+describe('subagentModels config', () => {
+  it('parses subagent_models from TOML', () => {
+    const toml = `
+[providers.openai]
+type = "openai"
+api_key = "sk-test"
+
+[providers.zhipu]
+type = "openai"
+api_key = "sk-zhipu"
+base_url = "https://open.bigmodel.cn/api/paas/v4"
+
+[models.gpt-52]
+provider = "openai"
+model = "gpt-5.2"
+max_context_size = 200000
+
+[models.glm-47]
+provider = "zhipu"
+model = "glm-4.7"
+max_context_size = 128000
+
+[subagent_models]
+coder = "gpt-52"
+explore = "glm-47"
+`;
+    const config = parseConfigString(toml, 'config.toml');
+
+    expect(config.subagentModels).toEqual({
+      coder: 'gpt-52',
+      explore: 'glm-47',
+    });
+  });
+
+  it('round-trips subagent_models through write and read', async () => {
+    const dir = makeTempDir();
+    const configPath = join(dir, 'subagent-models.toml');
+    const toml = `
+[providers.openai]
+type = "openai"
+api_key = "sk-test"
+
+[models.gpt-52]
+provider = "openai"
+model = "gpt-5.2"
+max_context_size = 200000
+
+[subagent_models]
+coder = "gpt-52"
+`;
+    await writeFile(configPath, toml, 'utf-8');
+    const config = readConfigFile(configPath);
+    expect(config.subagentModels).toEqual({ coder: 'gpt-52' });
+
+    await writeConfigFile(configPath, config);
+    const reloaded = readConfigFile(configPath);
+    expect(reloaded.subagentModels).toEqual({ coder: 'gpt-52' });
+  });
+
+  it('merges subagentModels via patch', () => {
+    const base = parseConfigString(`
+[providers.openai]
+type = "openai"
+api_key = "sk-test"
+
+[models.gpt-52]
+provider = "openai"
+model = "gpt-5.2"
+max_context_size = 200000
+
+[subagent_models]
+coder = "gpt-52"
+`);
+
+    const merged = mergeConfigPatch(base, {
+      subagentModels: { coder: 'glm-47', explore: 'gpt-52' },
+    });
+
+    expect(merged.subagentModels).toEqual({
+      coder: 'glm-47',
+      explore: 'gpt-52',
+    });
+  });
+
+  it('allows undefined/empty subagent_models', () => {
+    const config = parseConfigString('');
+    expect(config.subagentModels).toBeUndefined();
+  });
+});

@@ -81,6 +81,7 @@ export interface RunSubagentOptions {
 
 export interface SpawnSubagentOptions extends RunSubagentOptions {
   readonly profileName: string;
+  readonly model?: string;
   readonly swarmItem?: string;
 }
 
@@ -122,7 +123,7 @@ export class SessionSubagentHost {
     const completion = this.runWithActiveChild(id, options, async (runOptions) => {
       this.emitSubagentSpawned(parent, id, profile.name, runOptions);
       try {
-        await this.configureChild(parent, agent, profile);
+        await this.configureChild(parent, agent, profile, options.model);
         return await this.runPromptTurn(parent, id, agent, profile.name, runOptions);
       } catch (error) {
         this.emitSubagentFailed(parent, id, runOptions, error);
@@ -354,11 +355,19 @@ export class SessionSubagentHost {
     parent: Agent,
     child: Agent,
     profile: ResolvedAgentProfile,
+    modelOverride?: string,
   ): Promise<void> {
-    // A subagent always inherits the parent agent's model.
+    // Resolve the effective model for this subagent:
+    //   1. Per-invocation override (LLM passes model= in the Agent tool call)
+    //   2. Role-based config ([subagent_models] in config.toml)
+    //   3. Inherit from parent (default behaviour)
+    const subagentModels = this.session.options.config?.subagentModels;
+    const effectiveModel =
+      modelOverride ?? subagentModels?.[profile.name] ?? parent.config.modelAlias;
+
     child.config.update({
       cwd: parent.config.cwd,
-      modelAlias: parent.config.modelAlias,
+      ...(effectiveModel !== undefined ? { modelAlias: effectiveModel } : {}),
       thinkingLevel: parent.config.thinkingLevel,
     });
 

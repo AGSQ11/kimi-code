@@ -205,10 +205,14 @@ export const KimiConfigSchema = z.object({
   background: BackgroundConfigSchema.optional(),
   experimental: ExperimentalConfigSchema.optional(),
   telemetry: z.boolean().optional(),
+  subagentModels: z.record(z.string(), z.string()).optional(),
   raw: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type KimiConfig = z.infer<typeof KimiConfigSchema>;
+
+/** Maps subagent profile names (coder, explore, plan) to model aliases. */
+export type SubagentModels = Record<string, string>;
 
 const ProviderConfigPatchSchema = ProviderConfigSchema.partial();
 const ModelAliasPatchSchema = ModelAliasSchema.partial();
@@ -244,6 +248,7 @@ export const KimiConfigPatchSchema = z
     background: BackgroundConfigPatchSchema.optional(),
     experimental: ExperimentalConfigPatchSchema.optional(),
     telemetry: z.boolean().optional(),
+    subagentModels: z.record(z.string(), z.string()).optional(),
   })
   .strict();
 
