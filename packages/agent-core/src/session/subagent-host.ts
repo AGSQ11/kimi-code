@@ -363,10 +363,30 @@ export class SessionSubagentHost {
     profile: ResolvedAgentProfile,
     effectiveModel?: string,
   ): Promise<void> {
+    const targetModel = effectiveModel ?? parent.config.modelAlias;
+    let thinkingLevel = parent.config.thinkingLevel;
+
+    // If the subagent is using a different model, check whether that model
+    // actually supports thinking/reasoning. Inheriting a non-zero thinking
+    // level from the parent will cause API errors on models that do not
+    // expose a reasoning/thinking parameter (e.g. grok-build-0.1).
+    if (targetModel !== undefined && targetModel !== parent.config.modelAlias) {
+      try {
+        const resolved = this.session.options.providerManager?.resolveProviderConfig(targetModel);
+        if (resolved !== undefined && !resolved.modelCapabilities.thinking) {
+          thinkingLevel = 'off';
+        }
+      } catch {
+        // If the provider manager cannot resolve the model here, fall back
+        // to the parent's thinking level and let the first request fail
+        // loudly with the usual configuration error.
+      }
+    }
+
     child.config.update({
       cwd: parent.config.cwd,
       ...(effectiveModel !== undefined ? { modelAlias: effectiveModel } : {}),
-      thinkingLevel: parent.config.thinkingLevel,
+      thinkingLevel,
     });
 
     const context = await prepareSystemPromptContext(
