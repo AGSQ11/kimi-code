@@ -211,6 +211,8 @@ export interface SubagentSpawnedEvent {
   readonly description?: string | undefined;
   readonly swarmIndex?: number;
   readonly runInBackground: boolean;
+  /** Model alias actually used for this subagent (after [subagent_models] resolution). */
+  readonly modelAlias?: string | undefined;
 }
 
 export interface SubagentStartedEvent {

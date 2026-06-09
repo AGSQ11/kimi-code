@@ -120,10 +120,11 @@ export class SessionSubagentHost {
       { type: 'sub', generate: parent.rawGenerate },
       { parentAgentId: this.ownerAgentId, swarmItem: options.swarmItem },
     );
+    const effectiveModel = this.resolveSubagentModel(parent, profile.name, options.model);
     const completion = this.runWithActiveChild(id, options, async (runOptions) => {
-      this.emitSubagentSpawned(parent, id, profile.name, runOptions);
+      this.emitSubagentSpawned(parent, id, profile.name, runOptions, effectiveModel);
       try {
-        await this.configureChild(parent, agent, profile, options.model);
+        await this.configureChild(parent, agent, profile, effectiveModel);
         return await this.runPromptTurn(parent, id, agent, profile.name, runOptions);
       } catch (error) {
         this.emitSubagentFailed(parent, id, runOptions, error);
@@ -141,14 +142,10 @@ export class SessionSubagentHost {
   async resume(agentId: string, options: RunSubagentOptions): Promise<SubagentHandle> {
     options.signal.throwIfAborted();
     const { parent, child, profileName } = await this.ensureIdleSubagent(agentId);
+    const effectiveModel = this.resolveSubagentModel(parent, profileName);
     const completion = this.runWithActiveChild(agentId, options, async (runOptions) => {
-      this.emitSubagentSpawned(parent, agentId, profileName, runOptions);
+      this.emitSubagentSpawned(parent, agentId, profileName, runOptions, effectiveModel);
       try {
-        // Re-resolve the model using the same 3-tier priority as configureChild:
-        // [subagent_models] config → parent model. The per-invocation override
-        // does not survive across resume boundaries (no model param on resume).
-        const subagentModels = this.session.options.config?.subagentModels;
-        const effectiveModel = subagentModels?.[profileName] ?? parent.config.modelAlias;
         child.config.update({
           ...(effectiveModel !== undefined ? { modelAlias: effectiveModel } : {}),
         });
@@ -364,16 +361,8 @@ export class SessionSubagentHost {
     parent: Agent,
     child: Agent,
     profile: ResolvedAgentProfile,
-    modelOverride?: string,
+    effectiveModel?: string,
   ): Promise<void> {
-    // Resolve the effective model for this subagent:
-    //   1. Per-invocation override (LLM passes model= in the Agent tool call)
-    //   2. Role-based config ([subagent_models] in config.toml)
-    //   3. Inherit from parent (default behaviour)
-    const subagentModels = this.session.options.config?.subagentModels;
-    const effectiveModel =
-      modelOverride ?? subagentModels?.[profile.name] ?? parent.config.modelAlias;
-
     child.config.update({
       cwd: parent.config.cwd,
       ...(effectiveModel !== undefined ? { modelAlias: effectiveModel } : {}),
@@ -427,11 +416,21 @@ export class SessionSubagentHost {
       .catch(() => {});
   }
 
+  private resolveSubagentModel(
+    parent: Agent,
+    profileName: string,
+    modelOverride?: string,
+  ): string | undefined {
+    const subagentModels = this.session.options.config?.subagentModels;
+    return modelOverride ?? subagentModels?.[profileName] ?? parent.config.modelAlias;
+  }
+
   private emitSubagentSpawned(
     parent: Agent,
     childId: string,
     profileName: string,
     options: RunSubagentOptions,
+    modelAlias?: string,
   ): void {
     parent.emitEvent({
       type: 'subagent.spawned',
@@ -443,6 +442,7 @@ export class SessionSubagentHost {
       description: options.description,
       swarmIndex: options.swarmIndex,
       runInBackground: options.runInBackground,
+      modelAlias,
     });
     parent.telemetry.track('subagent_created', {
       subagent_name: profileName,

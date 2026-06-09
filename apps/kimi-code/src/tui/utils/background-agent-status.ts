@@ -28,7 +28,8 @@ export function formatBackgroundAgentTranscript(
         ? `${subject} completed in background`
         : `${subject} failed in background`;
   const tail = phase === 'failed' ? normalizeBackgroundField(extras?.error) : undefined;
-  const detailParts = [normalizeBackgroundField(meta.description), tail].filter(
+  const modelPart = meta.modelAlias !== undefined ? `model: ${meta.modelAlias}` : undefined;
+  const detailParts = [normalizeBackgroundField(meta.description), modelPart, tail].filter(
     (part): part is string => part !== undefined,
   );
 

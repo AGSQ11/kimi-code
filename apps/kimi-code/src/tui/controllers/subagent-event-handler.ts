@@ -361,6 +361,7 @@ export class SubAgentEventHandler {
       parentToolCallId: event.parentToolCallId,
       agentName: event.subagentName,
       description: typeof description === 'string' ? description : undefined,
+      modelAlias: event.modelAlias,
     };
   }
 

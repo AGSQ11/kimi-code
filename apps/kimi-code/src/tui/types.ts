@@ -85,6 +85,7 @@ export interface BackgroundAgentMetadata {
   readonly parentToolCallId: string;
   readonly agentName?: string;
   readonly description?: string;
+  readonly modelAlias?: string;
 }
 
 export type BackgroundAgentStatusPhase = 'started' | 'completed' | 'failed';
