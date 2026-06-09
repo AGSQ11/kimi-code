@@ -84,6 +84,7 @@ timeout = 5
 | `telemetry` | `boolean` | `true` | 是否启用匿名遥测；显式设为 `false` 时关闭 |
 | `providers` | `table` | `{}` | API 供应商表 → [`providers`](#providers) |
 | `models` | `table` | — | 模型别名表 → [`models`](#models) |
+| `subagent_models` | `table` | — | 子 Agent 角色到模型的映射 → [`subagent_models`](#subagent_models) |
 | `thinking` | `table` | — | Thinking 模式默认参数 → [`thinking`](#thinking) |
 | `loop_control` | `table` | — | Agent 循环控制参数 → [`loop_control`](#loop_control) |
 | `background` | `table` | — | 后台任务运行参数 → [`background`](#background) |
@@ -142,6 +143,26 @@ max_context_size = 1047576
 ```
 
 无需修改配置文件也可以临时切换模型——通过 `KIMI_MODEL_*` 环境变量在内存里合成一个临时供应商，详见[用环境变量定义模型](./env-vars.md#用环境变量定义模型-kimi-model)。
+
+## `subagent_models`
+
+`subagent_models` 将子 Agent profile 名称映射到模型别名，让不同角色可以使用不同的 LLM。子 Agent 启动时，模型按以下优先级解析：
+
+1. `Agent` 工具的 `model` 参数（父 Agent 显式指定模型时）
+2. `[subagent_models]` 中的角色映射（该 profile 有配置项时）
+3. 父 Agent 的模型（默认继承）
+
+当子 Agent 使用的模型不支持 Thinking 时，Thinking 级别会自动关闭，以避免 API 报错。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `<profile_name>` | `string` | 否 | 该 profile 使用的模型别名；有效名称包括 `coder`、`explore`、`plan` |
+
+```toml
+[subagent_models]
+coder = "gpt-5.2"
+explore = "glm-4.7"
+```
 
 ## `thinking`
 

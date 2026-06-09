@@ -84,6 +84,7 @@ Fields in the config file fall into two categories: **top-level scalars** that d
 | `telemetry` | `boolean` | `true` | Whether anonymous telemetry is enabled; disabled only when explicitly set to `false` |
 | `providers` | `table` | `{}` | API provider table → [`providers`](#providers) |
 | `models` | `table` | — | Model alias table → [`models`](#models) |
+| `subagent_models` | `table` | — | Subagent role-to-model mapping → [`subagent_models`](#subagent_models) |
 | `thinking` | `table` | — | Default parameters for Thinking mode → [`thinking`](#thinking) |
 | `loop_control` | `table` | — | Agent loop control parameters → [`loop_control`](#loop_control) |
 | `background` | `table` | — | Background task runtime parameters → [`background`](#background) |
@@ -142,6 +143,26 @@ max_context_size = 1047576
 ```
 
 You can also switch models temporarily without touching the config file — by setting `KIMI_MODEL_*` environment variables, the CLI synthesizes a temporary provider in memory that does not persist after restart. See [Define a model from environment variables](./env-vars.md#define-a-model-from-environment-variables-kimi_model).
+
+## `subagent_models`
+
+`subagent_models` maps subagent profile names to model aliases, so different roles can use different LLMs. When a subagent is spawned, the model is resolved in this priority order:
+
+1. Per-invocation `model` parameter on the `Agent` tool (if the parent agent explicitly requests a model)
+2. Role-based mapping in `[subagent_models]` (if the profile name has an entry)
+3. Parent agent's model (default inheritance)
+
+When a subagent uses a model that does not support Thinking, the thinking level is automatically disabled to avoid API errors.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `<profile_name>` | `string` | No | Model alias to use for the given profile; valid names are `coder`, `explore`, and `plan` |
+
+```toml
+[subagent_models]
+coder = "gpt-5.2"
+explore = "glm-4.7"
+```
 
 ## `thinking`
 
