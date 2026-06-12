@@ -36,6 +36,7 @@ export type { ExtraBody, GenerationKwargs, KimiOptions, ThinkingConfig } from '.
 // Model capability matrix
 export { UNKNOWN_CAPABILITY, isUnknownCapability } from './capability';
 export type { ModelCapability } from './capability';
+export { getAnthropicModelCapability } from './providers/capability-registry';
 
 // Model catalog (models.dev-style) metadata
 export {

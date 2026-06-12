@@ -1,6 +1,6 @@
 import type { Logger } from '#/logging/types';
 import type { ProviderConfig as KosongProviderConfig, ModelCapability, ProviderRequestAuth } from '@moonshot-ai/kosong';
-import { APIStatusError, createProvider, UNKNOWN_CAPABILITY } from '@moonshot-ai/kosong';
+import { APIStatusError, createProvider, getAnthropicModelCapability, UNKNOWN_CAPABILITY } from '@moonshot-ai/kosong';
 import type { KimiConfig, ModelAlias, OAuthRef, ProviderConfig } from '../config';
 import { ErrorCodes, isKimiError, KimiError } from '../errors';
 
@@ -17,6 +17,8 @@ export interface ResolvedRuntimeProvider {
   readonly providerName: string;
   readonly provider: KosongProviderConfig;
   readonly modelCapabilities: ModelCapability;
+  /** Declared 'always_thinking' capability — the model cannot disable thinking. */
+  readonly alwaysThinking?: boolean;
   readonly maxOutputSize?: number;
 }
 
@@ -102,6 +104,15 @@ export class ProviderManager implements ModelProvider {
       );
     }
 
+    const declaredThinking = (alias.capabilities ?? []).some(
+      (c) => c.trim().toLowerCase() === 'thinking',
+    );
+    const thinkingSupported =
+      declaredThinking ||
+      (providerConfig.type === 'anthropic'
+        ? getAnthropicModelCapability(alias.model).thinking
+        : undefined);
+
     const provider = toKosongProviderConfig(
       providerConfig,
       alias.model,
@@ -110,12 +121,16 @@ export class ProviderManager implements ModelProvider {
       alias.reasoningKey,
       this.options.promptCacheKey,
       alias.adaptiveThinking,
+      thinkingSupported,
     );
 
     return {
       providerName,
       provider,
       modelCapabilities: resolveModelCapabilities(alias, provider),
+      alwaysThinking: (alias.capabilities ?? []).some(
+        (c) => c.trim().toLowerCase() === 'always_thinking',
+      ),
       maxOutputSize: alias.maxOutputSize,
     };
   }
@@ -217,6 +232,7 @@ function toKosongProviderConfig(
   reasoningKey: string | undefined,
   promptCacheKey: string | undefined,
   adaptiveThinking: boolean | undefined,
+  thinkingSupported: boolean | undefined,
 ): KosongProviderConfig {
   switch (provider.type) {
     case 'anthropic':
@@ -227,6 +243,7 @@ function toKosongProviderConfig(
         apiKey: providerApiKey(provider),
         ...(maxOutputSize !== undefined ? { defaultMaxTokens: maxOutputSize } : {}),
         ...(adaptiveThinking !== undefined ? { adaptiveThinking } : {}),
+        ...(thinkingSupported !== undefined ? { thinkingSupported } : {}),
         ...defaultHeadersField(provider.customHeaders),
       };
     case 'openai':

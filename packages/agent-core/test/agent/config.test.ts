@@ -82,6 +82,25 @@ describe('Agent config', () => {
     await ctx.expectResumeMatches();
   });
 
+  it('useProfile uses a system prompt override when one is provided', async () => {
+    const ctx = testAgent();
+    ctx.configure();
+    const profile: ResolvedAgentProfile = {
+      name: 'test-profile',
+      systemPrompt: () => 'Profile system prompt.',
+      tools: ['Bash'],
+    };
+
+    ctx.agent.useProfile(profile, { systemPromptOverride: 'Override system prompt.' });
+
+    expect(ctx.newEvents()).toMatchInlineSnapshot(`
+      [wire] config.update            { "profileName": "test-profile", "systemPrompt": "Override system prompt.", "time": "<time>" }
+      [emit] agent.status.updated     { "model": "mock-model", "contextTokens": 0, "maxContextTokens": 1000000, "contextUsage": 0, "planMode": false, "swarmMode": false, "permission": "manual" }
+      [wire] tools.set_active_tools   { "names": [ "Bash" ], "time": "<time>" }
+    `);
+    await ctx.expectResumeMatches();
+  });
+
   it('config.update with cwd initializes builtin tools', async () => {
     const ctx = testAgent();
     ctx.configure();
@@ -144,6 +163,7 @@ describe('Agent config', () => {
       [wire] tools.set_active_tools              { "names": [], "time": "<time>" }
       [wire] context.append_loop_event           { "event": { "type": "tool.call", "uuid": "call_bash", "turnId": "0", "step": 1, "stepUuid": "<uuid-1>", "toolCallId": "call_bash", "name": "Bash", "args": { "command": "printf original-result", "timeout": 60 }, "description": "Running: printf original-result", "display": { "kind": "command", "command": "printf original-result", "cwd": "<cwd>", "language": "bash" } }, "time": "<time>" }
       [emit] tool.call.started                   { "turnId": 0, "toolCallId": "call_bash", "name": "Bash", "args": { "command": "printf original-result", "timeout": 60 }, "description": "Running: printf original-result", "display": { "kind": "command", "command": "printf original-result", "cwd": "<cwd>", "language": "bash" } }
+      [emit] tool.progress                       { "turnId": 0, "toolCallId": "call_bash", "update": { "kind": "stdout", "text": "original-result" } }
       [wire] context.append_loop_event           { "event": { "type": "tool.result", "parentUuid": "call_bash", "toolCallId": "call_bash", "result": { "output": "original-result" } }, "time": "<time>" }
       [emit] tool.result                         { "turnId": 0, "toolCallId": "call_bash", "output": "original-result" }
       [wire] context.append_loop_event           { "event": { "type": "step.end", "uuid": "<uuid-1>", "turnId": "0", "step": 1, "usage": { "inputOther": 9, "output": 23, "inputCacheRead": 0, "inputCacheCreation": 0 }, "finishReason": "tool_use" }, "time": "<time>" }

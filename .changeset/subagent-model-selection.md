@@ -2,6 +2,7 @@
 "@moonshot-ai/agent-core": minor
 "@moonshot-ai/kimi-code": minor
 "@moonshot-ai/kosong": patch
+"@moonshot-ai/protocol": patch
 ---
 
 Add per-role and per-invocation model selection for subagents.
