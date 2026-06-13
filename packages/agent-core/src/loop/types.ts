@@ -115,7 +115,7 @@ export interface ExecutableToolContext {
 export interface RunnableToolExecution {
   readonly isError?: false | undefined;
   readonly accesses?: ToolAccesses | undefined;
-  readonly display?: ToolInputDisplay | undefined;
+  display?: ToolInputDisplay | undefined;
   readonly description?: string;
   /**
    * Stops scheduling later tool calls in the same provider batch. Use this only

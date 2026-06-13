@@ -2,20 +2,24 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ApprovalController } from '#/tui/reverse-rpc/approval/controller';
 import { registerReverseRPCHandlers } from '#/tui/reverse-rpc/index';
+import { MemoryApprovalController } from '#/tui/reverse-rpc/memory/controller';
 import { QuestionController } from '#/tui/reverse-rpc/question/controller';
 
 describe('registerReverseRPCHandlers', () => {
   it('wires controller UI hooks without registering wire request handlers', async () => {
     const approvalController = new ApprovalController();
     const questionController = new QuestionController();
+    const memoryApprovalController = new MemoryApprovalController();
     const uiHooks = {
       showApprovalPanel: vi.fn(),
       hideApprovalPanel: vi.fn(),
       showQuestionDialog: vi.fn(),
       hideQuestionDialog: vi.fn(),
+      showMemoryApprovalDialog: vi.fn(),
+      hideMemoryApprovalDialog: vi.fn(),
     };
 
-    registerReverseRPCHandlers(approvalController, questionController, uiHooks);
+    registerReverseRPCHandlers(approvalController, questionController, memoryApprovalController, uiHooks);
 
     const approvalPending = approvalController.show({
       id: 'req-1',
@@ -50,14 +54,17 @@ describe('registerReverseRPCHandlers', () => {
   it('queues question dialogs behind active approval panels', async () => {
     const approvalController = new ApprovalController();
     const questionController = new QuestionController();
+    const memoryApprovalController = new MemoryApprovalController();
     const uiHooks = {
       showApprovalPanel: vi.fn(),
       hideApprovalPanel: vi.fn(),
       showQuestionDialog: vi.fn(),
       hideQuestionDialog: vi.fn(),
+      showMemoryApprovalDialog: vi.fn(),
+      hideMemoryApprovalDialog: vi.fn(),
     };
 
-    registerReverseRPCHandlers(approvalController, questionController, uiHooks);
+    registerReverseRPCHandlers(approvalController, questionController, memoryApprovalController, uiHooks);
 
     const approvalPending = approvalController.show({
       id: 'approval-1',
@@ -94,14 +101,17 @@ describe('registerReverseRPCHandlers', () => {
   it('queues approval panels behind active question dialogs', async () => {
     const approvalController = new ApprovalController();
     const questionController = new QuestionController();
+    const memoryApprovalController = new MemoryApprovalController();
     const uiHooks = {
       showApprovalPanel: vi.fn(),
       hideApprovalPanel: vi.fn(),
       showQuestionDialog: vi.fn(),
       hideQuestionDialog: vi.fn(),
+      showMemoryApprovalDialog: vi.fn(),
+      hideMemoryApprovalDialog: vi.fn(),
     };
 
-    registerReverseRPCHandlers(approvalController, questionController, uiHooks);
+    registerReverseRPCHandlers(approvalController, questionController, memoryApprovalController, uiHooks);
 
     const questionPending = questionController.show({
       id: 'question-1',
@@ -138,14 +148,17 @@ describe('registerReverseRPCHandlers', () => {
   it('removes queued modals when their controller is cancelled', async () => {
     const approvalController = new ApprovalController();
     const questionController = new QuestionController();
+    const memoryApprovalController = new MemoryApprovalController();
     const uiHooks = {
       showApprovalPanel: vi.fn(),
       hideApprovalPanel: vi.fn(),
       showQuestionDialog: vi.fn(),
       hideQuestionDialog: vi.fn(),
+      showMemoryApprovalDialog: vi.fn(),
+      hideMemoryApprovalDialog: vi.fn(),
     };
 
-    registerReverseRPCHandlers(approvalController, questionController, uiHooks);
+    registerReverseRPCHandlers(approvalController, questionController, memoryApprovalController, uiHooks);
 
     const approvalPending = approvalController.show({
       id: 'approval-1',
@@ -174,14 +187,17 @@ describe('registerReverseRPCHandlers', () => {
   it('clears active and queued modals without showing queued entries', async () => {
     const approvalController = new ApprovalController();
     const questionController = new QuestionController();
+    const memoryApprovalController = new MemoryApprovalController();
     const uiHooks = {
       showApprovalPanel: vi.fn(),
       hideApprovalPanel: vi.fn(),
       showQuestionDialog: vi.fn(),
       hideQuestionDialog: vi.fn(),
+      showMemoryApprovalDialog: vi.fn(),
+      hideMemoryApprovalDialog: vi.fn(),
     };
 
-    const disposers = registerReverseRPCHandlers(approvalController, questionController, uiHooks);
+    const disposers = registerReverseRPCHandlers(approvalController, questionController, memoryApprovalController, uiHooks);
 
     const approvalPending = approvalController.show({
       id: 'approval-1',

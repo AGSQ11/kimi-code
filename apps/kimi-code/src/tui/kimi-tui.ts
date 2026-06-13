@@ -1165,7 +1165,7 @@ export class KimiTUI {
     this.clearReverseRpcPanels();
     previous?.setApprovalHandler(undefined);
     previous?.setQuestionHandler(undefined);
-    previous?.setMemoryApprovalHandler(undefined);
+    previous?.setMemoryApprovalHandler?.(undefined);
     this.approvalController.cancelAll(reason);
     this.questionController.cancelAll(reason);
     this.memoryApprovalController.cancelAll(reason);
@@ -1189,7 +1189,7 @@ export class KimiTUI {
       }),
     );
     session.setQuestionHandler(createQuestionAskHandler(this.questionController));
-    session.setMemoryApprovalHandler(createMemoryApprovalHandler(this.memoryApprovalController));
+    session.setMemoryApprovalHandler?.(createMemoryApprovalHandler(this.memoryApprovalController));
   }
 
   async fetchSessions(): Promise<void> {

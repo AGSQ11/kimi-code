@@ -3,6 +3,7 @@ import type { PermissionPolicy } from '../types';
 import { AgentSwarmExclusiveDenyPermissionPolicy } from './agent-swarm-exclusive-deny';
 import { AutoModeApprovePermissionPolicy } from './auto-mode-approve';
 import { AutoModeAskUserQuestionDenyPermissionPolicy } from './auto-mode-ask-user-question-deny';
+import { BatchEditCritiquePermissionPolicy } from './batch-edit-critique';
 import { DefaultToolApprovePermissionPolicy } from './default-tool-approve';
 import { ExitPlanModeReviewAskPermissionPolicy } from './exit-plan-mode-review-ask';
 import { FallbackAskPermissionPolicy } from './fallback-ask';
@@ -11,6 +12,7 @@ import {
   SensitiveFileAccessAskPermissionPolicy,
 } from './file-access-ask';
 import { GitCwdWriteApprovePermissionPolicy } from './git-cwd-write-approve';
+import { GoalCompletionCritiquePermissionPolicy } from './goal-completion-critique';
 import { PlanModeGuardDenyPermissionPolicy } from './plan-mode-guard-deny';
 import { PlanModeToolApprovePermissionPolicy } from './plan-mode-tool-approve';
 import { PreToolCallHookPermissionPolicy } from './pre-tool-call-hook';
@@ -56,10 +58,16 @@ export function createPermissionDecisionPolicies(agent: Agent): PermissionPolicy
     new YoloModeApprovePermissionPolicy(agent),
     // Swarm mode keeps AgentSwarm available without making it a globally default-approved tool.
     new SwarmModeAgentSwarmApprovePermissionPolicy(agent),
+    // UpdateGoal('complete') when auto-critique checkpoints are enabled → ask for review.
+    // Runs before the default-approve rule so goal completion is surfaced in manual mode.
+    new GoalCompletionCritiquePermissionPolicy(agent),
     // Tool is in the default-approve list (read-only / UI helpers) → approve.
     new DefaultToolApprovePermissionPolicy(),
     // Write/Edit on POSIX paths inside cwd inside a git work tree → approve.
     new GitCwdWriteApprovePermissionPolicy(agent),
+    // File edits that are about to ask for approval get an auto-critique attached to the display.
+    // This policy only enriches the display; the final ask decision is still made by FallbackAsk.
+    new BatchEditCritiquePermissionPolicy(agent),
     // Nothing matched → ask.
     new FallbackAskPermissionPolicy(),
   ];

@@ -16,6 +16,7 @@ export const ToolInputDisplaySchema = z.discriminatedUnion('kind', [
     content: z.string().optional(),
     before: z.string().optional(),
     after: z.string().optional(),
+    critique: z.string().optional(),
   }),
   z.object({
     kind: z.literal('diff'),
@@ -74,6 +75,7 @@ export const ToolInputDisplaySchema = z.discriminatedUnion('kind', [
       )
       .readonly()
       .optional(),
+    critique: z.string().optional(),
   }),
   z.object({
     kind: z.literal('generic'),

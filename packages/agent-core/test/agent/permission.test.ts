@@ -714,8 +714,10 @@ describe('Permission policy chain', () => {
       'git-control-path-access-ask',
       'yolo-mode-approve',
       'swarm-mode-agent-swarm-approve',
+      'goal-completion-critique',
       'default-tool-approve',
       'git-cwd-write-approve',
+      'batch-edit-critique',
       'fallback-ask',
     ]);
   });
