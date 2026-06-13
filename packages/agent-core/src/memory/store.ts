@@ -267,6 +267,11 @@ function openDatabase(path: string): DatabaseSync {
       access_count INTEGER NOT NULL DEFAULT 0
     );
   `);
+
+  // Migrate existing tables that predate the pinned column before creating
+  // indexes that reference it.
+  migrateAddPinnedColumn(db);
+
   db.exec('CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);');
   db.exec('CREATE INDEX IF NOT EXISTS idx_memories_project ON memories(project);');
   db.exec('CREATE INDEX IF NOT EXISTS idx_memories_pinned ON memories(pinned);');
@@ -310,9 +315,6 @@ function openDatabase(path: string): DatabaseSync {
 
   // Migrate any memories that existed before FTS5 was added.
   migrateToFts5(db);
-
-  // Migrate existing tables that predate the pinned column.
-  migrateAddPinnedColumn(db);
 
   return db;
 }
