@@ -125,4 +125,31 @@ describe('MemoryInjector', () => {
     expect(text).toContain('vitest');
     expect(text).not.toContain('pnpm');
   });
+
+  it('always injects pinned memories even when not relevant to the query', async () => {
+    await store.remember({ content: 'Use pnpm for package management', category: 'user-preference' });
+    const pinned = await store.remember({ content: 'Run tests with vitest', category: 'user-preference' });
+    await store.pin(pinned.id, true);
+
+    const history: ContextMessage[] = [
+      {
+        role: 'user',
+        content: [{ type: 'text', text: 'How do I install dependencies?' }],
+        toolCalls: [],
+        origin: { kind: 'user' },
+      },
+    ];
+    const agent = memoryAgent({ history, memoryActive: true, memoryStore: store });
+    const injector = new MemoryInjector(agent);
+
+    await injector.inject();
+
+    expect(history).toHaveLength(2);
+    const text = history[1]?.content.map((part) => (part.type === 'text' ? part.text : '')).join('');
+    expect(text).toContain('vitest');
+    expect(text).toContain('(pinned)');
+    // The unrelated pnpm memory is not relevant to the install query, so only
+    // the pinned memory is injected.
+    expect(text).not.toContain('pnpm');
+  });
 });

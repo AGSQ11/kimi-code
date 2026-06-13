@@ -64,6 +64,7 @@ import type {
   GetPluginInfoPayload,
   InstallPluginPayload,
   ListSessionsPayload,
+  MemoryData,
   McpServerInfo,
   McpStartupMetrics,
   PluginInfo,
@@ -655,6 +656,18 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
 
   getBackground({ sessionId, ...payload }: SessionAgentPayload<GetBackgroundPayload>) {
     return this.sessionApi(sessionId).getBackground(payload);
+  }
+
+  listMemories({ sessionId, agentId }: SessionAgentPayload<EmptyPayload>): Promise<readonly MemoryData[]> {
+    return this.sessionApi(sessionId).listMemories({ agentId });
+  }
+
+  pinMemory({ sessionId, ...payload }: SessionAgentPayload<{ id: string; pinned: boolean }>): Promise<MemoryData | undefined> {
+    return this.sessionApi(sessionId).pinMemory(payload);
+  }
+
+  deleteMemory({ sessionId, ...payload }: SessionAgentPayload<{ id: string }>): Promise<boolean> {
+    return this.sessionApi(sessionId).deleteMemory(payload);
   }
 
   updateSessionMetadata({ sessionId, ...payload }: UpdateSessionMetadataRequest): Promise<void> {

@@ -3,6 +3,7 @@ import {
   KimiError,
   type AgentContextData,
   type KimiErrorCode,
+  type MemoryData,
   type SwarmModeTrigger,
 } from '@moonshot-ai/agent-core';
 
@@ -305,6 +306,21 @@ export class Session {
    * `<sessionDir>/tasks/<taskId>/output.log`. `tail` caps the returned
    * string to that many trailing characters.
    */
+  async listMemories(): Promise<readonly MemoryData[]> {
+    this.ensureOpen();
+    return this.rpc.listMemories({ sessionId: this.id });
+  }
+
+  async pinMemory(id: string, pinned: boolean): Promise<MemoryData | undefined> {
+    this.ensureOpen();
+    return this.rpc.pinMemory({ sessionId: this.id, id, pinned });
+  }
+
+  async deleteMemory(id: string): Promise<boolean> {
+    this.ensureOpen();
+    return this.rpc.deleteMemory({ sessionId: this.id, id });
+  }
+
   async getBackgroundTaskOutput(
     taskId: string,
     options: { tail?: number } = {},

@@ -453,6 +453,12 @@ export class Agent {
       getUsage: () => this.usage.data(),
       getTools: () => this.tools.data(),
       getBackground: (payload) => this.background.list(payload.activeOnly ?? false, payload.limit),
+      listMemories: () => this.memoryStore.list(),
+      pinMemory: (payload) => this.memoryStore.pin(payload.id, payload.pinned),
+      deleteMemory: async (payload) => {
+        const count = await this.memoryStore.forget({ id: payload.id });
+        return count > 0;
+      },
     };
   }
 

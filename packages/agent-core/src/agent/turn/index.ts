@@ -343,7 +343,11 @@ export class TurnFlow {
     const assistantText = this.lastAssistantMessageText();
     if (userText.length === 0 && assistantText.length === 0) return;
 
-    const proposed = extractMemories({ userText, assistantText });
+    const proposed = await extractMemories(this.agent.llm, {
+      userText,
+      assistantText,
+      signal,
+    });
     if (proposed.length === 0) return;
 
     const mode = this.agent.permission.mode;

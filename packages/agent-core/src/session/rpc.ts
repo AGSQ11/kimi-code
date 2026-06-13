@@ -279,6 +279,18 @@ export class SessionAPIImpl implements PromisableMethods<SessionAPI> {
     return (await this.getAgent(agentId)).getBackground(payload);
   }
 
+  async listMemories({ agentId }: AgentScopedPayload<EmptyPayload>) {
+    return (await this.getAgent(agentId)).listMemories({});
+  }
+
+  async pinMemory({ agentId, ...payload }: AgentScopedPayload<{ id: string; pinned: boolean }>) {
+    return (await this.getAgent(agentId)).pinMemory(payload);
+  }
+
+  async deleteMemory({ agentId, ...payload }: AgentScopedPayload<{ id: string }>) {
+    return (await this.getAgent(agentId)).deleteMemory(payload);
+  }
+
   private async getAgent(agentId: string): Promise<PromisableMethods<AgentAPI>> {
     const agent = await this.session.ensureAgentResumed(agentId);
     return agent.rpcMethods;

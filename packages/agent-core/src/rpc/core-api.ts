@@ -314,6 +314,19 @@ export interface RemoveKimiProviderPayload {
   readonly providerId: string;
 }
 
+export interface MemoryData {
+  readonly id: string;
+  readonly content: string;
+  readonly category: string | null;
+  readonly project: string | null;
+  readonly tags: readonly string[] | null;
+  readonly source: string | null;
+  readonly pinned: boolean;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+  readonly accessCount: number;
+}
+
 export interface AgentAPI {
   prompt: (payload: PromptPayload) => void;
   steer: (payload: SteerPayload) => void;
@@ -358,6 +371,9 @@ export interface AgentAPI {
   getUsage: (payload: EmptyPayload) => UsageStatus;
   getTools: (payload: EmptyPayload) => readonly ToolInfo[];
   getBackground: (payload: GetBackgroundPayload) => readonly BackgroundTaskInfo[];
+  listMemories: (payload: EmptyPayload) => readonly MemoryData[];
+  pinMemory: (payload: { id: string; pinned: boolean }) => MemoryData | undefined;
+  deleteMemory: (payload: { id: string }) => boolean;
 }
 
 type AgentAPIWithId = WithAgentId<AgentAPI>;

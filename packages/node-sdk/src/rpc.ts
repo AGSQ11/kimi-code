@@ -11,6 +11,7 @@ import {
   type ExperimentalFeatureState,
   type MemoryApprovalRequest,
   type MemoryApprovalResponse,
+  type MemoryData,
   type QuestionRequest,
   type QuestionResult,
   type RPCMethods,
@@ -544,6 +545,24 @@ export abstract class SDKRpcClientBase {
       activeOnly: input.activeOnly,
       limit: input.limit,
     });
+  }
+
+  async listMemories(input: SessionIdRpcInput): Promise<readonly MemoryData[]> {
+    const agentId = this.interactiveAgentId;
+    const rpc = await this.getRpc();
+    return rpc.listMemories({ sessionId: input.sessionId, agentId });
+  }
+
+  async pinMemory(input: SessionIdRpcInput & { id: string; pinned: boolean }): Promise<MemoryData | undefined> {
+    const agentId = this.interactiveAgentId;
+    const rpc = await this.getRpc();
+    return rpc.pinMemory({ sessionId: input.sessionId, agentId, id: input.id, pinned: input.pinned });
+  }
+
+  async deleteMemory(input: SessionIdRpcInput & { id: string }): Promise<boolean> {
+    const agentId = this.interactiveAgentId;
+    const rpc = await this.getRpc();
+    return rpc.deleteMemory({ sessionId: input.sessionId, agentId, id: input.id });
   }
 
   async getBackgroundTaskOutput(

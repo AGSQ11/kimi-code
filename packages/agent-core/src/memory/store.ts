@@ -21,6 +21,7 @@ interface RawMemoryRow {
   project: string | null;
   tags: string | null;
   source: string | null;
+  pinned: number;
   created_at: number;
   updated_at: number;
   access_count: number;
@@ -55,10 +56,10 @@ export class MemoryStore {
 
     return withDb(dbPath, (db) => {
       const insert = db.prepare(
-        'INSERT INTO memories (id, content, category, project, tags, source, created_at, updated_at, access_count) ' +
-          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO memories (id, content, category, project, tags, source, pinned, created_at, updated_at, access_count) ' +
+          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       );
-      insert.run(id, options.content, category, project, tags, source, now, now, 0);
+      insert.run(id, options.content, category, project, tags, source, 0, now, now, 0);
 
       return {
         id,
@@ -67,6 +68,7 @@ export class MemoryStore {
         project,
         tags: options.tags ?? null,
         source,
+        pinned: false,
         createdAt: now,
         updatedAt: now,
         accessCount: 0,
@@ -90,6 +92,24 @@ export class MemoryStore {
 
     const merged = mergeResults(projectMemories, globalMemories, options.project);
     return merged.slice(0, limit);
+  }
+
+  async list(): Promise<Memory[]> {
+    const projectDbPath = await this.projectDbPath();
+    const projectMemories =
+      projectDbPath !== undefined
+        ? await withDb(projectDbPath, (db) => listDatabase(db))
+        : [];
+    const globalMemories = await withDb(this.globalDbPath, (db) => listDatabase(db));
+
+    const seen = new Set<string>();
+    const result: Memory[] = [];
+    for (const memory of [...projectMemories, ...globalMemories]) {
+      if (seen.has(memory.id)) continue;
+      seen.add(memory.id);
+      result.push(memory);
+    }
+    return result;
   }
 
   async update(options: UpdateOptions): Promise<Memory | undefined> {
@@ -132,6 +152,24 @@ export class MemoryStore {
         content,
         category,
         tags: options.tags ?? existing.tags,
+        updatedAt: now,
+      };
+    });
+  }
+
+  async pin(id: string, pinned: boolean): Promise<Memory | undefined> {
+    const dbPath = await this.pathForId(id);
+    return withDb(dbPath, (db) => {
+      const existing = getById(db, id);
+      if (existing === undefined) return undefined;
+
+      const update = db.prepare('UPDATE memories SET pinned = ?, updated_at = ? WHERE id = ?');
+      const now = Date.now();
+      update.run(pinned ? 1 : 0, now, id);
+
+      return {
+        ...existing,
+        pinned,
         updatedAt: now,
       };
     });
@@ -223,6 +261,7 @@ function openDatabase(path: string): DatabaseSync {
       project TEXT,
       tags TEXT,
       source TEXT,
+      pinned INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       access_count INTEGER NOT NULL DEFAULT 0
@@ -230,6 +269,7 @@ function openDatabase(path: string): DatabaseSync {
   `);
   db.exec('CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);');
   db.exec('CREATE INDEX IF NOT EXISTS idx_memories_project ON memories(project);');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_memories_pinned ON memories(pinned);');
 
   // Full-text search using FTS5 for better relevance ranking than token overlap.
   db.exec(`
@@ -271,6 +311,9 @@ function openDatabase(path: string): DatabaseSync {
   // Migrate any memories that existed before FTS5 was added.
   migrateToFts5(db);
 
+  // Migrate existing tables that predate the pinned column.
+  migrateAddPinnedColumn(db);
+
   return db;
 }
 
@@ -286,6 +329,15 @@ function migrateToFts5(db: DatabaseSync): void {
   const insert = db.prepare('INSERT INTO memories_fts (rowid, content, tags, category) VALUES (?, ?, ?, ?)');
   for (const row of rows) {
     insert.run(row.rowid, row.content, row.tags ?? '', row.category ?? '');
+  }
+}
+
+function migrateAddPinnedColumn(db: DatabaseSync): void {
+  try {
+    db.exec('ALTER TABLE memories ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_memories_pinned ON memories(pinned)');
+  } catch {
+    // Column already exists; ignore the error so idempotent migration stays cheap.
   }
 }
 
@@ -311,11 +363,16 @@ function generateMemoryId(options: RememberOptions): string {
   return `mem--${scope}--${hash}`;
 }
 
+function listDatabase(db: DatabaseSync): Memory[] {
+  const statement = db.prepare('SELECT * FROM memories ORDER BY pinned DESC, updated_at DESC');
+  return (statement.all() as unknown as RawMemoryRow[]).map(rowToMemory);
+}
+
 function searchDatabase(db: DatabaseSync, query: string, category?: string): Memory[] {
   const tokens = tokenize(query);
   if (tokens.length === 0) {
     const statement = db.prepare(
-      `SELECT * FROM memories WHERE 1=1 ${category !== undefined ? 'AND category = ?' : ''} ORDER BY updated_at DESC LIMIT 100`,
+      `SELECT * FROM memories WHERE 1=1 ${category !== undefined ? 'AND category = ?' : ''} ORDER BY pinned DESC, updated_at DESC LIMIT 100`,
     );
     const params = category !== undefined ? [category] : [];
     return (statement.all(...params) as unknown as RawMemoryRow[]).map(rowToMemory);
@@ -329,16 +386,30 @@ function searchDatabase(db: DatabaseSync, query: string, category?: string): Mem
       `FROM memories_fts ` +
       `JOIN memories AS m ON memories_fts.rowid = m.rowid ` +
       `WHERE memories_fts MATCH ? ${categoryClause} ` +
-      `ORDER BY rank ASC ` +
       `LIMIT 100`,
   );
   const params = category !== undefined ? [matchExpression, category] : [matchExpression];
   const rows = (statement.all(...params) as unknown as Array<RawMemoryRow & { rank: number }>).map((row) => ({
-    row,
     memory: rowToMemory(row),
+    rank: row.rank,
   }));
 
-  return rankMemories(rows.map(({ memory, row }) => ({ memory, rank: row.rank })));
+  // Pinned memories should always be available, even when they do not match
+  // the current query terms.
+  const matchedIds = new Set(rows.map(({ memory }) => memory.id));
+  const pinnedCategoryClause = category !== undefined ? 'AND category = ?' : '';
+  const pinnedParams = category !== undefined ? [category] : [];
+  const pinnedStatement = db.prepare(
+    `SELECT * FROM memories WHERE pinned = 1 ${pinnedCategoryClause}`,
+  );
+  const pinnedRows = pinnedStatement.all(...pinnedParams) as unknown as RawMemoryRow[];
+  for (const row of pinnedRows) {
+    const memory = rowToMemory(row);
+    if (matchedIds.has(memory.id)) continue;
+    rows.push({ memory, rank: 0 });
+  }
+
+  return rankMemories(rows);
 }
 
 function escapeFts5Token(token: string): string {
@@ -358,7 +429,8 @@ function rankMemories(results: { memory: Memory; rank: number }[]): Memory[] {
     const ageDays = (now - memory.updatedAt) / (1000 * 60 * 60 * 24);
     const recency = Math.max(0, 1 - ageDays / 365);
     const access = Math.min(memory.accessCount, 100) / 100;
-    const score = relevance + recency * 0.5 + access * 0.2;
+    const pinnedBoost = memory.pinned ? 10000 : 0;
+    const score = relevance + recency * 0.5 + access * 0.2 + pinnedBoost;
     return { memory, score };
   });
   scored.sort((a, b) => b.score - a.score);
@@ -402,6 +474,7 @@ function rowToMemory(row: RawMemoryRow): Memory {
     project: row.project,
     tags: row.tags === null ? null : row.tags.split(',').filter((tag) => tag.length > 0),
     source: row.source,
+    pinned: row.pinned === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     accessCount: row.access_count,

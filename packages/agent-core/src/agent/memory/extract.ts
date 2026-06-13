@@ -1,10 +1,14 @@
 /**
  * Proactive memory extraction from a completed assistant turn.
  *
- * The current implementation uses a fast, deterministic heuristic. In the
- * future this can be swapped for a lightweight LLM call using the prompt in
- * `./extract.md`.
+ * Uses the agent's current LLM with the prompt in `./extract.md` to propose
+ * up to 3 durable facts from the most recent user/assistant exchange.
  */
+
+import type { Message } from '@moonshot-ai/kosong';
+
+import type { LLM } from '../../loop';
+import EXTRACTION_PROMPT from './extract.md?raw';
 
 export interface ProposedMemory {
   readonly content: string;
@@ -17,6 +21,8 @@ export interface MemoryExtractionContext {
   readonly userText: string;
   /** Text of the assistant's response, excluding tool internals. */
   readonly assistantText: string;
+  /** Abort signal for the extraction LLM call. */
+  readonly signal?: AbortSignal | undefined;
 }
 
 interface ExtractionResult {
@@ -26,79 +32,51 @@ interface ExtractionResult {
 const MAX_PROPOSED_MEMORIES = 3;
 
 /**
- * Extract durable facts from the last turn. Returns 0-3 proposed memories.
+ * Extract durable facts from the last turn using the agent's current LLM.
+ * Returns 0-3 proposed memories. If the LLM call fails or returns no memories,
+ * returns an empty list silently.
  */
-export function extractMemories(context: MemoryExtractionContext): ProposedMemory[] {
-  const combined = `${context.userText}\n${context.assistantText}`;
-  const normalized = combined
-    .replace(/\r\n/g, '\n')
-    .replace(/```[\s\S]*?```/g, '')
-    .trim();
+export async function extractMemories(
+  llm: LLM,
+  context: MemoryExtractionContext,
+): Promise<ProposedMemory[]> {
+  if (context.signal?.aborted) return [];
 
-  if (normalized.length === 0) return [];
+  const userMessage = buildExtractionUserMessage(context.userText, context.assistantText);
+  if (userMessage.content.length === 0) return [];
 
-  const findings: ProposedMemory[] = [];
+  try {
+    const collected: string[] = [];
+    await llm.chat({
+      messages: [userMessage],
+      tools: [],
+      signal: context.signal ?? new AbortController().signal,
+      systemPrompt: EXTRACTION_PROMPT,
+      onTextPart: (part) => {
+        collected.push(part.text);
+      },
+    });
 
-  // Preference patterns: "I prefer X", "I like X", "always use X", etc.
-  const preferencePatterns = [
-    /(?:i(?:'m)?\s+(?:prefer|like|want|need|use)\s+(?:to\s+)?)([^.\n]{3,120})/gi,
-    /(?:always|usually|generally)\s+(?:use|prefer|run|set)\s+([^.,\n]{3,120})/gi,
-    /(?:don't|do not|never)\s+(?:use|run|set)\s+([^.,\n]{3,120})/gi,
-    /(?:we|this\s+project|this\s+repo)\s+(?:use|uses|run|runs)\s+([^.,\n]{3,120})/gi,
-  ];
-
-  for (const pattern of preferencePatterns) {
-    for (const match of normalized.matchAll(pattern)) {
-      const content = (match[1] ?? '').trim();
-      if (content.length > 0 && !findings.some((m) => m.content.includes(content))) {
-        findings.push({
-          content: `Preference: ${content}.`,
-          category: 'user-preference',
-          tags: ['preference'],
-        });
-      }
-    }
+    const raw = collected.join(' ').trim();
+    return parseExtractedMemories(raw);
+  } catch {
+    return [];
   }
+}
 
-  // Project-fact patterns: "this repo uses X", "backend is in Y", etc.
-  const projectPatterns = [
-    /(?:this\s+(?:repo|project|codebase)|we)\s+(?:use|uses)\s+([^.\n]{3,120})/gi,
-    /(?:backend|frontend|api|web|app|tests?)\s+(?:is\s+in|live\s+in|located\s+in)\s+([^.\n]{3,120})/gi,
-  ];
-
-  for (const pattern of projectPatterns) {
-    for (const match of normalized.matchAll(pattern)) {
-      const content = (match[1] ?? '').trim();
-      if (content.length > 0 && !findings.some((m) => m.content.includes(content))) {
-        findings.push({
-          content: `Project fact: ${content}.`,
-          category: 'project-fact',
-          tags: ['project'],
-        });
-      }
-    }
+function buildExtractionUserMessage(userText: string, assistantText: string): Message {
+  const parts: string[] = [];
+  if (userText.length > 0) {
+    parts.push(`User:\n${userText}`);
   }
-
-  // Decision patterns: "let's go with X", "decided on X", etc.
-  const decisionPatterns = [
-    /(?:let['’]?s\s+(?:go\s+with|use|pick|choose))\s+([^.\n]{3,120})/gi,
-    /(?:decided?\s+(?:on|to)\s+)([^.\n]{3,120})/gi,
-  ];
-
-  for (const pattern of decisionPatterns) {
-    for (const match of normalized.matchAll(pattern)) {
-      const content = (match[1] ?? '').trim();
-      if (content.length > 0 && !findings.some((m) => m.content.includes(content))) {
-        findings.push({
-          content: `Decision: ${content}.`,
-          category: 'decision',
-          tags: ['decision'],
-        });
-      }
-    }
+  if (assistantText.length > 0) {
+    parts.push(`Assistant:\n${assistantText}`);
   }
-
-  return deduplicateAndLimit(findings);
+  return {
+    role: 'user',
+    content: [{ type: 'text', text: parts.join('\n\n') }],
+    toolCalls: [],
+  };
 }
 
 /**

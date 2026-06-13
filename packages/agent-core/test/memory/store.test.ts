@@ -35,6 +35,7 @@ describe('MemoryStore', () => {
     expect(results[0]?.content).toBe('I prefer pnpm');
     expect(results[0]?.category).toBe('user-preference');
     expect(results[0]?.project).toBeNull();
+    expect(results[0]?.pinned).toBe(false);
   });
 
   it('remembers project-scoped memories', async () => {
@@ -130,5 +131,46 @@ describe('MemoryStore', () => {
     const results = await store.recall({ query: '' });
     expect(results).toHaveLength(2);
     expect(results[0]?.content).toBe('Newer memory');
+  });
+
+  it('lists all memories ordered by pinned then updated_at', async () => {
+    const a = await store.remember({ content: 'A' });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const b = await store.remember({ content: 'B' });
+    await store.pin(a.id, true);
+
+    const listed = await store.list();
+    expect(listed).toHaveLength(2);
+    expect(listed[0]?.id).toBe(a.id);
+    expect(listed[0]?.pinned).toBe(true);
+    expect(listed[1]?.id).toBe(b.id);
+    expect(listed[1]?.pinned).toBe(false);
+  });
+
+  it('pins and unpins a memory', async () => {
+    const memory = await store.remember({ content: 'Pin me' });
+
+    const pinned = await store.pin(memory.id, true);
+    expect(pinned?.pinned).toBe(true);
+    expect((await store.list())[0]?.pinned).toBe(true);
+
+    const unpinned = await store.pin(memory.id, false);
+    expect(unpinned?.pinned).toBe(false);
+    expect((await store.list())[0]?.pinned).toBe(false);
+  });
+
+  it('returns undefined when pinning an unknown id', async () => {
+    const result = await store.pin('mem--global--unknown', true);
+    expect(result).toBeUndefined();
+  });
+
+  it('ranks pinned memories first regardless of query relevance', async () => {
+    await store.remember({ content: 'Use pnpm for package management', category: 'user-preference' });
+    const pinned = await store.remember({ content: 'Use vitest for tests', category: 'user-preference' });
+    await store.pin(pinned.id, true);
+
+    const results = await store.recall({ query: 'pnpm package management' });
+    expect(results[0]?.content).toBe('Use vitest for tests');
+    expect(results[0]?.pinned).toBe(true);
   });
 });
