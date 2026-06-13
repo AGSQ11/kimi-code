@@ -6,6 +6,7 @@ import { MemoryInjector } from './memory';
 import { PluginSessionStartInjector } from './plugin-session-start';
 import { ForceMcpInjector } from './force-mcp';
 import { PlanModeInjector } from './plan-mode';
+import { ThoughtInjector } from './thoughts';
 import { TodoListReminderInjector } from './todo-list';
 
 export class InjectionManager {
@@ -20,6 +21,7 @@ export class InjectionManager {
   constructor(protected readonly agent: Agent) {
     this.injectors = [
       new PluginSessionStartInjector(agent),
+      new ThoughtInjector(agent),
       new MemoryInjector(agent),
       new TodoListReminderInjector(agent),
       new PlanModeInjector(agent),

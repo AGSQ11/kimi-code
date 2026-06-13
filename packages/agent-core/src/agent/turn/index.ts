@@ -42,6 +42,7 @@ import { canonicalTelemetryArgs, isPlainRecord } from './canonical-args';
 import { ToolCallDeduplicator } from './tool-dedup';
 import { extractMemories, type ProposedMemory } from '../memory/extract';
 import { MEMORY_TOOL_NAME } from '#/tools/builtin/memory';
+import { THINK_STORE_KEY, type Thought } from '#/tools/builtin/think';
 
 interface ActiveTurn {
   readonly turnId: number;
@@ -339,6 +340,8 @@ export class TurnFlow {
     if (signal.aborted) return;
     if (!this.isMemoryToolActive()) return;
 
+    await this.promoteDecisionThoughts();
+
     const userText = this.lastUserMessageText();
     const assistantText = this.lastAssistantMessageText();
     if (userText.length === 0 && assistantText.length === 0) return;
@@ -425,6 +428,36 @@ export class TurnFlow {
     } else {
       this.agent.telemetry.track('memory_approved', { count: memories.length });
     }
+  }
+
+  /**
+   * Promote decision-category thoughts from the Think tool to long-term Memory
+   * so design rationale survives session boundaries.
+   */
+  private async promoteDecisionThoughts(): Promise<void> {
+    const thoughts = (this.agent.tools.getToolStore().get(THINK_STORE_KEY) ?? []) as Thought[];
+    const decisions = thoughts.filter(
+      (thought): thought is Thought & { category: 'decision' } =>
+        thought.category === 'decision' && thought.promotedToMemory !== true,
+    );
+    if (decisions.length === 0) return;
+
+    const proposed: ProposedMemory[] = decisions.map((thought) => ({
+      content: thought.content,
+      category: 'decision',
+      tags: thought.tags ?? ['decision'],
+    }));
+
+    await this.rememberApproved(proposed, { all: true });
+
+    // Mark promoted so we don't duplicate them on future turns.
+    const promoted = new Set<Thought>(decisions);
+    this.agent.tools.getToolStore().set(
+      THINK_STORE_KEY,
+      thoughts.map((thought) =>
+        promoted.has(thought) ? { ...thought, promotedToMemory: true } : thought,
+      ) as readonly unknown[],
+    );
   }
 
   /**

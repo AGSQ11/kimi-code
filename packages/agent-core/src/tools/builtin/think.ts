@@ -21,6 +21,8 @@ export interface Thought {
   readonly content: string;
   readonly category?: string;
   readonly tags?: string[];
+  /** Internal flag set after a decision thought is promoted to long-term Memory. */
+  promotedToMemory?: boolean;
 }
 
 declare module '#/tools/store' {
