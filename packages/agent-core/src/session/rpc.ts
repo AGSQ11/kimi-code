@@ -18,9 +18,11 @@ import type {
   RegisterToolPayload,
   SessionAPI,
   SetActiveToolsPayload,
+  SetForceMcpPayload,
   SetGenerationKwargsPayload,
   SetModelPayload,
   SetPermissionPayload,
+  SetSystemPromptPayload,
   SetThinkingPayload,
   SkillSummary,
   SteerPayload,
@@ -119,6 +121,10 @@ export class SessionAPIImpl implements PromisableMethods<SessionAPI> {
     return (await this.getAgent(agentId)).setGenerationKwargs(payload);
   }
 
+  async setSystemPrompt({ agentId, ...payload }: AgentScopedPayload<SetSystemPromptPayload>) {
+    return (await this.getAgent(agentId)).setSystemPrompt(payload);
+  }
+
   async setThinking({ agentId, ...payload }: AgentScopedPayload<SetThinkingPayload>) {
     return (await this.getAgent(agentId)).setThinking(payload);
   }
@@ -173,6 +179,14 @@ export class SessionAPIImpl implements PromisableMethods<SessionAPI> {
 
   async setActiveTools({ agentId, ...payload }: AgentScopedPayload<SetActiveToolsPayload>) {
     return (await this.getAgent(agentId)).setActiveTools(payload);
+  }
+
+  async getForceMcp({ agentId, ...payload }: AgentScopedPayload<EmptyPayload>) {
+    return (await this.getAgent(agentId)).getForceMcp(payload);
+  }
+
+  async setForceMcp({ agentId, ...payload }: AgentScopedPayload<SetForceMcpPayload>) {
+    return (await this.getAgent(agentId)).setForceMcp(payload);
   }
 
   async stopBackground({ agentId, ...payload }: AgentScopedPayload<StopBackgroundPayload>) {

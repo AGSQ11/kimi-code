@@ -10,88 +10,68 @@ It fits scenarios such as:
 - **Understanding a project**: exploring an unfamiliar codebase and answering questions about architecture and implementation
 - **Automating tasks**: batch-processing files, running builds and tests, chaining multiple scripts together
 
-The CLI is written in TypeScript, distributed via npm, and runs on Node.js.
+The CLI is written in TypeScript and runs on Node.js from a source checkout.
 
 ## Installation
 
-Two installation options are available: the official install script (recommended, no pre-installed Node.js required) and a global npm install.
+This fork is installed from source. You need **Node.js ≥ 24.15.0** and **pnpm 10.33.0**.
 
 ::: tip Before you install
 Kimi Code CLI is a fully interactive TUI application. For the best visual experience, run it in a terminal with true-color and ligature support, such as [Kitty](https://sw.kovidgoyal.net/kitty/) or [Ghostty](https://ghostty.org/).
 :::
 
-### Install script (recommended)
-
-- **macOS / Linux**:
-
 ```sh
-curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash
-```
-
-- **Windows (PowerShell)**:
-
-```powershell
-irm https://code.kimi.com/kimi-code/install.ps1 | iex
+git clone https://github.com/AGSQ11/kimi-code.git
+cd kimi-code
+pnpm install
+pnpm --filter @moonshot-ai/kimi-code build
 ```
 
 > On Windows, install [Git for Windows](https://gitforwindows.org/) before first launch. Kimi Code CLI uses the bundled Git Bash as its shell environment; if Git Bash is installed in a custom location, set `KIMI_SHELL_PATH` to the absolute path of `bash.exe`.
 
-The script automatically downloads the latest release, verifies the checksum, and places the `kimi` executable on your `PATH`.
-
-### npm installation
-
-Requires Node.js 22.19.0 or later:
+Run the CLI from the repo root:
 
 ```sh
-node --version
-npm install -g @moonshot-ai/kimi-code
+pnpm --filter @moonshot-ai/kimi-code run dev:prod -- --version
 ```
 
-Or with pnpm:
+For convenience, add an alias to your shell (example for `.bashrc` / `.zshrc`):
 
 ```sh
-pnpm add -g @moonshot-ai/kimi-code
+alias kimi='pnpm --filter @moonshot-ai/kimi-code run dev:prod --'
 ```
 
 ## Upgrade and uninstall
 
-After installation, verify that the executable is ready:
+**Upgrade**: pull the latest fork changes, reinstall dependencies, and rebuild:
 
 ```sh
-kimi --version
+git pull
+pnpm install
+pnpm --filter @moonshot-ai/kimi-code build
 ```
 
-**Upgrade**: run `kimi upgrade` — the CLI checks for the latest version and presents update options. Choose `Install update now` to upgrade based on your current install source. You can also upgrade directly via the package manager:
-
-```sh
-npm install -g @moonshot-ai/kimi-code@latest
-```
-
-**Uninstall**: if you installed via the script, delete the `kimi` executable. If you installed via npm:
-
-```sh
-npm uninstall -g @moonshot-ai/kimi-code
-```
+**Uninstall**: delete the local repository clone.
 
 ## First launch
 
-Move into your project directory and run `kimi` to start the interactive UI:
+Move into your project directory and run the CLI to start the interactive UI:
 
 ```sh
 cd your-project
-kimi
+pnpm --filter @moonshot-ai/kimi-code run dev:prod
 ```
 
 To run a single instruction without entering the interactive UI, use `-p`:
 
 ```sh
-kimi -p "Take a look at this project's directory structure"
+pnpm --filter @moonshot-ai/kimi-code run dev:prod -- -p "Take a look at this project's directory structure"
 ```
 
 To resume the previous session, add `-C`:
 
 ```sh
-kimi -C
+pnpm --filter @moonshot-ai/kimi-code run dev:prod -- -C
 ```
 
 On first launch you need to configure an API source. In the interactive UI, enter `/login` to begin the login flow:

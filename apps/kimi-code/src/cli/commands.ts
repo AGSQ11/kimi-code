@@ -5,6 +5,7 @@ import { Command, Option } from 'commander';
 import type { CLIOptions } from './options';
 import { registerAcpCommand } from './sub/acp';
 import { registerDoctorCommand } from './sub/doctor';
+import { registerEvalCommand } from './sub/eval';
 import { registerExportCommand } from './sub/export';
 import { registerLoginCommand } from './sub/login';
 import { registerProviderCommand } from './sub/provider';
@@ -80,6 +81,7 @@ export function createProgram(
   registerAcpCommand(program);
   registerLoginCommand(program);
   registerDoctorCommand(program);
+  registerEvalCommand(program);
   registerMigrateCommand(program, onMigrate);
   program
     .command('upgrade')

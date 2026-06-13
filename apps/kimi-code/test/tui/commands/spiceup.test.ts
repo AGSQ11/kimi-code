@@ -1,16 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { applySpiceupChoice } from '#/tui/commands/config';
+import type { SlashCommandHost } from '#/tui/commands/dispatch';
 import { darkColors } from '#/tui/theme/colors';
 import type { AppState } from '#/tui/types';
 
-function fakeHost(overrides?: Partial<AppState>): {
-  state: { appState: AppState; theme: { palette: typeof darkColors } };
-  setAppState: ReturnType<typeof vi.fn>;
-  showStatus: ReturnType<typeof vi.fn>;
-  showError: ReturnType<typeof vi.fn>;
-  session: { setGenerationKwargs: ReturnType<typeof vi.fn> };
-} {
+function fakeHost(overrides?: Partial<AppState>): SlashCommandHost {
   const appState: AppState = {
     model: 'test-model',
     workDir: '/tmp/test',
@@ -45,7 +40,7 @@ function fakeHost(overrides?: Partial<AppState>): {
     showStatus: vi.fn(),
     showError: vi.fn(),
     session: { setGenerationKwargs: vi.fn().mockResolvedValue(undefined) },
-  };
+  } as unknown as SlashCommandHost;
 }
 
 describe('applySpiceupChoice', () => {
@@ -61,7 +56,7 @@ describe('applySpiceupChoice', () => {
       presencePenalty: 0.2,
     });
 
-    expect(host.session.setGenerationKwargs).toHaveBeenCalledWith({
+    expect(host.session?.setGenerationKwargs).toHaveBeenCalledWith({
       temperature: 0.7,
       top_p: 0.9,
       top_k: 50,
@@ -89,14 +84,14 @@ describe('applySpiceupChoice', () => {
 
     await applySpiceupChoice(host, {});
 
-    expect(host.session.setGenerationKwargs).toHaveBeenCalledWith({});
+    expect(host.session?.setGenerationKwargs).toHaveBeenCalledWith({});
     expect(host.setAppState).toHaveBeenCalledWith({ generationKwargs: null });
     expect(host.showStatus).toHaveBeenCalledWith('Sampling overrides cleared for this session.');
   });
 
   it('shows an error when there is no active session', async () => {
     const host = fakeHost();
-    host.session = undefined as unknown as typeof host.session;
+    host.session = undefined;
 
     await applySpiceupChoice(host, { temperature: 0.7 });
 
@@ -108,7 +103,9 @@ describe('applySpiceupChoice', () => {
 
   it('surfaces session errors to the user', async () => {
     const host = fakeHost();
-    host.session.setGenerationKwargs = vi.fn().mockRejectedValue(new Error('provider refused'));
+    (host.session as NonNullable<typeof host.session>).setGenerationKwargs = vi
+      .fn()
+      .mockRejectedValue(new Error('provider refused'));
 
     await applySpiceupChoice(host, { temperature: 0.7 });
 

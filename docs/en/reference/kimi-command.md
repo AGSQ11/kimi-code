@@ -119,7 +119,7 @@ In `stream-json` mode, regular replies produce an Assistant message; when the mo
 
 ## Subcommands
 
-`kimi` provides the following subcommands: `login` (non-interactive login), `acp` (ACP IDE mode), `doctor` (validate configuration files), `export` (export a session), `migrate` (migrate legacy data), `upgrade` (check for updates), and `provider` (manage providers).
+`kimi` provides the following subcommands: `login` (non-interactive login), `acp` (ACP IDE mode), `doctor` (validate configuration files), `eval` (run prompt/model/variation benchmarks), `export` (export a session), `migrate` (migrate legacy data), `upgrade` (check for updates), and `provider` (manage providers).
 
 ### `kimi login`
 
@@ -213,6 +213,52 @@ kimi upgrade
 ```
 
 For global npm, pnpm, yarn, bun, and macOS / Linux native installations, `kimi upgrade` shows update options; selecting `Install update now` runs the corresponding foreground install command. When the current installation method cannot be upgraded automatically (e.g., Windows native installation), the manual update command is printed instead.
+
+### `kimi eval`
+
+Run a benchmark across prompts, models, and variations, then emit a comparison report. This is useful for comparing model outputs, prompt versions, or `systemPrompt` settings in a repeatable way.
+
+```sh
+kimi eval [spec] [options]
+```
+
+When `spec` is omitted, use `--prompts` and `--models` to define an inline benchmark.
+
+| Parameter / Option | Short | Description |
+| --- | --- | --- |
+| `spec` | | Path to a YAML or JSON eval spec file |
+| `--prompts <paths...>` | `-p` | Prompt file paths. Requires `--models` when no spec file is given |
+| `--models <models...>` | `-m` | Model aliases. Requires `--prompts` when no spec file is given |
+| `--output <path>` | `-o` | Output report path. Use `.json` or `.md`; defaults to stdout JSON |
+| `--samples <n>` | | Override the number of samples per combination |
+| `--timeout <seconds>` | | Override the per-run timeout |
+| `--suite-timeout <seconds>` | | Override the suite timeout |
+| `--yes` | `-y` | Confirm `executeTools: true` in the spec |
+
+Example spec file:
+
+```yaml
+version: '1.0'
+name: Greeting eval
+samples: 3
+executeTools: false
+prompts:
+  - id: hello
+    file: ./prompts/hello.md
+models:
+  - default
+variations:
+  - id: default
+  - id: friendly
+    systemPrompt: 'You are a friendly assistant.'
+evaluation:
+  metrics:
+    - name: containsHello
+      type: substring
+      value: hello
+```
+
+The command exits with `0` when all runs complete successfully, and `1` when any run fails or times out.
 
 ### `kimi provider`
 

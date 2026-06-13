@@ -10,6 +10,7 @@ coverage/
 .claude
 .conductor
 .kimi-stash-dir
+.kimi-code/
 plugins/cdn/
 superpowers
 .worktrees/

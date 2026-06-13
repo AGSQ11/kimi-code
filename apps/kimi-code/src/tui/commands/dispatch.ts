@@ -43,6 +43,7 @@ import {
   showSettingsSelector,
   showSpiceupPicker,
 } from './config';
+import { handleForceMcpCommand } from './force-mcp';
 import { handleGoalCommand } from './goal';
 import { handleProviderCommand } from './provider';
 import { handleFeedbackCommand, showMcpServers, showStatusReport, showUsage } from './info';
@@ -254,6 +255,9 @@ async function handleBuiltInSlashCommand(
       return;
     case 'mcp':
       void showMcpServers(host);
+      return;
+    case 'forcemcp':
+      await handleForceMcpCommand(host, args);
       return;
     case 'plugins':
       void handlePluginsCommand(host, args);

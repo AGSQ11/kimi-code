@@ -46,6 +46,8 @@ export interface AppState {
   /** Current goal snapshot for the footer badge; null/undefined when no active goal. */
   goal?: GoalSnapshot | null;
   mcpServersSummary: string | null;
+  /** Force-MCP mode state: when enabled, all connected MCP tools are active. */
+  forceMcp?: { enabled: boolean; previousActiveTools: readonly string[] } | undefined;
   /** Optional banner shown below the welcome panel; null means no banner to render. */
   banner?: BannerState | null;
 }

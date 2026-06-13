@@ -403,6 +403,7 @@ export class ToolManager {
         this.agent.cron && new b.CronCreateTool(this.agent.cron),
         this.agent.cron && new b.CronListTool(this.agent.cron),
         this.agent.cron && new b.CronDeleteTool(this.agent.cron),
+        new b.MemoryTool(this.agent.memoryStore, () => this.agent.memoryStore.getProjectRoot()),
         this.agent.skills?.registry.listInvocableSkills().length &&
           new b.SkillTool(this.agent),
         this.agent.subagentHost &&

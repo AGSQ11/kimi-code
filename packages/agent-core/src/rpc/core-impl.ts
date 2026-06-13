@@ -79,12 +79,14 @@ import type {
   ResumeSessionPayload,
   SessionSummary,
   SetActiveToolsPayload,
+  SetForceMcpPayload,
   SetKimiConfigPayload,
   SetGenerationKwargsPayload,
   SetModelPayload,
   SetModelResult,
   SetPermissionPayload,
   SetPluginEnabledPayload,
+  SetSystemPromptPayload,
   SetPluginMcpServerEnabledPayload,
   SetThinkingPayload,
   SkillSummary,
@@ -536,6 +538,10 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
     return this.sessionApi(sessionId).setGenerationKwargs(payload);
   }
 
+  setSystemPrompt({ sessionId, ...payload }: SessionAgentPayload<SetSystemPromptPayload>) {
+    return this.sessionApi(sessionId).setSystemPrompt(payload);
+  }
+
   setThinking({ sessionId, ...payload }: SessionAgentPayload<SetThinkingPayload>) {
     return this.sessionApi(sessionId).setThinking(payload);
   }
@@ -590,6 +596,14 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
 
   setActiveTools({ sessionId, ...payload }: SessionAgentPayload<SetActiveToolsPayload>) {
     return this.sessionApi(sessionId).setActiveTools(payload);
+  }
+
+  getForceMcp({ sessionId, ...payload }: SessionAgentPayload<EmptyPayload>) {
+    return this.sessionApi(sessionId).getForceMcp(payload);
+  }
+
+  setForceMcp({ sessionId, ...payload }: SessionAgentPayload<SetForceMcpPayload>) {
+    return this.sessionApi(sessionId).setForceMcp(payload);
   }
 
   stopBackground({ sessionId, ...payload }: SessionAgentPayload<StopBackgroundPayload>) {

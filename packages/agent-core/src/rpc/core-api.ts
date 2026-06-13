@@ -167,6 +167,9 @@ export interface SetModelResult {
 export interface SetGenerationKwargsPayload {
   readonly kwargs: Record<string, number>;
 }
+export interface SetSystemPromptPayload {
+  readonly systemPrompt: string;
+}
 export interface CancelPlanPayload {
   readonly id?: string;
 }
@@ -189,6 +192,9 @@ export interface UnregisterToolPayload {
 }
 export interface SetActiveToolsPayload {
   readonly names: readonly string[];
+}
+export interface SetForceMcpPayload {
+  readonly enabled: boolean;
 }
 export interface StopBackgroundPayload {
   readonly taskId: string;
@@ -317,6 +323,7 @@ export interface AgentAPI {
   setPermission: (payload: SetPermissionPayload) => void;
   setModel: (payload: SetModelPayload) => SetModelResult;
   setGenerationKwargs: (payload: SetGenerationKwargsPayload) => void;
+  setSystemPrompt: (payload: SetSystemPromptPayload) => void;
   getModel: (payload: EmptyPayload) => string;
   enterPlan: (payload: EmptyPayload) => void;
   cancelPlan: (payload: CancelPlanPayload) => void;
@@ -329,6 +336,8 @@ export interface AgentAPI {
   registerTool: (payload: RegisterToolPayload) => void;
   unregisterTool: (payload: UnregisterToolPayload) => void;
   setActiveTools: (payload: SetActiveToolsPayload) => void;
+  getForceMcp: (payload: EmptyPayload) => boolean;
+  setForceMcp: (payload: SetForceMcpPayload) => void;
   stopBackground: (payload: StopBackgroundPayload) => void;
   clearContext: (payload: EmptyPayload) => void;
   activateSkill: (payload: ActivateSkillPayload) => void;

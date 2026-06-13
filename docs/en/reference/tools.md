@@ -75,8 +75,20 @@ Plan mode is a constrained working state: once entered, `Write` and `Edit` are r
 | Tool | Default Approval | Description |
 | --- | --- | --- |
 | `TodoList` | Auto-allow | Manage a task to-do list |
+| `Memory` | Auto-allow | Store and retrieve persistent memories across sessions |
 
 **`TodoList`** maintains a visible subtask list across multi-step operations; state is stored within the Agent session. The `todos` parameter accepts an array where each item has a `title` and `status` (`pending` / `in_progress` / `done`). Omitting `todos` queries the current list; passing an empty array clears it.
+
+**`Memory`** gives the Agent a local, queryable "second brain" for user preferences, project facts, decisions, and learned context. Memories are stored in SQLite databases under `~/.kimi-code/memory.db` (global memories) and `<project-root>/.kimi-code/memory.db` (project-scoped memories). Data never leaves the local machine.
+
+Supported operations via the `operation` parameter:
+
+- `remember` — store a memory. Requires `content`; optional `category` (e.g. `user-preference`, `project-fact`, `decision`, `learning`), `tags`, and `project`.
+- `recall` — retrieve relevant memories. Requires a natural-language `query`; optional `category` and `limit`.
+- `update` — edit an existing memory by `id` or by `query`.
+- `forget` — delete memories by `id` or by `query`.
+
+When `category` is `project-fact` or `decision` and `project` is omitted, the current project root is used automatically. Up to five relevant memories are automatically injected into the system prompt at the start of each session.
 
 ## Collaboration Tools
 

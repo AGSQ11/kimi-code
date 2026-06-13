@@ -35,6 +35,7 @@ import { ContextMemory } from './context';
 import { GoalMode } from './goal';
 import { HookEngine } from '../session/hooks';
 import { InjectionManager } from './injection/manager';
+import { MemoryStore } from '../memory/store';
 import { PermissionManager, type PermissionManagerOptions } from './permission';
 import { PlanMode } from './plan';
 import {
@@ -70,6 +71,7 @@ export interface AgentOptions {
   readonly kaos: Kaos;
   readonly config?: KimiConfig;
   readonly homedir?: string;
+  readonly kimiHomeDir?: string;
   readonly rpc?: Partial<SDKAgentRPC>;
   readonly persistence?: AgentRecordPersistence;
   readonly type?: AgentType;
@@ -127,10 +129,13 @@ export class Agent {
   readonly usage: UsageRecorder;
   readonly skills: SkillManager | null;
   readonly tools: ToolManager;
+  readonly memoryStore: MemoryStore;
   readonly background: BackgroundManager;
   readonly cron: CronManager | null;
   readonly goal: GoalMode;
   readonly replayBuilder: ReplayBuilder;
+
+  forceMcpEnabled = false;
 
   private lastLlmConfigLogSignature?: string;
 
@@ -178,6 +183,12 @@ export class Agent {
     this.swarmMode = new SwarmMode(this);
     this.usage = new UsageRecorder(this);
     this.skills = options.skills ? new SkillManager(this, options.skills) : null;
+    const kimiHomeDir = options.kimiHomeDir ?? join(this.kaos.gethome(), '.kimi-code');
+    this.memoryStore = new MemoryStore({
+      globalDbPath: join(kimiHomeDir, 'memory.db'),
+      kaos: this.kaos,
+      cwd: this.kaos.getcwd(),
+    });
     this.tools = new ToolManager(this);
     this.background = new BackgroundManager(
       this,
@@ -362,6 +373,9 @@ export class Agent {
       setGenerationKwargs: (payload) => {
         this.config.update({ generationKwargs: payload.kwargs });
       },
+      setSystemPrompt: (payload) => {
+        this.config.update({ systemPrompt: payload.systemPrompt });
+      },
       getModel: () => {
         return this.config.modelAlias ?? '';
       },
@@ -398,6 +412,12 @@ export class Agent {
       },
       setActiveTools: (payload) => {
         this.tools.setActiveTools(payload.names);
+      },
+      getForceMcp: () => {
+        return this.forceMcpEnabled;
+      },
+      setForceMcp: (payload) => {
+        this.forceMcpEnabled = payload.enabled;
       },
       stopBackground: (payload) => {
         void this.background.stop(payload.taskId, payload.reason);

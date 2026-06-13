@@ -225,6 +225,17 @@ describe('Agent config', () => {
       generationKwargs: { temperature: 0.7, top_p: 0.9 },
     });
   });
+
+  it('setSystemPrompt updates the active system prompt via getConfig', async () => {
+    const ctx = testAgent();
+    ctx.configure();
+
+    await ctx.rpc.setSystemPrompt({ systemPrompt: 'Eval override system prompt.' });
+
+    await expect(ctx.rpc.getConfig({})).resolves.toMatchObject({
+      systemPrompt: 'Eval override system prompt.',
+    });
+  });
 });
 
 function toolNames(value: unknown): string[] {

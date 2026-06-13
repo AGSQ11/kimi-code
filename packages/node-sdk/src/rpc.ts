@@ -16,6 +16,7 @@ import {
   type ToolCallRequest,
   type ToolCallResponse,
   type SwarmModeTrigger,
+  type ToolInfo,
 } from '@moonshot-ai/agent-core';
 import type { Kaos } from '@moonshot-ai/kaos';
 
@@ -81,6 +82,10 @@ export interface SetSessionGenerationKwargsRpcInput extends SessionIdRpcInput {
   readonly kwargs: Record<string, number>;
 }
 
+export interface SetSessionSystemPromptRpcInput extends SessionIdRpcInput {
+  readonly systemPrompt: string;
+}
+
 export interface SetSessionPermissionRpcInput extends SessionIdRpcInput {
   readonly mode: PermissionMode;
 }
@@ -100,6 +105,10 @@ export interface ActivateSkillRpcInput extends SessionIdRpcInput {
 
 export interface ReconnectMcpServerRpcInput extends SessionIdRpcInput {
   readonly name: string;
+}
+
+export interface SetSessionForceMcpRpcInput extends SessionIdRpcInput {
+  readonly enabled: boolean;
 }
 
 type ResolvedCoreAPI = RPCMethods<CoreAPI>;
@@ -292,6 +301,15 @@ export abstract class SDKRpcClientBase {
     });
   }
 
+  async setSystemPrompt(input: SetSessionSystemPromptRpcInput): Promise<void> {
+    const rpc = await this.getRpc();
+    return rpc.setSystemPrompt({
+      sessionId: input.sessionId,
+      agentId: this.interactiveAgentId,
+      systemPrompt: input.systemPrompt,
+    });
+  }
+
   async setPermission(input: SetSessionPermissionRpcInput): Promise<void> {
     const rpc = await this.getRpc();
     return rpc.setPermission({
@@ -312,6 +330,32 @@ export abstract class SDKRpcClientBase {
     return rpc.enterPlan({
       sessionId: input.sessionId,
       agentId: this.interactiveAgentId,
+    });
+  }
+
+  async getTools(sessionId: string): Promise<readonly ToolInfo[]> {
+    const rpc = await this.getRpc();
+    return rpc.getTools({
+      sessionId,
+      agentId: this.interactiveAgentId,
+    });
+  }
+
+  async setActiveTools(sessionId: string, names: readonly string[]): Promise<void> {
+    const rpc = await this.getRpc();
+    return rpc.setActiveTools({
+      sessionId,
+      agentId: this.interactiveAgentId,
+      names,
+    });
+  }
+
+  async setForceMcp(input: SetSessionForceMcpRpcInput): Promise<void> {
+    const rpc = await this.getRpc();
+    return rpc.setForceMcp({
+      sessionId: input.sessionId,
+      agentId: this.interactiveAgentId,
+      enabled: input.enabled,
     });
   }
 

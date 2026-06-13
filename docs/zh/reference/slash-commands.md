@@ -47,6 +47,7 @@
 | `/plan clear` | — | 清除当前 plan 方案 | 否 |
 | `/swarm on\|off` | — | 开启或关闭 swarm mode，但不发送提示词。 | 是 |
 | `/swarm <task>` | — | 先开启 swarm mode，再把 `<task>` 作为普通提示词发送。如果该轮次正常完成，swarm mode 会自动关闭。若当前是 `manual` 权限模式，启动前会提示是否切换到 `auto` 或 `yolo`。 | 否 |
+| `/forcemcp [on\|off]` | — | 切换 force-MCP 模式。开启后所有已连接的 MCP 工具都会被激活，并提醒模型只使用对当前任务有补充上下文的工具。使用 `/forcemcp off`（或再次切换）可恢复原来的激活工具集。 | 是 |
 | `/goal [...]` | — | 开始或管理目标模式 | 见下文 |
 
 ::: warning 注意

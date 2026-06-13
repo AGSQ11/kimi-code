@@ -10,6 +10,7 @@ const DEFAULT_APPROVE_TOOLS = new Set([
   'TaskList',
   'TaskOutput',
   'CronList',
+  'Memory',
   'WebSearch',
   'FetchURL',
   'Agent',
