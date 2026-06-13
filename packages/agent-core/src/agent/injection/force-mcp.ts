@@ -39,9 +39,16 @@ export class ForceMcpInjector extends DynamicInjector {
       .join(', ');
 
     return [
-      'Force MCP mode is on. The following connected MCP servers may add context to your task:',
+      'Force MCP mode is on. The following connected MCP servers are available and should be used proactively when they can improve your answer:',
       list,
-      'Only call their tools when they are genuinely useful.',
+      '',
+      'Before starting a task or plan, consider whether these tools can help you:',
+      '- Find current/up-to-date information (web search, documentation, package registries)',
+      '- Verify facts, APIs, or best practices',
+      '- Gather context about libraries, frameworks, or external services',
+      '- Check recent issues, changelogs, or examples',
+      '',
+      'Do not wait for the user to ask — invoke the relevant MCP tools on your own initiative when they add value. Avoid using them if the task is purely local and already clear from the repository context.',
     ].join('\n');
   }
 }
