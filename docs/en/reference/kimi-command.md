@@ -13,7 +13,7 @@ All flags are optional — run `kimi` directly to enter an interactive session:
 
 | Option | Short | Description |
 | --- | --- | --- |
-| `--version` | `-V` | Print the version number and exit |
+| `--version` | `-V` | Print the version string (e.g. `v0.14-feature`) and exit |
 | `--help` | `-h` | Show help information and exit |
 | `--session [id]` | `-S` | Resume a session. With an ID, opens that session directly; without an ID, enters an interactive selector |
 | `--continue` | `-C` | Continue the most recent session in the current working directory, without specifying an ID manually |

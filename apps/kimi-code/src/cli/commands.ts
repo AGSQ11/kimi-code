@@ -22,9 +22,12 @@ export function createProgram(
   onPluginNodeRunner: PluginNodeRunnerHandler = () => {},
   onUpgrade: UpgradeCommandHandler = () => {},
 ): Command {
+  const [major, minor] = version.split('.');
+  const displayVersion = `v${major}.${minor}-feature`;
+
   const program = new Command(CLI_COMMAND_NAME)
     .description('The Starting Point for Next-Gen Agents')
-    .version(version, '-V, --version')
+    .version(displayVersion, '-V, --version')
     .allowUnknownOption(false)
     .configureHelp({ helpWidth: 100 })
     .helpOption('-h, --help', 'Show help.')
