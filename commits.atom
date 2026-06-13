@@ -1,0 +1,465 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xml:lang="en-US">
+  <id>tag:github.com,2008:/MoonshotAI/kimi-code/commits/main</id>
+  <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commits/main"/>
+  <link type="application/atom+xml" rel="self" href="https://github.com/MoonshotAI/kimi-code/commits/main.atom"/>
+  <title>Recent Commits to kimi-code:main</title>
+  <updated>2026-06-15T13:31:30Z</updated>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/2746c71c47058d9a3bb73e27a07ebfcf44bf4119</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/2746c71c47058d9a3bb73e27a07ebfcf44bf4119"/>
+    <title>
+        feat: add all-sessions picker with name search (#779)
+    </title>
+    <updated>2026-06-15T13:31:30Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/25167721?s=30&amp;v=4"/>
+    <author>
+      <name>liruifengv</name>
+      <uri>https://github.com/liruifengv</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;feat: add all-sessions picker with name search (#779)
+
+* feat: add all-sessions picker with name search
+
+* fix: satisfy clipboard lint errors
+
+* test: make clipboard fallback assertion portable
+
+* fix: harden session picker interactions
+
+* fix: harden session picker startup flow
+
+Invalidate pending session picker scope changes after dismissal and exit startup picker after showing a cross-directory resume command.
+
+* fix: show empty session scope hint
+
+Render the all-sessions toggle hint in the sessions picker empty state so users can discover Ctrl+A when the current directory has no sessions.&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/1eb363f655aa44abc1e5c3af89016f00764ecc95</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/1eb363f655aa44abc1e5c3af89016f00764ecc95"/>
+    <title>
+        feat(agent-core): prompt same-language reasoning (#787)
+    </title>
+    <updated>2026-06-15T13:20:50Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/44634134?s=30&amp;v=4"/>
+    <author>
+      <name>RealKai42</name>
+      <uri>https://github.com/RealKai42</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;feat(agent-core): prompt same-language reasoning (#787)&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/e2a407ce31685220b2f891a7f6d8b89c62418c98</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/e2a407ce31685220b2f891a7f6d8b89c62418c98"/>
+    <title>
+        fix: prevent tui width overflows (#783)
+    </title>
+    <updated>2026-06-15T13:11:01Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/25167721?s=30&amp;v=4"/>
+    <author>
+      <name>liruifengv</name>
+      <uri>https://github.com/liruifengv</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;fix: prevent tui width overflows (#783)
+
+* fix: prevent tui width overflows
+
+* fix: address tui review feedback&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/e10b25f9be18ca64aada0d0a3cab0e02fdbd46df</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/e10b25f9be18ca64aada0d0a3cab0e02fdbd46df"/>
+    <title>
+        fix: stop recording resume version metadata (#786)
+    </title>
+    <updated>2026-06-15T13:04:53Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/63178754?s=30&amp;v=4"/>
+    <author>
+      <name>kermanx</name>
+      <uri>https://github.com/kermanx</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;fix: stop recording resume version metadata (#786)&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/73be7ba17d41df7999d4c1fba410994e7024eb7b</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/73be7ba17d41df7999d4c1fba410994e7024eb7b"/>
+    <title>
+        fix(kosong): repair mismatched schema types from Xcode 26.5 MCP (#343)
+    </title>
+    <updated>2026-06-15T12:47:15Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/16971804?s=30&amp;v=4"/>
+    <author>
+      <name>youngxhui</name>
+      <uri>https://github.com/youngxhui</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;fix(kosong): repair mismatched schema types from Xcode 26.5 MCP (#343)
+
+* fix(kosong): repair mismatched schema types from Xcode 26.5 MCP
+
+Xcode 26.5 (17F42) mcpbridge generates contradictory JSON Schemas where
+String-backed Swift enums carry type: &amp;#39;object&amp;#39; alongside string enum values.
+Moonshot rejects these as invalid. Detect and repair the mismatch in
+normalizeKimiToolSchema, stripping irrelevant structure keys after the fix.
+
+Closes #302
+
+* fix(kosong): avoid dumping full tool schemas on schema-related 400 errors
+
+* fix(kosong): redact enum and const values in schema repair diagnostics
+
+* fix(kosong): keep schema repair quiet
+
+---------
+
+Co-authored-by: 7Sageer &amp;lt;7sageer@djwcb.cn&amp;gt;&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/a562ef54e537a36211c48f0fe19e9252e83397a0</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/a562ef54e537a36211c48f0fe19e9252e83397a0"/>
+    <title>
+        refactor: decouple agent skill registry (#784)
+    </title>
+    <updated>2026-06-15T12:39:29Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/63178754?s=30&amp;v=4"/>
+    <author>
+      <name>kermanx</name>
+      <uri>https://github.com/kermanx</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;refactor: decouple agent skill registry (#784)&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/3fa1b8ea7deb558b88073b5f7b02857e52c3f60c</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/3fa1b8ea7deb558b88073b5f7b02857e52c3f60c"/>
+    <title>
+        fix(kimi-code): bundle npm package into single entry (#775)
+    </title>
+    <updated>2026-06-15T12:23:13Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/25167721?s=30&amp;v=4"/>
+    <author>
+      <name>liruifengv</name>
+      <uri>https://github.com/liruifengv</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;fix(kimi-code): bundle npm package into single entry (#775)
+
+* fix(kimi-code): bundle npm package into single entry
+
+Bundle runtime dependencies into the CLI npm entry file, prepare an npm publish directory without bundled dependencies, and keep clipboard support optional.
+
+* fix(kimi-code): sync npm publish directory lockfile
+
+Update pnpm-lock.yaml for apps/kimi-code publishConfig.directory so CI can install with --frozen-lockfile.
+
+* fix(kimi-code): disable cli declaration output
+
+Stop generating the TypeScript declaration sidecar so the npm package contains only the main.mjs CLI entry artifact.
+
+* fix(kimi-code): move bundled deps to devDependencies
+
+Remove the npm publish directory pre-processing path, keep runtime dependencies as dev-only build inputs for the single-file bundle, and add a manifest regression test.
+
+* fix(kimi-code): make koffi optional
+
+Keep koffi available as an optional native dependency without listing bundled runtime packages as published dependencies.
+
+* fix(kimi-code): use explicit bundle allowlist
+
+Avoid treating every devDependency as a runtime bundle input and list the bundled third-party dependencies explicitly.
+
+* fix(kimi-code): remove manifest regression test
+
+Keep the packaging change focused on the manifest and bundler configuration without an extra package-json regression test.
+
+* fix(kimi-code): only externalize optional deps
+
+Keep tsdown&amp;#39;s never-bundle list limited to published optional native dependencies.
+
+* Update tsdown.config.ts
+
+* fix(kimi-code): simplify changeset
+
+Keep the changeset summary focused on optimizing the npm packaging system.&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/8a92db6a0c110a21c6e6e86622f498e836178e5f</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/8a92db6a0c110a21c6e6e86622f498e836178e5f"/>
+    <title>
+        feat: polish system prompt context (#780)
+    </title>
+    <updated>2026-06-15T11:12:07Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/44634134?s=30&amp;v=4"/>
+    <author>
+      <name>RealKai42</name>
+      <uri>https://github.com/RealKai42</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;feat: polish system prompt context (#780)
+
+* feat(agent-core): collapse hidden dirs in prompt
+
+Keep hidden directory entries visible in the cwd snapshot while omitting their contents to reduce prompt noise, and document the tools models should use to inspect hidden paths.
+
+* feat(agent-core): clarify prompt AGENTS context
+
+Add a marker when AGENTS.md content is truncated by the prompt budget and move dynamic system prompt context after the static guidance.
+
+* chore: add prompt refinement changesets
+
+* fix: prompt brief tool-call status
+
+Ask the model to emit one short same-language status sentence before non-trivial tool calls while keeping detailed reasoning out of the visible transcript. Updates snapshots for the longer default prompt.&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/c6a996756cd8f1fb317b6eee6f4e668eebc7dc14</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/c6a996756cd8f1fb317b6eee6f4e668eebc7dc14"/>
+    <title>
+        fix: close interrupted tool calls on resume (#768)
+    </title>
+    <updated>2026-06-15T11:02:17Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/63178754?s=30&amp;v=4"/>
+    <author>
+      <name>kermanx</name>
+      <uri>https://github.com/kermanx</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;fix: close interrupted tool calls on resume (#768)&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/4516f62f6a7e4dd7675a3aec16b2a26c5e310d83</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/4516f62f6a7e4dd7675a3aec16b2a26c5e310d83"/>
+    <title>
+        feat(agent-core): refine system prompt context (#777)
+    </title>
+    <updated>2026-06-15T10:38:42Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/44634134?s=30&amp;v=4"/>
+    <author>
+      <name>RealKai42</name>
+      <uri>https://github.com/RealKai42</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;feat(agent-core): refine system prompt context (#777)
+
+* feat(agent-core): collapse hidden dirs in prompt
+
+Keep hidden directory entries visible in the cwd snapshot while omitting their contents to reduce prompt noise, and document the tools models should use to inspect hidden paths.
+
+* feat(agent-core): clarify prompt AGENTS context
+
+Add a marker when AGENTS.md content is truncated by the prompt budget and move dynamic system prompt context after the static guidance.
+
+* chore: add prompt refinement changesets&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/d47e699015f02f4f76723aa8fb17d51a74aa74ff</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/d47e699015f02f4f76723aa8fb17d51a74aa74ff"/>
+    <title>
+        fix: skip legacy max step limit during migration (#772)
+    </title>
+    <updated>2026-06-15T10:02:04Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/44634134?s=30&amp;v=4"/>
+    <author>
+      <name>RealKai42</name>
+      <uri>https://github.com/RealKai42</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;fix: skip legacy max step limit during migration (#772)
+
+* fix: skip legacy max step limit during migration
+
+* fix: skip more obsolete legacy migration fields&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/ecd7a0afb646d14a14c780a4088fd8a59da134ad</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/ecd7a0afb646d14a14c780a4088fd8a59da134ad"/>
+    <title>
+        refactor: resolve model capabilities via a static table lookup (#776)
+    </title>
+    <updated>2026-06-15T09:58:08Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/125936732?s=30&amp;v=4"/>
+    <author>
+      <name>7Sageer</name>
+      <uri>https://github.com/7Sageer</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;refactor: resolve model capabilities via a static table lookup (#776)
+
+Replace the per-provider getCapability instance method, and the throwaway
+provider instantiation used only for capability probing, with a static
+getModelCapability(wire, model) entry point in kosong. The same
+capability-registry tables are consulted, so resolution stays behaviorally
+identical; it no longer constructs a temporary provider or forges an API key.
+
+Also drop the unused getContextSizeLimit interface method.&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/5306fd70c5e203200be24ea0bc57f1f9d3b873f2</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/5306fd70c5e203200be24ea0bc57f1f9d3b873f2"/>
+    <title>
+        feat(update): roll out automatic updates in staged batches via CDN ma…
+    </title>
+    <updated>2026-06-15T08:52:44Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/25167721?s=30&amp;v=4"/>
+    <author>
+      <name>liruifengv</name>
+      <uri>https://github.com/liruifengv</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;feat(update): roll out automatic updates in staged batches via CDN manifest (#691)
+
+* feat(update): roll out automatic updates in staged batches via CDN manifest
+
+* chore: remove changeset
+
+* refactor(update): single-source the CDN latest file names
+
+* refactor(update): reuse the CDN latest URL constants in update checks
+
+* refactor(update): drop the test-only CDN base override
+
+* fix: preserve first launch attribution
+
+* fix: use refreshed rollout manifest for telemetry
+
+* fix: abort hung cdn update checks
+
+* fix: preserve update cache with bad manifest
+
+* chore: remove review report from branch&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/a355f2af2fd68ad9e2bdc72ce854cd18c8242ce8</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/a355f2af2fd68ad9e2bdc72ce854cd18c8242ce8"/>
+    <title>
+        fix: prioritize clearing editor before cancelling stream (#767)
+    </title>
+    <updated>2026-06-15T06:36:17Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/25167721?s=30&amp;v=4"/>
+    <author>
+      <name>liruifengv</name>
+      <uri>https://github.com/liruifengv</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;fix: prioritize clearing editor before cancelling stream (#767)&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/e0c6508ed1cfabdf7351c5a9a17283dbe68f1a4c</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/e0c6508ed1cfabdf7351c5a9a17283dbe68f1a4c"/>
+    <title>
+        docs(changelog): sync 0.14.3 from apps/kimi-code/CHANGELOG.md (#769)
+    </title>
+    <updated>2026-06-15T06:31:50Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/25167721?s=30&amp;v=4"/>
+    <author>
+      <name>liruifengv</name>
+      <uri>https://github.com/liruifengv</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;docs(changelog): sync 0.14.3 from apps/kimi-code/CHANGELOG.md (#769)&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/0ab72d7d19746a9fd92bffb4e76f5f049fbb6989</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/0ab72d7d19746a9fd92bffb4e76f5f049fbb6989"/>
+    <title>
+        test: update compaction usage snapshots (#770)
+    </title>
+    <updated>2026-06-15T05:50:06Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/63178754?s=30&amp;v=4"/>
+    <author>
+      <name>kermanx</name>
+      <uri>https://github.com/kermanx</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;test: update compaction usage snapshots (#770)&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/046856b740afb604132e914f1fc489de72394036</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/046856b740afb604132e914f1fc489de72394036"/>
+    <title>
+        fix: prefer media headers when reading media files (#765)
+    </title>
+    <updated>2026-06-15T04:09:05Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/63178754?s=30&amp;v=4"/>
+    <author>
+      <name>kermanx</name>
+      <uri>https://github.com/kermanx</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;fix: prefer media headers when reading media files (#765)&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/9cef89656311974a57e6675f474ea6c2adb1d8e9</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/9cef89656311974a57e6675f474ea6c2adb1d8e9"/>
+    <title>
+        fix: clarify compaction summary output target (#766)
+    </title>
+    <updated>2026-06-15T04:06:56Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/63178754?s=30&amp;v=4"/>
+    <author>
+      <name>kermanx</name>
+      <uri>https://github.com/kermanx</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;fix: clarify compaction summary output target (#766)&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/18f299fd0b266545a1f7cebae9f58b83b9d9776e</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/18f299fd0b266545a1f7cebae9f58b83b9d9776e"/>
+    <title>
+        mcp suport sse (#744)
+    </title>
+    <updated>2026-06-14T10:04:26Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/37055139?s=30&amp;v=4"/>
+    <author>
+      <name>oocz</name>
+      <uri>https://github.com/oocz</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;mcp suport sse (#744)
+
+Co-authored-by: yuchengzhen &amp;lt;yuchengzhen@moonshot.cn&amp;gt;&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/93928066dc308052de8c4a48e9c10b2f3dba361b</id>
+    <link type="text/html" rel="alternate" href="https://github.com/MoonshotAI/kimi-code/commit/93928066dc308052de8c4a48e9c10b2f3dba361b"/>
+    <title>
+        ci: release packages (#717)
+    </title>
+    <updated>2026-06-14T01:12:54Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/in/15368?s=30&amp;v=4"/>
+    <author>
+      <name>github-actions</name>
+      <uri>https://github.com/github-actions</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;ci: release packages (#717)
+
+Co-authored-by: github-actions[bot] &amp;lt;41898282+github-actions[bot]@users.noreply.github.com&amp;gt;&lt;/pre&gt;
+    </content>
+  </entry>
+</feed>
