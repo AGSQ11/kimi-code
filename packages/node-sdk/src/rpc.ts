@@ -553,6 +553,34 @@ export abstract class SDKRpcClientBase {
     return rpc.listMemories({ sessionId: input.sessionId, agentId });
   }
 
+  async rememberMemory(
+    input: SessionIdRpcInput & { content: string; category?: string; tags?: readonly string[] },
+  ): Promise<MemoryData> {
+    const agentId = this.interactiveAgentId;
+    const rpc = await this.getRpc();
+    return rpc.rememberMemory({
+      sessionId: input.sessionId,
+      agentId,
+      content: input.content,
+      category: input.category,
+      tags: input.tags,
+    });
+  }
+
+  async recallMemories(
+    input: SessionIdRpcInput & { query: string; category?: string; limit?: number },
+  ): Promise<readonly MemoryData[]> {
+    const agentId = this.interactiveAgentId;
+    const rpc = await this.getRpc();
+    return rpc.recallMemories({
+      sessionId: input.sessionId,
+      agentId,
+      query: input.query,
+      category: input.category,
+      limit: input.limit,
+    });
+  }
+
   async pinMemory(input: SessionIdRpcInput & { id: string; pinned: boolean }): Promise<MemoryData | undefined> {
     const agentId = this.interactiveAgentId;
     const rpc = await this.getRpc();

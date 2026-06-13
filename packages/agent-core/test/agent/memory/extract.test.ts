@@ -139,6 +139,21 @@ describe('parseExtractedMemories', () => {
     expect(result[1]?.category).toBeUndefined();
   });
 
+  it('accepts learning-loop categories from subagent outputs', () => {
+    const raw = JSON.stringify({
+      memories: [
+        { content: 'Missing error handling', category: 'critique-finding' },
+        { content: 'Model A outperformed B', category: 'comparison' },
+        { content: 'Suite passed 9/10', category: 'eval' },
+      ],
+    });
+    const result = parseExtractedMemories(raw);
+    expect(result).toHaveLength(3);
+    expect(result[0]?.category).toBe('critique-finding');
+    expect(result[1]?.category).toBe('comparison');
+    expect(result[2]?.category).toBe('eval');
+  });
+
   it('returns an empty list on invalid JSON', () => {
     expect(parseExtractedMemories('not json')).toEqual([]);
   });

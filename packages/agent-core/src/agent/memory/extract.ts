@@ -12,7 +12,14 @@ import EXTRACTION_PROMPT from './extract.md?raw';
 
 export interface ProposedMemory {
   readonly content: string;
-  readonly category?: 'user-preference' | 'project-fact' | 'decision' | 'learning';
+  readonly category?:
+    | 'user-preference'
+    | 'project-fact'
+    | 'decision'
+    | 'learning'
+    | 'critique-finding'
+    | 'comparison'
+    | 'eval';
   readonly tags?: string[];
 }
 
@@ -109,6 +116,9 @@ function normalizeCategory(
     case 'project-fact':
     case 'decision':
     case 'learning':
+    case 'critique-finding':
+    case 'comparison':
+    case 'eval':
       return category;
     default:
       return undefined;

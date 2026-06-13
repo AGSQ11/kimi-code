@@ -311,6 +311,24 @@ export class Session {
     return this.rpc.listMemories({ sessionId: this.id });
   }
 
+  async rememberMemory(options: {
+    content: string;
+    category?: string;
+    tags?: readonly string[];
+  }): Promise<MemoryData> {
+    this.ensureOpen();
+    return this.rpc.rememberMemory({ sessionId: this.id, ...options });
+  }
+
+  async recallMemories(options: {
+    query: string;
+    category?: string;
+    limit?: number;
+  }): Promise<readonly MemoryData[]> {
+    this.ensureOpen();
+    return this.rpc.recallMemories({ sessionId: this.id, ...options });
+  }
+
   async pinMemory(id: string, pinned: boolean): Promise<MemoryData | undefined> {
     this.ensureOpen();
     return this.rpc.pinMemory({ sessionId: this.id, id, pinned });

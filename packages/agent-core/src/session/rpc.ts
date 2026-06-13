@@ -283,6 +283,20 @@ export class SessionAPIImpl implements PromisableMethods<SessionAPI> {
     return (await this.getAgent(agentId)).listMemories({});
   }
 
+  async rememberMemory({
+    agentId,
+    ...payload
+  }: AgentScopedPayload<{ content: string; category?: string; tags?: readonly string[] }>) {
+    return (await this.getAgent(agentId)).rememberMemory(payload);
+  }
+
+  async recallMemories({
+    agentId,
+    ...payload
+  }: AgentScopedPayload<{ query: string; category?: string; limit?: number }>) {
+    return (await this.getAgent(agentId)).recallMemories(payload);
+  }
+
   async pinMemory({ agentId, ...payload }: AgentScopedPayload<{ id: string; pinned: boolean }>) {
     return (await this.getAgent(agentId)).pinMemory(payload);
   }

@@ -372,6 +372,16 @@ export interface AgentAPI {
   getTools: (payload: EmptyPayload) => readonly ToolInfo[];
   getBackground: (payload: GetBackgroundPayload) => readonly BackgroundTaskInfo[];
   listMemories: (payload: EmptyPayload) => readonly MemoryData[];
+  rememberMemory: (payload: {
+    content: string;
+    category?: string;
+    tags?: readonly string[];
+  }) => MemoryData;
+  recallMemories: (payload: {
+    query: string;
+    category?: string;
+    limit?: number;
+  }) => readonly MemoryData[];
   pinMemory: (payload: { id: string; pinned: boolean }) => MemoryData | undefined;
   deleteMemory: (payload: { id: string }) => boolean;
 }

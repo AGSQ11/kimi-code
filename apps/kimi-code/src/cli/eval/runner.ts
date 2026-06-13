@@ -22,22 +22,35 @@ export interface EvalRunnerDeps {
 
 export async function runEvalSuite(deps: EvalRunnerDeps, spec: EvalSpec): Promise<EvalSuiteResult> {
   const runs: EvalRunResult[] = [];
+  const sessions: Session[] = [];
   const startedAt = deps.now();
   const suiteDeadline = spec.suiteTimeout !== undefined ? startedAt + spec.suiteTimeout * 1000 : undefined;
 
   const matrix = buildRunMatrix(spec);
 
-  for (const runSpec of matrix) {
-    if (suiteDeadline !== undefined && deps.now() > suiteDeadline) {
-      runs.push(createTimeoutResult(runSpec, 'Suite timeout reached'));
-      continue;
+  try {
+    for (const runSpec of matrix) {
+      if (suiteDeadline !== undefined && deps.now() > suiteDeadline) {
+        runs.push(createTimeoutResult(runSpec, 'Suite timeout reached'));
+        continue;
+      }
+      const { result, session } = await executeRun(deps, spec, runSpec, suiteDeadline);
+      runs.push(result);
+      if (session !== undefined) {
+        sessions.push(session);
+      }
+      deps.stdout?.write(`[${result.status}] ${result.runId} ${result.promptId}/${result.model}/${result.variationId}\n`);
     }
-    const run = await executeRun(deps, spec, runSpec, suiteDeadline);
-    runs.push(run);
-    deps.stdout?.write(`[${run.status}] ${run.runId} ${run.promptId}/${run.model}/${run.variationId}\n`);
-  }
 
-  return buildSuiteResult(spec, runs, startedAt, deps.now());
+    const suiteResult = buildSuiteResult(spec, runs, startedAt, deps.now());
+    const lastSession = sessions.at(-1);
+    if (lastSession !== undefined) {
+      await rememberEvalSummary(lastSession, suiteResult);
+    }
+    return suiteResult;
+  } finally {
+    await Promise.all(sessions.map((session) => session.close?.().catch(() => {})));
+  }
 }
 
 function buildRunMatrix(spec: EvalSpec): EvalRunSpec[] {
@@ -65,25 +78,25 @@ async function executeRun(
   spec: EvalSpec,
   runSpec: EvalRunSpec,
   suiteDeadline: number | undefined,
-): Promise<EvalRunResult> {
+): Promise<{ readonly result: EvalRunResult; readonly session?: Session }> {
   const prompt = spec.prompts.find((p) => p.id === runSpec.promptId);
   const variation = spec.variations.find((v) => v.id === runSpec.variationId);
   if (prompt === undefined || variation === undefined) {
-    return createErrorResult(runSpec, 'Internal error: prompt or variation not found');
+    return { result: createErrorResult(runSpec, 'Internal error: prompt or variation not found') };
   }
 
   let promptText: string;
   try {
     promptText = await resolvePromptText(prompt);
   } catch (error) {
-    return createErrorResult(runSpec, `Failed to load prompt: ${errorMessage(error)}`);
+    return { result: createErrorResult(runSpec, `Failed to load prompt: ${errorMessage(error)}`) };
   }
 
   const perRunTimeoutMs = spec.timeout * 1000;
   const remainingMs =
     suiteDeadline !== undefined ? Math.min(perRunTimeoutMs, suiteDeadline - deps.now()) : perRunTimeoutMs;
   if (remainingMs <= 0) {
-    return createTimeoutResult(runSpec, 'Suite timeout reached before run started');
+    return { result: createTimeoutResult(runSpec, 'Suite timeout reached before run started') };
   }
 
   const session = await deps.harness.createSession({
@@ -92,12 +105,10 @@ async function executeRun(
     permission: 'auto',
   });
 
-  try {
-    await configureSession(session, runSpec.model, variation);
-    return await runWithTimeout(deps, spec, session, runSpec, promptText, remainingMs);
-  } finally {
-    await session.close?.().catch(() => {});
-  }
+  await configureSession(session, runSpec.model, variation);
+  await injectEvalMemorySnapshot(session, promptText);
+  const result = await runWithTimeout(deps, spec, session, runSpec, promptText, remainingMs);
+  return { result, session };
 }
 
 async function resolvePromptText(prompt: EvalPrompt): Promise<string> {
@@ -385,4 +396,63 @@ function computeMetrics(run: EvalRunResult, metrics: EvalMetric[]): void {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Give an eval run the same institutional knowledge the user would have in an
+ * interactive session. The fresh session already runs MemoryInjector on the
+ * prompt, but an explicit recall+injection guarantees a deterministic snapshot.
+ */
+async function injectEvalMemorySnapshot(session: Session, promptText: string): Promise<void> {
+  try {
+    const memories = await session.recallMemories({ query: promptText, limit: 10 });
+    if (memories.length === 0) return;
+    const lines = memories.map(
+      (memory) => `- [${memory.category ?? 'memory'}] ${memory.content}`,
+    );
+    await session.appendSystemReminder(
+      `Relevant context from past sessions:\n${lines.join('\n')}`,
+      { kind: 'injection', name: 'eval_memory_snapshot' },
+    );
+  } catch {
+    // Memory snapshot failure must not break the eval run.
+  }
+}
+
+/**
+ * Persist an aggregate summary of the eval suite so future sessions can recall
+ * which models performed best for a given task.
+ */
+async function rememberEvalSummary(session: Session, result: EvalSuiteResult): Promise<void> {
+  const { summary } = result;
+  const bestPerPrompt = new Map<string, { model: string; status: EvalRunResult['status'] }>();
+  for (const run of result.runs) {
+    if (run.status !== 'completed') continue;
+    const current = bestPerPrompt.get(run.promptId);
+    if (current === undefined || run.status === 'completed') {
+      bestPerPrompt.set(run.promptId, { model: run.model, status: run.status });
+    }
+  }
+
+  const lines = [
+    `Eval "${result.spec.name}": ${summary.completed}/${summary.totalRuns} completed, ${summary.failed} failed, ${summary.timedOut} timed out.`,
+    `Models: ${result.spec.models.join(', ')}`,
+    `Prompts: ${result.spec.prompts.map((p) => p.id).join(', ')}`,
+  ];
+  if (bestPerPrompt.size > 0) {
+    lines.push('Successful runs per prompt:');
+    for (const [promptId, { model }] of bestPerPrompt) {
+      lines.push(`- ${promptId}: ${model}`);
+    }
+  }
+
+  try {
+    await session.rememberMemory({
+      content: lines.join('\n'),
+      category: 'eval',
+      tags: ['eval', result.spec.name],
+    });
+  } catch {
+    // Persistence failure must not break the eval suite.
+  }
 }
