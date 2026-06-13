@@ -13,7 +13,7 @@ kimi <subcommand> [options]
 
 | 选项 | 简写 | 说明 |
 | --- | --- | --- |
-| `--version` | `-V` | 打印版本号并退出 |
+| `--version` | `-V` | 打印版本字符串（例如 `v0.14-feature`）并退出 |
 | `--help` | `-h` | 显示帮助信息并退出 |
 | `--session [id]` | `-S` | 恢复一个会话。带 ID 时直接打开指定会话；不带 ID 时进入交互式选择器 |
 | `--continue` | `-C` | 继续当前工作目录下最近一次的会话，无需手动指定 ID |
@@ -119,7 +119,7 @@ kimi -p "List changed files" --output-format stream-json
 
 ## 子命令
 
-`kimi` 提供以下子命令：`login`（非交互式登录）、`acp`（ACP IDE 模式）、`doctor`（校验配置文件）、`export`（导出会话）、`migrate`（迁移旧版数据）、`upgrade`（检查更新）、`provider`（管理供应商）。
+`kimi` 提供以下子命令：`login`（非交互式登录）、`acp`（ACP IDE 模式）、`doctor`（校验配置文件）、`eval`（运行 prompt / 模型 / 变量 benchmark）、`export`（导出会话）、`migrate`（迁移旧版数据）、`upgrade`（检查更新）、`provider`（管理供应商）。
 
 ### `kimi login`
 
@@ -213,6 +213,52 @@ kimi upgrade
 ```
 
 对全局 npm、pnpm、yarn、bun 以及 macOS / Linux native 安装，`kimi upgrade` 会展示更新选项；选择 `Install update now` 后运行对应的前台安装命令。当前安装方式无法自动升级时（如 Windows native 安装），改为打印手动更新命令。
+
+### `kimi eval`
+
+在多种 prompt、模型和变量组合上运行 benchmark，并生成对比报告。适合以可复现的方式比较模型输出、prompt 版本或 `systemPrompt` 设置。
+
+```sh
+kimi eval [spec] [options]
+```
+
+省略 `spec` 时，可通过 `--prompts` 和 `--models` 定义一个内联 benchmark。
+
+| 参数 / 选项 | 简写 | 说明 |
+| --- | --- | --- |
+| `spec` | | YAML 或 JSON 格式的 eval spec 文件路径 |
+| `--prompts <paths...>` | `-p` | Prompt 文件路径。未提供 spec 文件时必须同时传入 `--models` |
+| `--models <models...>` | `-m` | 模型别名。未提供 spec 文件时必须同时传入 `--prompts` |
+| `--output <path>` | `-o` | 输出报告路径。使用 `.json` 或 `.md`；默认输出 JSON 到 stdout |
+| `--samples <n>` | | 覆盖每组组合的采样次数 |
+| `--timeout <seconds>` | | 覆盖单次运行超时 |
+| `--suite-timeout <seconds>` | | 覆盖整个套件超时 |
+| `--yes` | `-y` | 确认 spec 中的 `executeTools: true` |
+
+示例 spec 文件：
+
+```yaml
+version: '1.0'
+name: Greeting eval
+samples: 3
+executeTools: false
+prompts:
+  - id: hello
+    file: ./prompts/hello.md
+models:
+  - default
+variations:
+  - id: default
+  - id: friendly
+    systemPrompt: 'You are a friendly assistant.'
+evaluation:
+  metrics:
+    - name: containsHello
+      type: substring
+      value: hello
+```
+
+所有运行成功完成时退出码为 `0`；任意运行失败或超时时退出码为 `1`。
 
 ### `kimi provider`
 

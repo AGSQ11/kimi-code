@@ -109,12 +109,17 @@ describe('AgentTool', () => {
     expect(tool.description).not.toContain('no time limit');
   });
 
-  it('does not expose a model parameter in the JSON schema', () => {
+  it('exposes a model parameter in the JSON schema', () => {
     const host = mockSubagentHost({ spawn: vi.fn() });
     const tool = new AgentTool(host);
-    const properties = (tool.parameters as { properties: Record<string, unknown> }).properties;
+    const properties = (
+      tool.parameters as {
+        properties: Record<string, { description?: string }>;
+      }
+    ).properties;
 
-    expect(properties).not.toHaveProperty('model');
+    expect(properties).toHaveProperty('model');
+    expect(properties['model']?.description).toContain('config.toml');
   });
 
   it('renders the tool set for each subagent type', () => {

@@ -28,6 +28,7 @@ import type {
   SessionSummary,
   SessionUsage,
   SkillSummary,
+  ToolInfo,
   Unsubscribe,
 } from '#/types';
 
@@ -155,6 +156,11 @@ export class Session {
   async setGenerationKwargs(kwargs: Record<string, number>): Promise<void> {
     this.ensureOpen();
     await this.rpc.setGenerationKwargs({ sessionId: this.id, kwargs });
+  }
+
+  async setSystemPrompt(systemPrompt: string): Promise<void> {
+    this.ensureOpen();
+    await this.rpc.setSystemPrompt({ sessionId: this.id, systemPrompt });
   }
 
   async setPermission(mode: PermissionMode): Promise<void> {
@@ -405,6 +411,21 @@ export class Session {
       name: skillName,
       ...(skillArgs !== undefined ? { args: skillArgs } : {}),
     });
+  }
+
+  async getTools(): Promise<readonly ToolInfo[]> {
+    this.ensureOpen();
+    return this.rpc.getTools(this.id);
+  }
+
+  async setActiveTools(names: readonly string[]): Promise<void> {
+    this.ensureOpen();
+    return this.rpc.setActiveTools(this.id, names);
+  }
+
+  async setForceMcp(enabled: boolean): Promise<void> {
+    this.ensureOpen();
+    return this.rpc.setForceMcp({ sessionId: this.id, enabled });
   }
 
   async close(): Promise<void> {

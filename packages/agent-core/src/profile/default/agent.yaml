@@ -20,6 +20,8 @@ tools:
   - CronDelete
   - ReadMediaFile
   - TodoList
+  - Think
+  - ToolSearch
   - Skill
   - WebSearch
   - Agent
@@ -32,6 +34,9 @@ tools:
   - GetGoal
   - SetGoalBudget
   - UpdateGoal
+  - NotebookEdit
+  - LSP
+  - PowerShell
   - mcp__*
 
 subagents:

@@ -22,6 +22,16 @@ const SWARM_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
   { value: 'off', description: 'Turn swarm mode off' },
 ];
 
+const FORCEMCP_ARG_COMPLETIONS: readonly ArgCompletionSpec[] = [
+  { value: 'on', description: 'Activate all connected MCP tools' },
+  { value: 'off', description: 'Restore the original active tool set' },
+];
+
+/** Argument autocompletion for the `/forcemcp` command. */
+export function forceMcpArgumentCompletions(argumentPrefix: string): AutocompleteItem[] | null {
+  return completeLeadingArg(FORCEMCP_ARG_COMPLETIONS, argumentPrefix);
+}
+
 /** Argument autocompletion for the `/goal` command (subcommands). */
 export function goalArgumentCompletions(argumentPrefix: string): AutocompleteItem[] | null {
   const nextMatch = argumentPrefix.match(/^next\s+(\S*)$/i);
@@ -145,6 +155,15 @@ export const BUILTIN_SLASH_COMMANDS = [
     description: 'Show MCP server status',
     priority: 60,
     availability: 'always',
+  },
+  {
+    name: 'forcemcp',
+    aliases: [],
+    description: 'Toggle force-MCP mode (activate all connected MCP tools)',
+    priority: 60,
+    availability: 'always',
+    argumentHint: '[on|off]',
+    completeArgs: forceMcpArgumentCompletions,
   },
   {
     name: 'plugins',

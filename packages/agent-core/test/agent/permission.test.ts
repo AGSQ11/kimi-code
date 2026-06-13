@@ -1053,6 +1053,7 @@ describe('Default tool approve policy', () => {
     ['TodoList', {}],
     ['TaskList', {}],
     ['TaskOutput', { task_id: 'task_1' }],
+    ['Memory', { operation: 'recall', query: 'kimi code' }],
     ['WebSearch', { query: 'kimi code' }],
     ['FetchURL', { url: 'https://example.com' }],
     ['Agent', { prompt: 'review this' }],

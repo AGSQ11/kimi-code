@@ -6,7 +6,7 @@ export const ToolInputDisplaySchema = z.discriminatedUnion('kind', [
     command: z.string(),
     cwd: z.string().optional(),
     description: z.string().optional(),
-    language: z.literal('bash').optional(),
+    language: z.enum(['bash', 'powershell']).optional(),
   }),
   z.object({
     kind: z.literal('file_io'),

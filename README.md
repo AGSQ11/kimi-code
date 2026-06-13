@@ -1,7 +1,7 @@
 # Kimi Code CLI
 
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-online-blue)](https://moonshotai.github.io/kimi-code/en/) <br>
-[Documentation](https://moonshotai.github.io/kimi-code/en/) · [Issues](https://github.com/MoonshotAI/kimi-code/issues) · [中文](README.zh-CN.md)
+[Documentation](https://moonshotai.github.io/kimi-code/en/) · [Issues](https://github.com/AGSQ11/kimi-code/issues) · [中文](README.zh-CN.md)
 
 ![Demo of using Kimi Code](./docs/media/intro.gif)
 
@@ -11,35 +11,30 @@ Kimi Code CLI is an AI coding agent that runs in your terminal — it can read a
 
 ## Install
 
-Install with the official script. No Node.js required.
-
-- **macOS or Linux**:
+This fork is installed from source. Requires **Node.js ≥ 24.15.0** and **pnpm 10.33.0**.
 
 ```sh
-curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash
-```
-
-- **Homebrew (macOS/Linux)**:
-
-```sh
-brew install kimi-code
-```
-
-- **Windows (PowerShell)**:
-
-```powershell
-irm https://code.kimi.com/kimi-code/install.ps1 | iex
+git clone https://github.com/AGSQ11/kimi-code.git
+cd kimi-code
+pnpm install
+pnpm --filter @moonshot-ai/kimi-code build
 ```
 
 > On Windows, install [Git for Windows](https://gitforwindows.org/) before first launch because Kimi Code CLI uses the bundled Git Bash as its shell environment. If Git Bash is installed in a custom location, set `KIMI_SHELL_PATH` to the absolute path of `bash.exe`.
 
-Then, run it with a new shell session:
+Run the CLI from the repo root:
 
 ```sh
-kimi --version
+pnpm --filter @moonshot-ai/kimi-code run dev:prod -- --version
 ```
 
-For npm install, upgrade, uninstall, see [Getting Started](https://moonshotai.github.io/kimi-code/en/guides/getting-started).
+For convenience, add an alias to your shell (example for `.bashrc` / `.zshrc`):
+
+```sh
+alias kimi='pnpm --filter @moonshot-ai/kimi-code run dev:prod --'
+```
+
+For build and development commands, see the [Develop](#develop) section below.
 
 ## Quick Start
 
@@ -47,7 +42,7 @@ Open a project and start the interactive UI:
 
 ```sh
 cd your-project
-kimi
+pnpm --filter @moonshot-ai/kimi-code run dev:prod
 ```
 
 On first launch, run `/login` inside Kimi Code CLI and choose either Kimi Code OAuth or a Moonshot AI Open Platform API key. After login, try your first task:
@@ -58,7 +53,7 @@ Take a look at this project and explain its main directories.
 
 ## Key Features
 
-- **Single-binary distribution.** Install with one command: no Node.js setup, PATH gymnastics, or global module conflicts.
+- **Source install.** Clone and build from the GitHub fork, ideal for customization and staying current with fork updates.
 - **Blazing-fast startup.** The TUI is ready in milliseconds, so starting a session never feels heavy.
 - **Purpose-built TUI.** A carefully tuned interface, optimized end to end for long, focused agent sessions.
 - **Video input.** Drop a screen recording or demo clip into the chat and let the agent watch what is hard to describe in words — turn a reference clip into a LUT, a long video into a short, a screen recording into working code, and more.
@@ -70,7 +65,7 @@ Take a look at this project and explain its main directories.
 
 ## Use it in your editor (ACP)
 
-Kimi Code CLI speaks the [Agent Client Protocol](https://agentclientprotocol.com/), so ACP-compatible editors and IDEs (Zed, JetBrains, …) can drive a session over stdio. Log in once, then point your editor at the `kimi acp` subcommand — no extra login needed.
+Kimi Code CLI speaks the [Agent Client Protocol](https://agentclientprotocol.com/), so ACP-compatible editors and IDEs (Zed, JetBrains, …) can drive a session over stdio. Log in once, then point your editor at the `acp` subcommand — no extra login needed.
 
 For Zed, add this to `~/.config/zed/settings.json`:
 
@@ -79,8 +74,8 @@ For Zed, add this to `~/.config/zed/settings.json`:
   "agent_servers": {
     "Kimi Code CLI": {
       "type": "custom",
-      "command": "kimi",
-      "args": ["acp"],
+      "command": "pnpm",
+      "args": ["--filter", "@moonshot-ai/kimi-code", "run", "dev:prod", "--", "acp"],
       "env": {}
     }
   }
@@ -103,7 +98,7 @@ Then open a new conversation in Zed's Agent panel. See [Using in IDEs](https://m
 Requirements: Node.js ≥ 24.15.0, pnpm 10.33.0.
 
 ```sh
-git clone https://github.com/MoonshotAI/kimi-code.git
+git clone https://github.com/AGSQ11/kimi-code.git
 cd kimi-code
 pnpm install
 ```
@@ -120,7 +115,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contribution guide.
 
 ## Community
 
-- [Issues](https://github.com/MoonshotAI/kimi-code/issues)
+- [Issues](https://github.com/AGSQ11/kimi-code/issues)
 - For security vulnerabilities, see [SECURITY.md](SECURITY.md).
 
 ## Acknowledgements

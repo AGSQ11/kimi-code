@@ -16,6 +16,7 @@ File tools handle reading, writing, and searching the local filesystem — the f
 | `Grep` | Auto-allow | Full-text search powered by ripgrep |
 | `Glob` | Auto-allow | Find files by glob pattern |
 | `ReadMediaFile` | Auto-allow | Read an image or video file |
+| `NotebookEdit` | Requires approval | Read or modify `.ipynb` notebook cells |
 
 **`Read`** accepts a file path (`path`) plus optional `line_offset` (starting line number; negative values count from the end) and `n_lines` (maximum number of lines to read). Returns at most 1000 lines or 100 KB per call; content beyond that limit is accompanied by a truncation notice. If the file is an image or video, the tool suggests using `ReadMediaFile` instead.
 
@@ -29,11 +30,20 @@ File tools handle reading, writing, and searching the local filesystem — the f
 
 **`ReadMediaFile`** sends an image or video to the model as multimodal content. Accepts only `path`; the file size limit is 100 MB. Availability depends on the current model's vision capabilities (`image_in` / `video_in`).
 
+**`NotebookEdit`** inspects or modifies `.ipynb` Jupyter notebooks without corrupting their JSON structure. The `operation` parameter selects the action:
+
+- `read` — list cells with their index, type, and source.
+- `edit` — replace the source of a single cell by index.
+- `write` — create or overwrite a notebook with the provided cells.
+
+For `edit`, first call `read` to find the target cell index. For `write`, provide cells as an array of `{ "cell_type": "code" | "markdown", "source": "..." }`. Notebook metadata and cell outputs are preserved on read/write; `edit` only changes the requested cell's source.
+
 ## Shell
 
 | Tool | Default Approval | Description |
 | --- | --- | --- |
 | `Bash` | Requires approval | Execute a shell command |
+| `PowerShell` | Requires approval | Execute a PowerShell command on Windows |
 
 **`Bash`** is the most permission-demanding tool and also the most general-purpose. Parameters:
 
@@ -44,7 +54,25 @@ File tools handle reading, writing, and searching the local filesystem — the f
 - `description`: background task description; required when `run_in_background=true`
 - `disable_timeout`: whether to remove the timeout limit for background tasks
 
-Foreground mode blocks the current turn until the command completes or times out, and the TUI streams stdout and stderr into the running `Bash` tool card while the command is still active. Background mode returns a task ID immediately and automatically notifies the Agent when the task finishes. stdin is always closed — interactive commands receive EOF immediately. A two-phase termination strategy (SIGTERM → 5-second grace period → SIGKILL) ensures reliable process cleanup after a timeout. On Windows, Git Bash is used by default.
+Foreground mode blocks the current turn until the command completes or times out, and the TUI streams stdout and stderr into the running `Bash` tool card while the command is still active. Background mode returns a task ID immediately and automatically notifies the Agent when the task finishes. stdin is always closed — interactive commands receive EOF immediately. A two-phase termination strategy (SIGTERM → 5-second grace period → SIGKILL) ensures reliable process cleanup after a timeout. On Windows, Git Bash is used by default for `Bash`, while `PowerShell` is available for Windows-native operations such as registry, WMI, .NET, and Windows services.
+
+**`PowerShell`** runs with `-NoProfile -NonInteractive` to keep startup fast and avoid user-specific profile side effects. It accepts `command`, `cwd`, and `timeout` (in seconds; default 60). Prefer `PowerShell` for Windows-native tasks and `Bash` for POSIX-style commands.
+
+## LSP
+
+| Tool | Default Approval | Description |
+| --- | --- | --- |
+| `LSP` | Auto-allow | Query language servers for definitions, references, hover, diagnostics, and workspace symbols |
+
+**`LSP`** provides semantic code intelligence by talking to installed language servers. Supported operations:
+
+- `definition` — jump to the definition of a symbol.
+- `references` — find all references to a symbol.
+- `hover` — get type information and documentation for a symbol.
+- `diagnostics` — request errors and warnings for a file.
+- `workspace_symbols` — search symbols across the workspace by name.
+
+All line and character numbers are zero-based, matching the Language Server Protocol. The relevant language server must be installed and on `PATH` (for example, `typescript-language-server` for TypeScript, `pyright-langserver` for Python, `rust-analyzer` for Rust, or `gopls` for Go). If no server is available for a file, the tool returns an error and the Agent falls back to `Grep` or `Read`.
 
 ## Web Tools
 
@@ -75,8 +103,20 @@ Plan mode is a constrained working state: once entered, `Write` and `Edit` are r
 | Tool | Default Approval | Description |
 | --- | --- | --- |
 | `TodoList` | Auto-allow | Manage a task to-do list |
+| `Memory` | Auto-allow | Store and retrieve persistent memories across sessions |
 
 **`TodoList`** maintains a visible subtask list across multi-step operations; state is stored within the Agent session. The `todos` parameter accepts an array where each item has a `title` and `status` (`pending` / `in_progress` / `done`). Omitting `todos` queries the current list; passing an empty array clears it.
+
+**`Memory`** gives the Agent a local, queryable "second brain" for user preferences, project facts, decisions, and learned context. Memories are stored in SQLite databases under `~/.kimi-code/memory.db` (global memories) and `<project-root>/.kimi-code/memory.db` (project-scoped memories). Data never leaves the local machine.
+
+Supported operations via the `operation` parameter:
+
+- `remember` — store a memory. Requires `content`; optional `category` (e.g. `user-preference`, `project-fact`, `decision`, `learning`), `tags`, and `project`.
+- `recall` — retrieve relevant memories. Requires a natural-language `query`; optional `category` and `limit`.
+- `update` — edit an existing memory by `id` or by `query`.
+- `forget` — delete memories by `id` or by `query`.
+
+When `category` is `project-fact` or `decision` and `project` is omitted, the current project root is used automatically. Up to five relevant memories are automatically injected into the system prompt at the start of each session.
 
 ## Collaboration Tools
 
@@ -96,6 +136,25 @@ Collaboration tools handle inter-Agent coordination, user interaction, and Skill
 **`AskUserQuestion`** asks the user a structured multiple-choice question — useful for disambiguation or option selection. The `questions` parameter accepts 1–4 questions; each question requires `question` (ending with `?`), `options` (2–4 choices, each with a `label` and `description`), and optional `header` (max 12 characters) and `multi_select` (defaults to false). An "Other" option is appended automatically. Setting `background` to true starts a background question task and returns a task ID immediately. When the host does not support interactive questioning, a failure message is returned and the Agent should ask the user directly in a text reply instead.
 
 **`Skill`** allows the Agent to actively invoke a registered inline-type Skill. Accepts `skill` (the Skill name) and optional `args` (additional argument text). Only `type = "inline"` Skills can be called via this tool; Skills with `disableModelInvocation: true` are rejected. Maximum nesting depth is 3 levels. See [Agent Skills](../customization/skills.md) for details.
+
+## Reasoning and discovery
+
+These tools help the Agent reason explicitly and discover capabilities that are available but not currently active.
+
+| Tool | Default Approval | Description |
+| --- | --- | --- |
+| `Think` | Auto-allow | Record a chain-of-thought before acting |
+| `ToolSearch` | Auto-allow | Discover deferred skills and MCP tools |
+
+**`Think`** is a lightweight reasoning helper. The Agent writes a concise chain-of-thought in `thought`, which is recorded in the session log without changing files or running commands. It is useful before editing multiple interdependent files, choosing between implementation approaches, deciding whether to ask for clarification, or breaking a large request into smaller steps. After recording the thought, the Agent proceeds with the appropriate tools.
+
+**`ToolSearch`** is a read-only discovery tool for capabilities that are not in the current active tool set. Set `type` to:
+
+- `skill` — list invocable skills. Once a relevant skill is found, the Agent can call `Skill` with its name.
+- `mcp` — list connected MCP servers and the tools they expose, noting which tools are currently enabled.
+- `all` (or omit `type`) — return a combined view.
+
+Use `query` to narrow results by name or description. `ToolSearch` does not change files, run commands, or enable/disable anything.
 
 ## Background Tasks
 

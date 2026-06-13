@@ -5,6 +5,7 @@ import { Command, Option } from 'commander';
 import type { CLIOptions } from './options';
 import { registerAcpCommand } from './sub/acp';
 import { registerDoctorCommand } from './sub/doctor';
+import { registerEvalCommand } from './sub/eval';
 import { registerExportCommand } from './sub/export';
 import { registerLoginCommand } from './sub/login';
 import { registerProviderCommand } from './sub/provider';
@@ -21,9 +22,12 @@ export function createProgram(
   onPluginNodeRunner: PluginNodeRunnerHandler = () => {},
   onUpgrade: UpgradeCommandHandler = () => {},
 ): Command {
+  const [major, minor] = version.split('.');
+  const displayVersion = `v${major}.${minor}-feature`;
+
   const program = new Command(CLI_COMMAND_NAME)
     .description('The Starting Point for Next-Gen Agents')
-    .version(version, '-V, --version')
+    .version(displayVersion, '-V, --version')
     .allowUnknownOption(false)
     .configureHelp({ helpWidth: 100 })
     .helpOption('-h, --help', 'Show help.')
@@ -80,6 +84,7 @@ export function createProgram(
   registerAcpCommand(program);
   registerLoginCommand(program);
   registerDoctorCommand(program);
+  registerEvalCommand(program);
   registerMigrateCommand(program, onMigrate);
   program
     .command('upgrade')

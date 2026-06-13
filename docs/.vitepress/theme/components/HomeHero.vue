@@ -16,7 +16,7 @@ const copy = computed(() => isZh.value
       primaryText: '开始使用',
       primaryHref: '/zh/guides/getting-started',
       secondaryText: '在 GitHub 查看',
-      secondaryHref: 'https://github.com/MoonshotAI/kimi-code',
+      secondaryHref: 'https://github.com/AGSQ11/kimi-code',
     }
   : {
       titleLead: 'Kimi',
@@ -26,7 +26,7 @@ const copy = computed(() => isZh.value
       primaryText: 'Get started',
       primaryHref: '/en/guides/getting-started',
       secondaryText: 'View on GitHub',
-      secondaryHref: 'https://github.com/MoonshotAI/kimi-code',
+      secondaryHref: 'https://github.com/AGSQ11/kimi-code',
     })
 </script>
 

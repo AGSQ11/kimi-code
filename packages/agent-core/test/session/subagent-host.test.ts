@@ -306,7 +306,10 @@ describe('SessionSubagentHost', () => {
       'Bash',
       'Glob',
       'Grep',
+      'LSP',
       'Read',
+      'Think',
+      'ToolSearch',
     ]);
     expect(child.llmCalls[0]?.history).toMatchObject([
       {
@@ -441,7 +444,11 @@ describe('SessionSubagentHost', () => {
       'Edit',
       'Glob',
       'Grep',
+      'LSP',
+      'NotebookEdit',
       'Read',
+      'Think',
+      'ToolSearch',
       'Write',
     ]);
     expect(child.llmCalls[0]?.history).toMatchObject([
@@ -1497,7 +1504,7 @@ function fakeSession(
       custom: {},
     },
     writeMetadata: vi.fn(async () => {}),
-    systemContextKaos: vi.fn((cwd: string) => parent.kaos.withCwd(cwd)),
+    systemContextKaos: vi.fn((cwd: string) => createFakeKaos({ getcwd: () => cwd })),
     getReadyAgent: vi.fn((id: string) => agents.get(id)),
     ensureAgentResumed: vi.fn(async (id: string) => {
       const agent = agents.get(id);

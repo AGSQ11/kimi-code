@@ -5,14 +5,14 @@
   "description": "Shared telemetry infrastructure for Kimi Code",
   "license": "MIT",
   "author": "Moonshot AI",
-  "homepage": "https://github.com/MoonshotAI/kimi-code/tree/main/packages/telemetry#readme",
+  "homepage": "https://github.com/AGSQ11/kimi-code/tree/main/packages/telemetry#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MoonshotAI/kimi-code.git",
+    "url": "git+https://github.com/AGSQ11/kimi-code.git",
     "directory": "packages/telemetry"
   },
   "bugs": {
-    "url": "https://github.com/MoonshotAI/kimi-code/issues"
+    "url": "https://github.com/AGSQ11/kimi-code/issues"
   },
   "keywords": [
     "kimi",

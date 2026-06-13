@@ -381,11 +381,14 @@ export class ToolManager {
         new b.ReadTool(kaos, workspace),
         new b.WriteTool(kaos, workspace),
         new b.EditTool(kaos, workspace),
+        new b.NotebookEditTool(kaos, workspace),
+        new b.LspTool(kaos, workspace),
         new b.GrepTool(kaos, workspace),
         new b.GlobTool(kaos, workspace),
         new b.BashTool(kaos, cwd, background, {
           allowBackground,
         }),
+        kaos.osEnv.osKind === 'Windows' && new b.PowerShellTool(kaos, cwd),
         (modelCapabilities.image_in || modelCapabilities.video_in) &&
           new b.ReadMediaFileTool(kaos, workspace, modelCapabilities, videoUploader),
         new b.EnterPlanModeTool(this.agent),
@@ -397,12 +400,15 @@ export class ToolManager {
         goalToolsEnabled && new b.UpdateGoalTool(this.agent),
         this.agent.rpc?.requestQuestion && new b.AskUserQuestionTool(this.agent),
         new b.TodoListTool(this.toolStore),
+        new b.ThinkTool(this.toolStore),
+        new b.ToolSearchTool(this.agent),
         new b.TaskListTool(background),
         new b.TaskOutputTool(background),
         new b.TaskStopTool(background),
         this.agent.cron && new b.CronCreateTool(this.agent.cron),
         this.agent.cron && new b.CronListTool(this.agent.cron),
         this.agent.cron && new b.CronDeleteTool(this.agent.cron),
+        new b.MemoryTool(this.agent.memoryStore, () => this.agent.memoryStore.getProjectRoot()),
         this.agent.skills?.registry.listInvocableSkills().length &&
           new b.SkillTool(this.agent),
         this.agent.subagentHost &&

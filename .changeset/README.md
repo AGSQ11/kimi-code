@@ -56,7 +56,7 @@ Fill in the following:
 
 | Field | Value |
 | --- | --- |
-| GitHub Organization | `MoonshotAI` |
+| GitHub Organization | `AGSQ11` |
 | GitHub Repository | `kimi-code` |
 | GitHub Workflow | `release.yml` |
 | Environment | leave empty |
