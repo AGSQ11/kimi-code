@@ -40,6 +40,8 @@ import { USER_PROMPT_ORIGIN, type PromptOrigin } from '../context';
 import { renderUserPromptHookBlockResult, renderUserPromptHookResult } from '../../session/hooks';
 import { canonicalTelemetryArgs, isPlainRecord } from './canonical-args';
 import { ToolCallDeduplicator } from './tool-dedup';
+import { extractMemories, type ProposedMemory } from '../memory/extract';
+import { MEMORY_TOOL_NAME } from '#/tools/builtin/memory';
 
 interface ActiveTurn {
   readonly turnId: number;
@@ -301,6 +303,9 @@ export class TurnFlow {
         return await this.driveGoal(firstTurnId, input, origin, signal);
       }
       const end = await this.runOneTurn(firstTurnId, input, origin, signal, true);
+      if (end.event.reason === 'completed' && !signal.aborted) {
+        void this.proposeMemories(firstTurnId, signal);
+      }
       const resumedFromPausedOrBlocked =
         initialGoalStatus === 'paused' || initialGoalStatus === 'blocked';
       const currentGoalStatus = this.agent.goal.getGoal().goal?.status;
@@ -322,6 +327,99 @@ export class TurnFlow {
       if (ownsActiveTurn()) {
         this.activeTurn = null;
       }
+    }
+  }
+
+  /**
+   * After a completed assistant turn, extract durable facts from the exchange
+   * and offer them as memories. In auto/yolo mode the memories are stored
+   * silently; in manual mode a transient UI approval prompt is shown.
+   */
+  private async proposeMemories(turnId: number, signal: AbortSignal): Promise<void> {
+    if (signal.aborted) return;
+    if (!this.isMemoryToolActive()) return;
+
+    const userText = this.lastUserMessageText();
+    const assistantText = this.lastAssistantMessageText();
+    if (userText.length === 0 && assistantText.length === 0) return;
+
+    const proposed = extractMemories({ userText, assistantText });
+    if (proposed.length === 0) return;
+
+    const mode = this.agent.permission.mode;
+    if (mode === 'yolo' || mode === 'auto') {
+      await this.rememberApproved(proposed, { all: true });
+      return;
+    }
+
+    const requestMemoryApproval = this.agent.rpc?.requestMemoryApproval;
+    if (requestMemoryApproval === undefined) return;
+
+    try {
+      const response = await requestMemoryApproval(
+        { turnId, memories: proposed },
+        { signal },
+      );
+      const approved = proposed.filter((_, index) => response.approved.includes(index));
+      await this.rememberApproved(approved);
+    } catch (error) {
+      if (isAbortError(error)) return;
+      this.agent.log.warn('memory approval failed', { error });
+    }
+  }
+
+  private isMemoryToolActive(): boolean {
+    return this.agent.tools.data().some((tool) => tool.name === MEMORY_TOOL_NAME && tool.active);
+  }
+
+  private lastUserMessageText(): string {
+    for (let i = this.agent.context.history.length - 1; i >= 0; i--) {
+      const message = this.agent.context.history[i];
+      if (message?.role !== 'user') continue;
+      if (message.origin?.kind !== 'user') continue;
+      return message.content
+        .map((part) => (part.type === 'text' ? part.text : ''))
+        .join(' ')
+        .trim();
+    }
+    return '';
+  }
+
+  private lastAssistantMessageText(): string {
+    for (let i = this.agent.context.history.length - 1; i >= 0; i--) {
+      const message = this.agent.context.history[i];
+      if (message?.role !== 'assistant') continue;
+      return message.content
+        .map((part) => (part.type === 'text' ? part.text : ''))
+        .join(' ')
+        .trim();
+    }
+    return '';
+  }
+
+  private async rememberApproved(
+    memories: readonly ProposedMemory[],
+    options?: { all?: boolean },
+  ): Promise<void> {
+    if (memories.length === 0) return;
+    const projectRoot = this.agent.memoryStore.getProjectRoot();
+    for (const memory of memories) {
+      try {
+        await this.agent.memoryStore.remember({
+          content: memory.content,
+          category: memory.category,
+          tags: memory.tags,
+          project: memory.category === 'project-fact' || memory.category === 'decision' ? projectRoot : undefined,
+          source: 'auto-extract',
+        });
+      } catch (error) {
+        this.agent.log.warn('failed to remember extracted memory', { error });
+      }
+    }
+    if (options?.all === true) {
+      this.agent.telemetry.track('memory_auto_remembered', { count: memories.length });
+    } else {
+      this.agent.telemetry.track('memory_approved', { count: memories.length });
     }
   }
 

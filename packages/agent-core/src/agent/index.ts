@@ -433,6 +433,7 @@ export class Agent {
       },
       startBtw: () => this.subagentHost!.startBtw(),
       runCritique: (payload) => this.subagentHost!.runCritique(payload.context, payload.modelAlias),
+      compareModels: (payload) => this.subagentHost!.runCompare(payload.prompt, payload.modelAliases),
       appendSystemReminder: (payload) => {
         this.context.appendSystemReminder(payload.text, {
           kind: 'system_trigger',

@@ -50,7 +50,8 @@ Some commands are only available in the idle state. Executing these commands whi
 | `/swarm on\|off` | — | Turn swarm mode on or off without sending a prompt. | Yes |
 | `/swarm <task>` | — | Turn swarm mode on, then send `<task>` as a normal prompt. If the turn completes normally, swarm mode turns off automatically. In `manual` permission mode, Kimi Code asks whether to switch to `auto` or `yolo` before starting. | No |
 | `/forcemcp [on\|off]` | — | Toggle force-MCP mode. While on, all connected MCP tools are activated and the model is reminded to use only the ones that add context. Run `/forcemcp off` (or toggle again) to restore the original active tool set. | Yes |
-| `/criticize` | `/critique` | Spawn a dedicated critic sub-agent that analyzes the main agent's work for flaws, hallucinations, edge cases, and alternative approaches. The critique is injected back into context so the main agent can review, rebut, or accept each point. In plan mode, it gathers the current plan content for analysis. If no critic model is configured yet, a model picker dialog opens first. | Yes |
+| `/criticize` | `/critique` | Spawn a dedicated critic sub-agent that analyzes the main agent's work for flaws, hallucinations, edge cases, and alternative approaches. The critique is injected back into context so the main agent can review, rebut, or accept each point. In plan mode, it gathers the current plan content for analysis. If no critic model is configured yet, a model picker dialog opens first. When the `auto-critique-checkpoints` experimental flag is enabled, the critic also runs automatically before plan approval, multi-file edits, and goal completion. | Yes |
+| `/compare [<prompt>]` | `/ab` | Run the same prompt against 2-4 models in parallel and view the responses side-by-side. If no prompt is given, the last user message is used. In the results panel, press `1`-`4` to promote a response to the main context, `S` to ask the main agent to synthesize the best parts, or `Esc`/`Q` to close. | Yes |
 | `/goal [...]` | — | Start or manage an autonomous goal | See below |
 
 ::: warning
@@ -155,6 +156,10 @@ All Skill commands are only available in the idle state. `flow`-type Skills are 
 :::
 
 For installing and authoring Skills, see [Agent Skills](../customization/skills.md).
+
+## Automatic memory extraction
+
+When the `Memory` tool is enabled, Kimi Code CLI proactively extracts durable facts from each completed assistant turn — such as user preferences, project facts, and approved decisions. After the turn finishes, it proposes up to three memories. In `auto` or `YOLO` permission mode the memories are saved silently; in `manual` mode a transient TUI prompt lets you approve or skip each proposal. Stored memories are automatically recalled and ranked by relevance to your current query in future turns. You can also manage memories explicitly with the `Memory` tool.
 
 ## Next steps
 

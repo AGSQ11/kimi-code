@@ -212,6 +212,10 @@ export class SessionAPIImpl implements PromisableMethods<SessionAPI> {
     return (await this.getAgent(agentId)).runCritique(payload);
   }
 
+  async compareModels({ agentId, ...payload }: AgentScopedPayload<{ prompt: string; modelAliases: readonly string[] }>): Promise<readonly { modelAlias: string; result?: string; error?: string }[]> {
+    return (await this.getAgent(agentId)).compareModels(payload);
+  }
+
   async appendSystemReminder({ agentId, ...payload }: AgentScopedPayload<{ text: string; kind?: string; name?: string }>): Promise<void> {
     return (await this.getAgent(agentId)).appendSystemReminder(payload);
   }

@@ -98,4 +98,31 @@ describe('MemoryInjector', () => {
     expect(text).toContain('[user-preference] Use pnpm');
     expect(history[0]?.origin).toEqual({ kind: 'injection', variant: 'memory_context' });
   });
+
+  it('ranks memories by relevance to the current user query', async () => {
+    await store.remember({ content: 'Use pnpm for package management', category: 'user-preference' });
+    await store.remember({ content: 'Run tests with vitest', category: 'user-preference' });
+    await store.remember({ content: 'Use 2-space indentation', category: 'user-preference' });
+
+    const history: ContextMessage[] = [
+      {
+        role: 'user',
+        content: [{ type: 'text', text: 'How do I run the tests?' }],
+        toolCalls: [],
+        origin: { kind: 'user' },
+      },
+    ];
+    const agent = memoryAgent({ history, memoryActive: true, memoryStore: store });
+    const injector = new MemoryInjector(agent);
+
+    await injector.inject();
+
+    // Original user message plus the injected memory reminder.
+    expect(history).toHaveLength(2);
+    const text = history[1]?.content.map((part) => (part.type === 'text' ? part.text : '')).join('');
+    // The vitest memory should be ranked first for a test query; unrelated
+    // memories are filtered out by the relevance scorer.
+    expect(text).toContain('vitest');
+    expect(text).not.toContain('pnpm');
+  });
 });

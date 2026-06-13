@@ -9,6 +9,8 @@ import {
   type CoreAPI,
   type Event,
   type ExperimentalFeatureState,
+  type MemoryApprovalRequest,
+  type MemoryApprovalResponse,
   type QuestionRequest,
   type QuestionResult,
   type RPCMethods,
@@ -20,7 +22,7 @@ import {
 } from '@moonshot-ai/agent-core';
 import type { Kaos } from '@moonshot-ai/kaos';
 
-import type { ApprovalHandler, QuestionHandler } from '#/events';
+import type { ApprovalHandler, MemoryApprovalHandler, QuestionHandler } from '#/events';
 import type {
   BackgroundTaskInfo,
   ConfigDiagnostics,
@@ -118,6 +120,7 @@ export abstract class SDKRpcClientBase {
   private readonly eventListeners = new Set<(event: Event) => void>();
   private readonly approvalHandlers = new Map<string, ApprovalHandler>();
   private readonly questionHandlers = new Map<string, QuestionHandler>();
+  private readonly memoryApprovalHandlers = new Map<string, MemoryApprovalHandler>();
 
   get interactiveAgentId(): string {
     return this.interactiveAgentScope.getStore() ?? MAIN_AGENT_ID;
@@ -279,6 +282,19 @@ export abstract class SDKRpcClientBase {
       agentId,
       context: input.context,
       modelAlias: input.modelAlias,
+    });
+  }
+
+  async compareModels(
+    input: SessionIdRpcInput & { prompt: string; modelAliases: readonly string[] },
+  ): Promise<readonly { modelAlias: string; result?: string; error?: string }[]> {
+    const agentId = this.interactiveAgentId;
+    const rpc = await this.getRpc();
+    return rpc.compareModels({
+      sessionId: input.sessionId,
+      agentId,
+      prompt: input.prompt,
+      modelAliases: input.modelAliases,
     });
   }
 
@@ -681,9 +697,21 @@ export abstract class SDKRpcClientBase {
     this.questionHandlers.set(sessionId, handler);
   }
 
+  setMemoryApprovalHandler(
+    sessionId: string,
+    handler: MemoryApprovalHandler | undefined,
+  ): void {
+    if (handler === undefined) {
+      this.memoryApprovalHandlers.delete(sessionId);
+      return;
+    }
+    this.memoryApprovalHandlers.set(sessionId, handler);
+  }
+
   clearSessionHandlers(sessionId: string): void {
     this.approvalHandlers.delete(sessionId);
     this.questionHandlers.delete(sessionId);
+    this.memoryApprovalHandlers.delete(sessionId);
   }
 
   async requestApproval(
@@ -732,6 +760,27 @@ export abstract class SDKRpcClientBase {
     }
   }
 
+  async requestMemoryApproval(
+    request: MemoryApprovalRequest & { sessionId: string; agentId: string },
+  ): Promise<MemoryApprovalResponse> {
+    const handler = this.memoryApprovalHandlers.get(request.sessionId);
+    if (handler === undefined) {
+      return { approved: [] };
+    }
+
+    try {
+      return await handler(request);
+    } catch (error) {
+      this.receiveEvent({
+        type: 'error',
+        sessionId: request.sessionId,
+        agentId: request.agentId,
+        ...makeErrorPayload(ErrorCodes.SESSION_QUESTION_HANDLER_ERROR, errorMessage(error)),
+      });
+      return { approved: [] };
+    }
+  }
+
   async toolCall(request: ToolCallRequest): Promise<ToolCallResponse> {
     return {
       output: `SDK custom tool calls are not supported: ${request.toolCallId}`,
@@ -758,6 +807,12 @@ export class ClientAPI implements SDKAPI {
     request: QuestionRequest & { sessionId: string; agentId: string },
   ): Promise<QuestionResult> {
     return this.client.requestQuestion(request);
+  }
+
+  requestMemoryApproval(
+    request: MemoryApprovalRequest & { sessionId: string; agentId: string },
+  ): Promise<MemoryApprovalResponse> {
+    return this.client.requestMemoryApproval(request);
   }
 
   toolCall(request: ToolCallRequest): Promise<ToolCallResponse> {

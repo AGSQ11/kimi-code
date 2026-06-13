@@ -100,9 +100,16 @@ import { adaptPanelResponse } from './reverse-rpc/approval/adapter';
 import { ApprovalController } from './reverse-rpc/approval/controller';
 import { createApprovalRequestHandler } from './reverse-rpc/approval/handler';
 import { registerReverseRPCHandlers } from './reverse-rpc/index';
+import { MemoryApprovalController } from './reverse-rpc/memory/controller';
+import { createMemoryApprovalHandler } from './reverse-rpc/memory/handler';
 import { QuestionController } from './reverse-rpc/question/controller';
 import { createQuestionAskHandler } from './reverse-rpc/question/handler';
-import type { ApprovalPanelData, QuestionPanelData } from './reverse-rpc/types';
+import type {
+  ApprovalPanelData,
+  MemoryApprovalPanelData,
+  QuestionPanelData,
+} from './reverse-rpc/types';
+import { MemoryApprovalDialogComponent } from './components/dialogs/memory-approval';
 import { currentTheme, getColorPalette, getBuiltInPalette, isBuiltInTheme } from './theme';
 import type { ColorToken, ResolvedTheme, ThemeName } from './theme';
 import { createTUIState, type TUIState } from './tui-state';
@@ -205,6 +212,7 @@ export class KimiTUI {
   state: TUIState;
   private readonly approvalController = new ApprovalController();
   private readonly questionController = new QuestionController();
+  private readonly memoryApprovalController = new MemoryApprovalController();
   private readonly reverseRpcDisposers: Array<() => void> = [];
   private skillCommands: readonly KimiSlashCommand[] = [];
   readonly skillCommandMap = new Map<string, string>();
@@ -277,20 +285,31 @@ export class KimiTUI {
     });
 
     this.reverseRpcDisposers.push(
-      ...registerReverseRPCHandlers(this.approvalController, this.questionController, {
-        showApprovalPanel: (payload) => {
-          this.showApprovalPanel(payload);
+      ...registerReverseRPCHandlers(
+        this.approvalController,
+        this.questionController,
+        this.memoryApprovalController,
+        {
+          showApprovalPanel: (payload) => {
+            this.showApprovalPanel(payload);
+          },
+          hideApprovalPanel: () => {
+            this.hideApprovalPanel();
+          },
+          showQuestionDialog: (payload) => {
+            this.showQuestionDialog(payload);
+          },
+          hideQuestionDialog: () => {
+            this.hideQuestionDialog();
+          },
+          showMemoryApprovalDialog: (payload) => {
+            this.showMemoryApprovalDialog(payload);
+          },
+          hideMemoryApprovalDialog: () => {
+            this.hideMemoryApprovalDialog();
+          },
         },
-        hideApprovalPanel: () => {
-          this.hideApprovalPanel();
-        },
-        showQuestionDialog: (payload) => {
-          this.showQuestionDialog(payload);
-        },
-        hideQuestionDialog: () => {
-          this.hideQuestionDialog();
-        },
-      }),
+      ),
     );
     this.streamingUI = new StreamingUIController(this);
     this.authFlow = new AuthFlowController(this);
@@ -1146,8 +1165,10 @@ export class KimiTUI {
     this.clearReverseRpcPanels();
     previous?.setApprovalHandler(undefined);
     previous?.setQuestionHandler(undefined);
+    previous?.setMemoryApprovalHandler?.(undefined);
     this.approvalController.cancelAll(reason);
     this.questionController.cancelAll(reason);
+    this.memoryApprovalController.cancelAll(reason);
     this.session = undefined;
     this.state.swarmModeEntry = undefined;
     this.harness.setTelemetryContext({ sessionId: null });
@@ -1168,6 +1189,7 @@ export class KimiTUI {
       }),
     );
     session.setQuestionHandler(createQuestionAskHandler(this.questionController));
+    session.setMemoryApprovalHandler?.(createMemoryApprovalHandler(this.memoryApprovalController));
   }
 
   async fetchSessions(): Promise<void> {
@@ -1270,8 +1292,10 @@ export class KimiTUI {
     this.clearReverseRpcPanels();
     session.setApprovalHandler(undefined);
     session.setQuestionHandler(undefined);
+    session.setMemoryApprovalHandler(undefined);
     this.approvalController.cancelAll('reloading session');
     this.questionController.cancelAll('reloading session');
+    this.memoryApprovalController.cancelAll('reloading session');
 
     this.resetSessionRuntime();
     this.session = session;
@@ -2001,6 +2025,25 @@ export class KimiTUI {
 
   private hideQuestionDialog(): void {
     this.patchLivePane({ pendingQuestion: null });
+    this.restoreEditor();
+  }
+
+  private showMemoryApprovalDialog(payload: MemoryApprovalPanelData): void {
+    this.patchLivePane({ pendingMemoryApproval: { data: payload } });
+    const dialog = new MemoryApprovalDialogComponent({
+      request: payload,
+      onResponse: (response) => {
+        this.memoryApprovalController.respond(response);
+      },
+      onCancel: () => {
+        this.memoryApprovalController.respond({ approved: [] });
+      },
+    });
+    this.mountEditorReplacement(dialog);
+  }
+
+  private hideMemoryApprovalDialog(): void {
+    this.patchLivePane({ pendingMemoryApproval: null });
     this.restoreEditor();
   }
 }

@@ -15,8 +15,15 @@ const PLAN_REJECT_CHOICES: ApprovalPanelChoice[] = [
   { label: 'Revise', response: 'rejected', selected_label: 'Revise', requires_feedback: true },
 ];
 
+const APPROVE_WITHOUT_CRITIQUE_CHOICE: ApprovalPanelChoice = {
+  label: 'Approve without critique',
+  response: 'approved',
+  selected_label: 'Approve without critique',
+};
+
 export function adaptApprovalRequest(event: ApprovalRequest): ApprovalPanelData {
   const resolved = resolveDisplay(event.toolName, event.display, event.action);
+  const hasCritique = resolved.blocks.some(isCritiqueBlock) || hasDisplayCritique(event.display);
   return {
     id: event.toolCallId,
     tool_call_id: event.toolCallId,
@@ -24,7 +31,7 @@ export function adaptApprovalRequest(event: ApprovalRequest): ApprovalPanelData 
     action: event.action,
     description: resolved.description,
     display: resolved.blocks,
-    choices: adaptChoices(event.toolName, event.display),
+    choices: adaptChoices(event.toolName, event.display, hasCritique),
   };
 }
 
@@ -41,6 +48,13 @@ function resolveDisplay(
   if (display.kind === 'generic' && isRecord(display.detail)) {
     const extracted = extractFromArgs(toolName, display.detail);
     if (extracted !== null) return extracted;
+    const critique = stringField(display.detail, 'critique');
+    if (critique !== undefined && critique.length > 0) {
+      return {
+        blocks: [makeCritiqueBlock(critique)],
+        description: display.summary ?? action,
+      };
+    }
   }
   return {
     blocks: adaptDisplay(display),
@@ -253,29 +267,33 @@ function adaptDisplay(display: ToolInputDisplay): DisplayBlock[] {
       ];
     case 'file_io': {
       const path = display.path ?? '';
+      const blocks: DisplayBlock[] = [];
+      if (display.critique !== undefined && display.critique.length > 0) {
+        blocks.push(makeCritiqueBlock(display.critique));
+      }
       // Write attaches the full file content — render it as a syntax-
       // highlighted code block so the approval panel can preview (and
       // ctrl+e expand) what is about to land on disk.
       if (display.operation === 'write' && typeof display.content === 'string') {
-        return [{ type: 'file_content', path, content: display.content }];
+        blocks.push({ type: 'file_content', path, content: display.content });
       }
       // Edit attaches the old_string/new_string hunk as before/after — render
       // it as a diff block so ctrl+e expansion works on the change.
-      if (
+      else if (
         display.operation === 'edit' &&
         typeof display.before === 'string' &&
         typeof display.after === 'string'
       ) {
-        return [{ type: 'diff', path, old_text: display.before, new_text: display.after }];
-      }
-      return [
-        {
+        blocks.push({ type: 'diff', path, old_text: display.before, new_text: display.after });
+      } else {
+        blocks.push({
           type: 'file_op',
           operation: display.operation,
           path,
           detail: display.detail,
-        },
-      ];
+        });
+      }
+      return blocks;
     }
     case 'url_fetch':
       return [
@@ -318,8 +336,13 @@ function adaptDisplay(display: ToolInputDisplay): DisplayBlock[] {
           text: `Stop task ${display.task_id ?? ''}: ${display.task_description ?? ''}`,
         },
       ];
-    case 'plan_review':
-      return [];
+    case 'plan_review': {
+      const blocks: DisplayBlock[] = [];
+      if (display.critique !== undefined && display.critique.length > 0) {
+        blocks.push(makeCritiqueBlock(display.critique));
+      }
+      return blocks;
+    }
     case 'generic':
       return [];
     case 'todo_list':
@@ -331,12 +354,24 @@ function adaptDisplay(display: ToolInputDisplay): DisplayBlock[] {
   }
 }
 
-function adaptChoices(toolName: string, display: ToolInputDisplay): ApprovalPanelChoice[] {
+function adaptChoices(
+  toolName: string,
+  display: ToolInputDisplay,
+  hasCritique: boolean,
+): ApprovalPanelChoice[] {
+  let choices: ApprovalPanelChoice[];
+
   if (toolName === 'ExitPlanMode' || display.kind === 'plan_review') {
-    return adaptPlanReviewChoices(display);
+    choices = adaptPlanReviewChoices(display);
+  } else {
+    choices = DEFAULT_APPROVAL_CHOICES.map((choice) => cloneChoice(choice));
   }
 
-  return DEFAULT_APPROVAL_CHOICES.map((choice) => cloneChoice(choice));
+  if (hasCritique) {
+    choices = [APPROVE_WITHOUT_CRITIQUE_CHOICE, ...choices];
+  }
+
+  return choices;
 }
 
 function adaptPlanReviewChoices(display: ToolInputDisplay): ApprovalPanelChoice[] {
@@ -353,4 +388,26 @@ function adaptPlanReviewChoices(display: ToolInputDisplay): ApprovalPanelChoice[
 
 function cloneChoice(choice: ApprovalPanelChoice): ApprovalPanelChoice {
   return { ...choice };
+}
+
+function makeCritiqueBlock(critique: string): DisplayBlock {
+  return {
+    type: 'brief',
+    text: `📝 Critic review\n${critique}`,
+  };
+}
+
+function isCritiqueBlock(block: DisplayBlock): boolean {
+  return block.type === 'brief' && block.text.startsWith('📝 Critic review');
+}
+
+function hasDisplayCritique(display: ToolInputDisplay): boolean {
+  if (display.kind === 'plan_review' || display.kind === 'file_io') {
+    return display.critique !== undefined && display.critique.length > 0;
+  }
+  if (display.kind === 'generic' && isRecord(display.detail)) {
+    const critique = stringField(display.detail, 'critique');
+    return critique !== undefined && critique.length > 0;
+  }
+  return false;
 }

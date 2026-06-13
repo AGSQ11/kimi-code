@@ -149,3 +149,26 @@ export interface PendingApproval {
 export interface PendingQuestion {
   data: QuestionPanelData;
 }
+
+// ── Memory approval panel ───────────────────────────────────────────
+
+export interface MemoryApprovalPanelMemory {
+  readonly index: number;
+  readonly content: string;
+  readonly category?: string | undefined;
+  readonly tags?: readonly string[] | undefined;
+}
+
+export interface MemoryApprovalPanelData {
+  readonly id: string;
+  readonly turnId?: number | undefined;
+  readonly memories: readonly MemoryApprovalPanelMemory[];
+}
+
+export interface MemoryApprovalPanelResponse {
+  readonly approved: readonly number[];
+}
+
+export interface PendingMemoryApproval {
+  data: MemoryApprovalPanelData;
+}

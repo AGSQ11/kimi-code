@@ -15,8 +15,9 @@ export class MemoryInjector extends DynamicInjector {
 
     try {
       const projectRoot = this.agent.memoryStore.getProjectRoot();
+      const query = this.currentUserQuery();
       const memories = await this.agent.memoryStore.recall({
-        query: '.',
+        query,
         project: projectRoot,
         includeGlobal: true,
         limit: MEMORY_AUTO_INJECT_LIMIT,
@@ -36,6 +37,23 @@ export class MemoryInjector extends DynamicInjector {
 
   private isMemoryActive(): boolean {
     return this.agent.tools.data().some((tool) => tool.name === MEMORY_TOOL_NAME && tool.active);
+  }
+
+  private currentUserQuery(): string {
+    // Walk backwards through context history to find the most recent user
+    // prompt. This makes injected memories relevant to the current task
+    // instead of only the most recently updated memories.
+    for (let i = this.agent.context.history.length - 1; i >= 0; i--) {
+      const message = this.agent.context.history[i];
+      if (message?.role !== 'user') continue;
+      if (message.origin?.kind !== 'user') continue;
+      const text = message.content
+        .map((part) => (part.type === 'text' ? part.text : ''))
+        .join(' ')
+        .trim();
+      if (text.length > 0) return text;
+    }
+    return '.';
   }
 }
 

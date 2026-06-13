@@ -1,4 +1,5 @@
 import type { Agent } from '../..';
+import { runCheckpointCritique } from '../../critique/checkpoint';
 import type { ApprovalResponse, PermissionPolicy, PermissionPolicyContext, PermissionPolicyResult } from '../types';
 
 interface ExitPlanModeOption {
@@ -10,6 +11,7 @@ interface PlanReviewDisplay {
   readonly plan: string;
   readonly path?: string | undefined;
   readonly options?: readonly ExitPlanModeOption[] | undefined;
+  critique?: string | undefined;
 }
 
 export class ExitPlanModeReviewAskPermissionPolicy implements PermissionPolicy {
@@ -17,26 +19,42 @@ export class ExitPlanModeReviewAskPermissionPolicy implements PermissionPolicy {
 
   constructor(private readonly agent: Agent) {}
 
-  evaluate(context: PermissionPolicyContext): PermissionPolicyResult | undefined {
+  async evaluate(context: PermissionPolicyContext): Promise<PermissionPolicyResult | undefined> {
     if (context.toolCall.name !== 'ExitPlanMode') return;
     if (this.agent.permission.mode === 'auto') return;
     if (!this.agent.planMode.isActive) return;
     const display = context.execution.display;
     if (display?.kind !== 'plan_review') return;
     if (display.plan.trim().length === 0) return;
+
+    const critique = await runCheckpointCritique({
+      agent: this.agent,
+      checkpoint: 'plan',
+      context: buildPlanCritiqueContext(display.plan, display.path),
+      signal: context.signal,
+    });
+
+    if (critique.length > 0) {
+      (display as PlanReviewDisplay).critique = critique;
+    }
+
     this.agent.telemetry.track('plan_submitted', {
       has_options: display.options !== undefined && display.options.length >= 2,
+      has_critique: critique.length > 0,
     });
+
     return {
       kind: 'ask',
       reason: {
         has_options: display.options !== undefined,
+        has_critique: critique.length > 0,
       },
       resolveApproval: (result) =>
         this.exitPlanModeApprovalResult(result, {
           plan: display.plan,
           path: display.path,
           options: display.options,
+          critique,
         }),
     };
   }
@@ -46,6 +64,8 @@ export class ExitPlanModeReviewAskPermissionPolicy implements PermissionPolicy {
       return this.rejectedExitPlanModeApprovalResult(result);
     }
 
+    const skippedCritique = result.selectedLabel === 'Approve without critique';
+
     const selected = selectedExitPlanModeOption(display.options, result.selectedLabel);
 
     const failed = this.exitPlanMode();
@@ -53,10 +73,15 @@ export class ExitPlanModeReviewAskPermissionPolicy implements PermissionPolicy {
       return { kind: 'result' as const, syntheticResult: failed };
     }
 
-    if (result.selectedLabel !== undefined && result.selectedLabel.length > 0) {
+    if (result.selectedLabel !== undefined && result.selectedLabel.length > 0 && !skippedCritique) {
       this.agent.telemetry.track('plan_resolved', {
         outcome: 'approved',
         chosen_option: result.selectedLabel,
+      });
+    } else if (skippedCritique) {
+      this.agent.telemetry.track('plan_resolved', {
+        outcome: 'approved_without_critique',
+        chosen_option: selected?.label,
       });
     } else {
       this.agent.telemetry.track('plan_resolved', { outcome: 'approved' });
@@ -169,4 +194,13 @@ function selectedExitPlanModeOption(
 ): ExitPlanModeOption | undefined {
   if (options === undefined || label === undefined) return;
   return options.find((option) => option.label === label);
+}
+
+function buildPlanCritiqueContext(plan: string, path: string | undefined): string {
+  const parts: string[] = [];
+  if (path !== undefined && path.length > 0) {
+    parts.push(`Plan file: ${path}`);
+  }
+  parts.push('Plan content:', plan);
+  return parts.join('\n');
 }

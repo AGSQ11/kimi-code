@@ -20,6 +20,15 @@ export const FLAG_DEFINITIONS = [
     default: true,
     surface: 'core',
   },
+  {
+    id: 'auto-critique-checkpoints',
+    title: 'Auto-critique checkpoints',
+    description:
+      'Run a focused critic subagent before high-risk moments: plan approval, multi-file edits, and goal completion.',
+    env: 'KIMI_CODE_EXPERIMENTAL_AUTO_CRITIQUE_CHECKPOINTS',
+    default: false,
+    surface: 'core',
+  },
 ] as const satisfies readonly FlagDefinitionInput[];
 
 /** Literal union of registered flag ids. */

@@ -701,6 +701,10 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
     return this.sessionApi(sessionId).runCritique(payload);
   }
 
+  compareModels({ sessionId, ...payload }: SessionAgentPayload<{ prompt: string; modelAliases: readonly string[] }>): Promise<readonly { modelAlias: string; result?: string; error?: string }[]> {
+    return this.sessionApi(sessionId).compareModels(payload);
+  }
+
   appendSystemReminder({ sessionId, ...payload }: SessionAgentPayload<{ text: string; kind?: string; name?: string }>): Promise<void> {
     return this.sessionApi(sessionId).appendSystemReminder(payload);
   }

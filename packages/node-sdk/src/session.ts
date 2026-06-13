@@ -6,7 +6,12 @@ import {
   type SwarmModeTrigger,
 } from '@moonshot-ai/agent-core';
 
-import { type ApprovalHandler, type Event, type QuestionHandler } from '#/events';
+import {
+  type ApprovalHandler,
+  type Event,
+  type MemoryApprovalHandler,
+  type QuestionHandler,
+} from '#/events';
 import type { SDKRpcClientBase } from '#/rpc';
 import type {
   BackgroundTaskInfo,
@@ -94,6 +99,11 @@ export class Session {
     this.rpc.setQuestionHandler(this.id, handler);
   }
 
+  setMemoryApprovalHandler(handler: MemoryApprovalHandler | undefined): void {
+    this.ensureOpen();
+    this.rpc.setMemoryApprovalHandler(this.id, handler);
+  }
+
   async prompt(input: string | PromptInput): Promise<void> {
     this.ensureOpen();
     await this.rpc.prompt({
@@ -136,6 +146,14 @@ export class Session {
   async runCritique(context: string, modelAlias: string): Promise<string> {
     this.ensureOpen();
     return this.rpc.runCritique({ sessionId: this.id, context, modelAlias });
+  }
+
+  async compareModels(
+    prompt: string,
+    modelAliases: readonly string[],
+  ): Promise<readonly { modelAlias: string; result?: string; error?: string }[]> {
+    this.ensureOpen();
+    return this.rpc.compareModels({ sessionId: this.id, prompt, modelAliases });
   }
 
   async cancel(): Promise<void> {

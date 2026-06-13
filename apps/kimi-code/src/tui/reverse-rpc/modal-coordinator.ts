@@ -1,12 +1,18 @@
-import type { ApprovalPanelData, QuestionPanelData } from './types';
+import type {
+  ApprovalPanelData,
+  MemoryApprovalPanelData,
+  QuestionPanelData,
+} from './types';
 
-export type ReverseRpcModalOwner = 'approval' | 'question';
+export type ReverseRpcModalOwner = 'approval' | 'question' | 'memory';
 
 export interface ReverseRpcModalUIHooks {
   readonly showApprovalPanel: (payload: ApprovalPanelData) => void;
   readonly hideApprovalPanel: () => void;
   readonly showQuestionDialog: (payload: QuestionPanelData) => void;
   readonly hideQuestionDialog: () => void;
+  readonly showMemoryApprovalDialog: (payload: MemoryApprovalPanelData) => void;
+  readonly hideMemoryApprovalDialog: () => void;
 }
 
 interface ReverseRpcModalEntry {
@@ -41,6 +47,18 @@ export class ReverseRpcModalCoordinator {
       },
       hide: () => {
         this.hooks.hideQuestionDialog();
+      },
+    });
+  }
+
+  showMemoryApproval(payload: MemoryApprovalPanelData): void {
+    this.show({
+      owner: 'memory',
+      show: () => {
+        this.hooks.showMemoryApprovalDialog(payload);
+      },
+      hide: () => {
+        this.hooks.hideMemoryApprovalDialog();
       },
     });
   }

@@ -124,6 +124,13 @@ export const BUILTIN_SLASH_COMMANDS = [
     availability: 'always',
   },
   {
+    name: 'compare',
+    aliases: ['ab'],
+    description: 'Compare multiple models on the same prompt',
+    priority: 90,
+    availability: 'always',
+  },
+  {
     name: 'btw',
     aliases: [],
     description: 'Ask a forked side agent a question',
