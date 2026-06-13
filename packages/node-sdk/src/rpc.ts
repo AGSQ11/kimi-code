@@ -259,6 +259,11 @@ export abstract class SDKRpcClientBase {
     return rpc.generateAgentsMd({ sessionId: input.sessionId });
   }
 
+  async reloadSystemPrompt(input: SessionIdRpcInput): Promise<void> {
+    const rpc = await this.getRpc();
+    return rpc.reloadSystemPrompt({ sessionId: input.sessionId });
+  }
+
   async startBtw(input: SessionIdRpcInput): Promise<string> {
     const agentId = this.interactiveAgentId;
     const rpc = await this.getRpc();

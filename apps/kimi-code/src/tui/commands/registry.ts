@@ -124,6 +124,13 @@ export const BUILTIN_SLASH_COMMANDS = [
     availability: 'always',
   },
   {
+    name: 'reloadsysprompt',
+    aliases: ['reload-sys-prompt'],
+    description: 'Reload the system prompt from .kimi-code/sysprompt.md without restarting the session',
+    priority: 90,
+    availability: 'always',
+  },
+  {
     name: 'compare',
     aliases: ['ab'],
     description: 'Compare multiple models on the same prompt',

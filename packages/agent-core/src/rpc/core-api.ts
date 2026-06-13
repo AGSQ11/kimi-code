@@ -371,6 +371,7 @@ export interface SessionAPI extends AgentAPIWithId {
   getMcpStartupMetrics: (payload: EmptyPayload) => McpStartupMetrics;
   reconnectMcpServer: (payload: ReconnectMcpServerPayload) => void;
   generateAgentsMd: (payload: EmptyPayload) => void;
+  reloadSystemPrompt: (payload: EmptyPayload) => void;
 }
 
 type SessionAPIWithId = WithSessionId<SessionAPI>;

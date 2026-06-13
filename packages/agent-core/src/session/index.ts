@@ -404,6 +404,19 @@ export class Session {
     agent.useProfile(profile, context);
   }
 
+  async reloadSystemPrompt(agentId: string): Promise<void> {
+    const agent = this.getReadyAgent(agentId);
+    if (agent === undefined) {
+      throw new KimiError(ErrorCodes.AGENT_NOT_FOUND, `Agent "${agentId}" is not ready`);
+    }
+    const profileName = agent.config.profileName ?? 'agent';
+    const profile = DEFAULT_AGENT_PROFILES[profileName];
+    if (profile === undefined) {
+      throw new KimiError(ErrorCodes.CONFIG_INVALID, `Profile "${profileName}" not found`);
+    }
+    await this.bootstrapAgentProfile(agent, profile);
+  }
+
   async generateAgentsMd(): Promise<void> {
     await this.skillsReady;
     const mainAgent = this.requireMainAgent();

@@ -52,6 +52,7 @@ Some commands are only available in the idle state. Executing these commands whi
 | `/forcemcp [on\|off]` | — | Toggle force-MCP mode. While on, all connected MCP tools are activated and the model is reminded to use only the ones that add context. Run `/forcemcp off` (or toggle again) to restore the original active tool set. | Yes |
 | `/criticize` | `/critique` | Spawn a dedicated critic sub-agent that analyzes the main agent's work for flaws, hallucinations, edge cases, and alternative approaches. The critique is injected back into context so the main agent can review, rebut, or accept each point. In plan mode, it gathers the current plan content for analysis. If no critic model is configured yet, a model picker dialog opens first. When the `auto-critique-checkpoints` experimental flag is enabled, the critic also runs automatically before plan approval, multi-file edits, and goal completion. | Yes |
 | `/compare [<prompt>]` | `/ab` | Run the same prompt against 2-4 models in parallel and view the responses side-by-side. If no prompt is given, the last user message is used. In the results panel, press `1`-`4` to promote a response to the main context, `S` to ask the main agent to synthesize the best parts, or `Esc`/`Q` to close. | Yes |
+| `/reloadsysprompt` | `/reload-sys-prompt` | Reload the system prompt from `.kimi-code/sysprompt.md` (or the global override) without restarting the session. Useful when editing the system prompt while the app is running. | Yes |
 | `/goal [...]` | — | Start or manage an autonomous goal | See below |
 
 ::: warning
