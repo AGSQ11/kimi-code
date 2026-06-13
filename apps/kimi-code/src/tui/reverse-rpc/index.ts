@@ -1,18 +1,24 @@
 import type { ApprovalController } from './approval/controller';
-import type { QuestionController } from './question/controller';
+import { createMemoryApprovalHandler } from './memory/handler';
+import type { MemoryApprovalController } from './memory/controller';
 import { ReverseRpcModalCoordinator } from './modal-coordinator';
+import type { QuestionController } from './question/controller';
 import type { ApprovalPanelData, QuestionPanelData } from './types';
+import type { MemoryApprovalPanelData } from './types';
 
 export interface ReverseRPCUIHooks {
   readonly showApprovalPanel: (payload: ApprovalPanelData) => void;
   readonly hideApprovalPanel: () => void;
   readonly showQuestionDialog: (payload: QuestionPanelData) => void;
   readonly hideQuestionDialog: () => void;
+  readonly showMemoryApprovalDialog: (payload: MemoryApprovalPanelData) => void;
+  readonly hideMemoryApprovalDialog: () => void;
 }
 
 export function registerReverseRPCHandlers(
   approvalController: ApprovalController,
   questionController: QuestionController,
+  memoryApprovalController: MemoryApprovalController,
   uiHooks: ReverseRPCUIHooks,
 ): Array<() => void> {
   const modalCoordinator = new ReverseRpcModalCoordinator(uiHooks);
@@ -33,6 +39,15 @@ export function registerReverseRPCHandlers(
     },
     hidePanel: () => {
       modalCoordinator.hide('question');
+    },
+  });
+
+  memoryApprovalController.setUIHooks({
+    showPanel: (payload) => {
+      modalCoordinator.showMemoryApproval(payload);
+    },
+    hidePanel: () => {
+      modalCoordinator.hide('memory');
     },
   });
 

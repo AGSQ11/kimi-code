@@ -1,6 +1,8 @@
 import type {
   ApprovalRequest,
   ApprovalResponse,
+  MemoryApprovalRequest,
+  MemoryApprovalResponse,
   QuestionRequest,
   QuestionResult,
 } from '@moonshot-ai/agent-core';
@@ -106,8 +108,18 @@ export type {
 
 export type { CronFiredEvent } from '@moonshot-ai/agent-core';
 
+// Memory approval reverse-RPC request and response payloads.
+export type {
+  MemoryApprovalRequest,
+  MemoryApprovalResponse,
+} from '@moonshot-ai/agent-core';
+
 export type MaybePromise<T> = T | Promise<T>;
 
 export type ApprovalHandler = (request: ApprovalRequest) => MaybePromise<ApprovalResponse>;
 
 export type QuestionHandler = (request: QuestionRequest) => MaybePromise<QuestionResult>;
+
+export type MemoryApprovalHandler = (
+  request: MemoryApprovalRequest,
+) => MaybePromise<MemoryApprovalResponse>;

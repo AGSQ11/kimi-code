@@ -154,6 +154,10 @@ Kimi Code CLI 随包内置的 Skill 会直接以 `/<name>` 形式出现在斜杠
 
 Skill 的安装与编写详见 [Agent Skills](../customization/skills.md)。
 
+## 自动记忆提取
+
+当 `Memory` 工具启用时，Kimi Code CLI 会在每次 Assistant 轮次完成后主动提取 durable facts（可持续记忆），例如用户偏好、项目事实和已确认的决策。轮次结束后，它会最多提出 3 条记忆。在 `auto` 或 `YOLO` 权限模式下，记忆会被静默保存；在 `manual` 模式下，会弹出一个临时的 TUI 提示，让你逐条批准或跳过。已保存的记忆会在后续轮次中根据当前查询的相关性自动召回并排序。你也可以通过 `Memory` 工具显式地管理记忆。
+
 ## 下一步
 
 - [键盘快捷键](./keyboard.md) — TUI 键盘操作速查

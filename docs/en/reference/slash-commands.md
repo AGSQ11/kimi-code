@@ -156,6 +156,10 @@ All Skill commands are only available in the idle state. `flow`-type Skills are 
 
 For installing and authoring Skills, see [Agent Skills](../customization/skills.md).
 
+## Automatic memory extraction
+
+When the `Memory` tool is enabled, Kimi Code CLI proactively extracts durable facts from each completed assistant turn — such as user preferences, project facts, and approved decisions. After the turn finishes, it proposes up to three memories. In `auto` or `YOLO` permission mode the memories are saved silently; in `manual` mode a transient TUI prompt lets you approve or skip each proposal. Stored memories are automatically recalled and ranked by relevance to your current query in future turns. You can also manage memories explicitly with the `Memory` tool.
+
 ## Next steps
 
 - [Keyboard Shortcuts](./keyboard.md) — Quick reference for TUI keyboard operations

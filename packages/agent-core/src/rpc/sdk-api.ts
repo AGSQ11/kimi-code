@@ -64,10 +64,27 @@ export interface ToolCallResponse {
   readonly isError?: boolean | undefined;
 }
 
+export interface ProposedMemory {
+  readonly content: string;
+  readonly category?: string | undefined;
+  readonly tags?: readonly string[] | undefined;
+}
+
+export interface MemoryApprovalRequest {
+  readonly turnId?: number | undefined;
+  readonly memories: readonly ProposedMemory[];
+}
+
+export interface MemoryApprovalResponse {
+  /** Indices of the proposed memories the user approved. */
+  readonly approved: readonly number[];
+}
+
 export interface SDKAgentAPI {
   emitEvent: (event: AgentEvent) => void;
   requestApproval: (request: ApprovalRequest) => Promise<ApprovalResponse>;
   requestQuestion: (request: QuestionRequest) => Promise<QuestionResult>;
+  requestMemoryApproval: (request: MemoryApprovalRequest) => Promise<MemoryApprovalResponse>;
   toolCall: (request: ToolCallRequest) => Promise<ToolCallResponse>;
 }
 export type SDKAgentRPC = RPCMethods<SDKAgentAPI>;

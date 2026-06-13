@@ -9,7 +9,11 @@ import type {
 } from '@moonshot-ai/kimi-code-sdk';
 
 import type { NotificationsConfig, UpgradePreferences } from './config';
-import type { PendingApproval, PendingQuestion } from './reverse-rpc/types';
+import type {
+  PendingApproval,
+  PendingMemoryApproval,
+  PendingQuestion,
+} from './reverse-rpc/types';
 import type { SpiceupSelection } from './components/dialogs/spiceup-selector';
 import type { ColorToken, ThemeName } from './theme';
 
@@ -174,6 +178,7 @@ export interface LivePaneState {
   mode: LivePaneMode;
   pendingApproval: PendingApproval | null;
   pendingQuestion: PendingQuestion | null;
+  pendingMemoryApproval: PendingMemoryApproval | null;
 }
 
 export interface QueuedMessage {
@@ -187,6 +192,7 @@ export const INITIAL_LIVE_PANE: LivePaneState = {
   mode: 'idle',
   pendingApproval: null,
   pendingQuestion: null,
+  pendingMemoryApproval: null,
 };
 
 // ---------------------------------------------------------------------------
