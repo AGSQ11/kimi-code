@@ -43,6 +43,7 @@ import {
   showSettingsSelector,
   showSpiceupPicker,
 } from './config';
+import { handleCompareCommand } from './compare';
 import { handleCriticizeCommand } from './criticize';
 import { handleForceMcpCommand } from './force-mcp';
 import { handleGoalCommand } from './goal';
@@ -90,6 +91,7 @@ export {
   showUsage,
 } from './info';
 export { handlePluginsCommand } from './plugins';
+export { handleCompareCommand } from './compare';
 export { handleReloadCommand, handleReloadTuiCommand } from './reload';
 export { handleGoalCommand } from './goal';
 export {
@@ -346,6 +348,9 @@ async function handleBuiltInSlashCommand(
       return;
     case 'criticize':
       await handleCriticizeCommand(host, args);
+      return;
+    case 'compare':
+      await handleCompareCommand(host, args);
       return;
     case 'undo':
       await handleUndoCommand(host, args);

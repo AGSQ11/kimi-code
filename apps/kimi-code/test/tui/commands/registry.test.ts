@@ -37,6 +37,8 @@ describe('built-in slash command registry', () => {
     expect(findBuiltInSlashCommand('mcp')?.name).toBe('mcp');
     expect(findBuiltInSlashCommand('status')?.name).toBe('status');
     expect(findBuiltInSlashCommand('usage')?.aliases).not.toContain('status');
+    expect(findBuiltInSlashCommand('compare')?.name).toBe('compare');
+    expect(findBuiltInSlashCommand('ab')?.name).toBe('compare');
     expect(findBuiltInSlashCommand('unknown')).toBeUndefined();
   });
 

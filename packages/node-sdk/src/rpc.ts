@@ -285,6 +285,19 @@ export abstract class SDKRpcClientBase {
     });
   }
 
+  async compareModels(
+    input: SessionIdRpcInput & { prompt: string; modelAliases: readonly string[] },
+  ): Promise<readonly { modelAlias: string; result?: string; error?: string }[]> {
+    const agentId = this.interactiveAgentId;
+    const rpc = await this.getRpc();
+    return rpc.compareModels({
+      sessionId: input.sessionId,
+      agentId,
+      prompt: input.prompt,
+      modelAliases: input.modelAliases,
+    });
+  }
+
   async cancel(input: SessionIdRpcInput): Promise<void> {
     const agentId = this.interactiveAgentId;
     const rpc = await this.getRpc();

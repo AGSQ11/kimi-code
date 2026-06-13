@@ -343,6 +343,7 @@ export interface AgentAPI {
   activateSkill: (payload: ActivateSkillPayload) => void;
   startBtw: (payload: EmptyPayload) => string;
   runCritique: (payload: { context: string; modelAlias: string }) => string;
+  compareModels: (payload: { prompt: string; modelAliases: readonly string[] }) => readonly { modelAlias: string; result?: string; error?: string }[];
   appendSystemReminder: (payload: { text: string; kind?: string; name?: string }) => void;
   createGoal: (payload: CreateGoalPayload) => GoalSnapshot;
   getGoal: (payload: EmptyPayload) => GoalToolResult;

@@ -39,6 +39,12 @@ export type {
   SpawnQueuedSubagentTask,
 } from './subagent-batch';
 
+export interface ModelComparisonResult {
+  readonly modelAlias: string;
+  readonly result?: string;
+  readonly error?: string;
+}
+
 /**
  * A subagent summary shorter than this many characters triggers one
  * follow-up turn that asks the subagent to expand it, so the parent
@@ -275,6 +281,48 @@ export class SessionSubagentHost {
 
     const result = lastAssistantText(child);
     return result;
+  }
+
+  /**
+   * Run the same prompt against multiple models in parallel and return each
+   * model's text response. Tool calls are disabled so each subagent only
+   * answers with text based on its existing knowledge.
+   */
+  async runCompare(prompt: string, modelAliases: readonly string[]): Promise<ModelComparisonResult[]> {
+    const parent = await this.session.ensureAgentResumed(this.ownerAgentId);
+    const signal = new AbortController().signal;
+
+    const runOne = async (modelAlias: string): Promise<ModelComparisonResult> => {
+      try {
+        const profile = this.resolveProfile(parent, 'coder');
+        const { agent: child } = await this.session.createAgent(
+          {
+            type: 'sub',
+            generate: parent.rawGenerate,
+            persistence: new InMemoryAgentRecordPersistence(),
+          },
+          { parentAgentId: this.ownerAgentId, profile, persistMetadata: false },
+        );
+
+        await this.configureChild(parent, child, profile, modelAlias);
+        child.permission.policies.unshift(new DenyAllPermissionPolicy(TOOL_CALL_DISABLED_MESSAGE));
+        child.context.appendSystemReminder(SIDE_QUESTION_SYSTEM_REMINDER.trim(), {
+          kind: 'system_trigger',
+          name: 'compare',
+        });
+
+        const turnId = child.turn.prompt([{ type: 'text', text: prompt }], SUBAGENT_PROMPT_ORIGIN);
+        if (turnId === null) {
+          throw new Error('Compare subagent could not start a turn');
+        }
+        await runChildTurnToCompletion(child, signal);
+        return { modelAlias, result: lastAssistantText(child) };
+      } catch (error) {
+        return { modelAlias, error: error instanceof Error ? error.message : String(error) };
+      }
+    };
+
+    return Promise.all(modelAliases.map(runOne));
   }
 
   cancelAll(reason: unknown = userCancellationReason()): void {

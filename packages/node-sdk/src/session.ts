@@ -148,6 +148,14 @@ export class Session {
     return this.rpc.runCritique({ sessionId: this.id, context, modelAlias });
   }
 
+  async compareModels(
+    prompt: string,
+    modelAliases: readonly string[],
+  ): Promise<readonly { modelAlias: string; result?: string; error?: string }[]> {
+    this.ensureOpen();
+    return this.rpc.compareModels({ sessionId: this.id, prompt, modelAliases });
+  }
+
   async cancel(): Promise<void> {
     this.ensureOpen();
     await this.rpc.cancel({ sessionId: this.id });
