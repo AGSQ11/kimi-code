@@ -125,6 +125,10 @@ export class SessionAPIImpl implements PromisableMethods<SessionAPI> {
     return (await this.getAgent(agentId)).setSystemPrompt(payload);
   }
 
+  async reloadSystemPrompt(_payload: EmptyPayload): Promise<void> {
+    return this.session.reloadSystemPrompt('main');
+  }
+
   async setThinking({ agentId, ...payload }: AgentScopedPayload<SetThinkingPayload>) {
     return (await this.getAgent(agentId)).setThinking(payload);
   }

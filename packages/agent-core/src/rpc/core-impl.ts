@@ -542,6 +542,10 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
     return this.sessionApi(sessionId).setSystemPrompt(payload);
   }
 
+  reloadSystemPrompt({ sessionId }: SessionScopedPayload<EmptyPayload>): Promise<void> {
+    return this.sessionApi(sessionId).reloadSystemPrompt({});
+  }
+
   setThinking({ sessionId, ...payload }: SessionAgentPayload<SetThinkingPayload>) {
     return this.sessionApi(sessionId).setThinking(payload);
   }

@@ -45,6 +45,7 @@ import {
 } from './config';
 import { handleCompareCommand } from './compare';
 import { handleCriticizeCommand } from './criticize';
+import { handleReloadSyspromptCommand } from './reload-sysprompt';
 import { handleForceMcpCommand } from './force-mcp';
 import { handleGoalCommand } from './goal';
 import { handleProviderCommand } from './provider';
@@ -348,6 +349,9 @@ async function handleBuiltInSlashCommand(
       return;
     case 'criticize':
       await handleCriticizeCommand(host, args);
+      return;
+    case 'reloadsysprompt':
+      await handleReloadSyspromptCommand(host, args);
       return;
     case 'compare':
       await handleCompareCommand(host, args);

@@ -133,6 +133,11 @@ export class Session {
     await this.rpc.generateAgentsMd({ sessionId: this.id });
   }
 
+  async reloadSystemPrompt(): Promise<void> {
+    this.ensureOpen();
+    return this.rpc.reloadSystemPrompt({ sessionId: this.id });
+  }
+
   async startBtw(): Promise<string> {
     this.ensureOpen();
     return this.rpc.startBtw({ sessionId: this.id });
