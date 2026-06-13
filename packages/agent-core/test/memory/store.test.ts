@@ -101,11 +101,34 @@ describe('MemoryStore', () => {
     expect(recalled).toHaveLength(0);
   });
 
-  it('forgets matching memories by query', async () => {
-    await store.remember({ content: 'One' });
-    await store.remember({ content: 'Two' });
+  it('ranks memories by BM25 relevance, not just recency', async () => {
+    const oldRelevant = await store.remember({
+      content: 'Deploy the app to production using the production deploy script',
+      category: 'learning',
+    });
+    // Less relevant but more recent: contains one query term and many unrelated words.
+    const newVague = await store.remember({
+      content: 'We once talked about kubernetes clusters and briefly mentioned a deploy in passing',
+      category: 'learning',
+    });
 
-    const deleted = await store.forget({ query: 'One' });
-    expect(deleted).toBe(1);
+    // Bump the relevant memory's timestamp so it is not more recent than the vague one.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await store.update({ id: oldRelevant.id, content: oldRelevant.content });
+
+    const results = await store.recall({ query: 'deploy production' });
+    expect(results.length).toBeGreaterThanOrEqual(2);
+    expect(results[0]?.content).toBe(oldRelevant.content);
+    expect(results[1]?.content).toBe(newVague.content);
+  });
+
+  it('falls back to recency when the query is empty', async () => {
+    await store.remember({ content: 'Older memory' });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await store.remember({ content: 'Newer memory' });
+
+    const results = await store.recall({ query: '' });
+    expect(results).toHaveLength(2);
+    expect(results[0]?.content).toBe('Newer memory');
   });
 });

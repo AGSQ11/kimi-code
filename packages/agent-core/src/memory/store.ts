@@ -230,7 +230,63 @@ function openDatabase(path: string): DatabaseSync {
   `);
   db.exec('CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);');
   db.exec('CREATE INDEX IF NOT EXISTS idx_memories_project ON memories(project);');
+
+  // Full-text search using FTS5 for better relevance ranking than token overlap.
+  db.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+      content,
+      tags,
+      category,
+      content_rowid=rowid,
+      tokenize='porter unicode61'
+    );
+  `);
+
+  // Keep the FTS index in sync with the main table.
+  db.exec(`
+    CREATE TRIGGER IF NOT EXISTS memories_fts_insert
+    AFTER INSERT ON memories
+    BEGIN
+      INSERT INTO memories_fts (rowid, content, tags, category)
+      VALUES (new.rowid, new.content, new.tags, new.category);
+    END;
+  `);
+  db.exec(`
+    CREATE TRIGGER IF NOT EXISTS memories_fts_update
+    AFTER UPDATE ON memories
+    BEGIN
+      UPDATE memories_fts
+      SET content = new.content, tags = new.tags, category = new.category
+      WHERE rowid = new.rowid;
+    END;
+  `);
+  db.exec(`
+    CREATE TRIGGER IF NOT EXISTS memories_fts_delete
+    AFTER DELETE ON memories
+    BEGIN
+      DELETE FROM memories_fts WHERE rowid = old.rowid;
+    END;
+  `);
+
+  // Migrate any memories that existed before FTS5 was added.
+  migrateToFts5(db);
+
   return db;
+}
+
+function migrateToFts5(db: DatabaseSync): void {
+  const countStmt = db.prepare('SELECT COUNT(*) AS cnt FROM memories_fts');
+  const ftsCount = Number((countStmt.get() as { cnt: number }).cnt);
+  if (ftsCount > 0) return;
+
+  const rowsStmt = db.prepare('SELECT rowid, content, tags, category FROM memories');
+  const rows = rowsStmt.all() as Array<{ rowid: number; content: string; tags: string | null; category: string | null }>;
+  if (rows.length === 0) return;
+
+  const insert = db.prepare('INSERT INTO memories_fts (rowid, content, tags, category) VALUES (?, ?, ?, ?)');
+  for (const row of rows) {
+    insert.run(row.rowid, row.content, row.tags ?? '', row.category ?? '');
+  }
 }
 
 function ensureDirectory(path: string): void {
@@ -257,33 +313,54 @@ function generateMemoryId(options: RememberOptions): string {
 
 function searchDatabase(db: DatabaseSync, query: string, category?: string): Memory[] {
   const tokens = tokenize(query);
-  const categoryClause = category !== undefined ? 'AND category = ?' : '';
-  const statement = db.prepare(
-    `SELECT * FROM memories WHERE 1=1 ${categoryClause} ORDER BY updated_at DESC LIMIT 500`,
-  );
-  const params = category !== undefined ? [category] : [];
-  const rows = (statement.all(...params) as unknown as RawMemoryRow[]).map(rowToMemory);
-
   if (tokens.length === 0) {
-    return rows.slice(0, 100);
+    const statement = db.prepare(
+      `SELECT * FROM memories WHERE 1=1 ${category !== undefined ? 'AND category = ?' : ''} ORDER BY updated_at DESC LIMIT 100`,
+    );
+    const params = category !== undefined ? [category] : [];
+    return (statement.all(...params) as unknown as RawMemoryRow[]).map(rowToMemory);
   }
 
-  return rankMemories(rows, tokens);
+  const matchExpression = tokens.map(escapeFts5Token).join(' OR ');
+  const categoryClause = category !== undefined ? 'AND m.category = ?' : '';
+
+  const statement = db.prepare(
+    `SELECT m.*, bm25(memories_fts) AS rank ` +
+      `FROM memories_fts ` +
+      `JOIN memories AS m ON memories_fts.rowid = m.rowid ` +
+      `WHERE memories_fts MATCH ? ${categoryClause} ` +
+      `ORDER BY rank ASC ` +
+      `LIMIT 100`,
+  );
+  const params = category !== undefined ? [matchExpression, category] : [matchExpression];
+  const rows = (statement.all(...params) as unknown as Array<RawMemoryRow & { rank: number }>).map((row) => ({
+    row,
+    memory: rowToMemory(row),
+  }));
+
+  return rankMemories(rows.map(({ memory, row }) => ({ memory, rank: row.rank })));
 }
 
-function rankMemories(memories: Memory[], queryTokens: string[]): Memory[] {
+function escapeFts5Token(token: string): string {
+  // FTS5 treats double-quotes and * specially; quote tokens that contain them.
+  if (/["*]/.test(token)) {
+    return `"${token.replace(/"/g, '""')}"`;
+  }
+  return token;
+}
+
+function rankMemories(results: { memory: Memory; rank: number }[]): Memory[] {
   const now = Date.now();
-  const scored = memories
-    .map((memory) => {
-      const text = `${memory.content} ${(memory.tags ?? []).join(' ')}`.toLowerCase();
-      const matches = queryTokens.filter((token) => text.includes(token)).length;
-      if (matches === 0) return undefined;
-      const ageDays = (now - memory.updatedAt) / (1000 * 60 * 60 * 24);
-      const recency = Math.max(0, 1 - ageDays / 365);
-      const score = matches * 10 + recency * 2 + Math.min(memory.accessCount, 100) * 0.05;
-      return { memory, score };
-    })
-    .filter((entry): entry is { memory: Memory; score: number } => entry !== undefined);
+  const scored = results.map(({ memory, rank }) => {
+    // rank from bm25() is negative and lower (more negative) means better relevance.
+    // Scale it up so relevance dominates recency/access.
+    const relevance = -rank * 1000;
+    const ageDays = (now - memory.updatedAt) / (1000 * 60 * 60 * 24);
+    const recency = Math.max(0, 1 - ageDays / 365);
+    const access = Math.min(memory.accessCount, 100) / 100;
+    const score = relevance + recency * 0.5 + access * 0.2;
+    return { memory, score };
+  });
   scored.sort((a, b) => b.score - a.score);
   return scored.map((entry) => entry.memory);
 }
