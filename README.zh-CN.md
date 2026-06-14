@@ -63,7 +63,17 @@ pnpm --filter @moonshot-ai/kimi-code run dev:prod
 - **子 Agent 聚焦并行工作** 内置 `coder`、`explore`、`plan` 子 Agent 在隔离上下文中处理子任务，主对话保持清爽。
 - **生命周期 hooks** 在关键节点执行本地命令：拦截高风险工具调用、审计决策、发送桌面通知，或对接你自己的自动化脚本。
 - **编辑器 / IDE 集成（ACP）** 用 `kimi acp` 让 Zed、JetBrains 等任意 [Agent Client Protocol](https://agentclientprotocol.com/) 客户端直接驱动会话。
+- **持久化学习记忆** 项目事实、决策、批评发现、比较结果和评估摘要会跨会话保留，让 Agent 逐步积累项目知识。
 
+## 记忆、推理与质量闭环
+
+这些特性相互协作，使后续会话能够复用之前的经验：
+
+- **持久化记忆** 自动召回项目事实、用户偏好、决策、批评发现、比较结果和评估摘要。使用 [`/memory`](https://moonshotai.github.io/kimi-code/zh/reference/slash-commands) 列出、置顶或删除记忆。
+- **Think 工具** Agent 可以记录简洁的推理步骤；带有 `decision` 分类的思考会在回合结束时提升为长期记忆。详见[工具参考](https://moonshotai.github.io/kimi-code/zh/reference/tools)。
+- **Criticize（批评）** [`/criticize`](https://moonshotai.github.io/kimi-code/zh/reference/slash-commands) 会启动一个携带主 Agent 相关记忆的批评子 Agent，并将其发现保存为 `critique-finding` 记忆。
+- **Compare（比较）** [`/compare`](https://moonshotai.github.io/kimi-code/zh/reference/slash-commands) 会用 2–4 个模型并行运行同一提示词并并排展示结果，自动保存比较摘要，并将被提升或综合的选项记录为 `decision` 记忆。
+- **Eval（评估）** `kimi eval` 会在记忆快照下运行提示词/模型/变体基准测试，并将聚合摘要保存为 `eval` 记忆。详见 [`kimi eval` 参考](https://moonshotai.github.io/kimi-code/zh/reference/kimi-command#kimi-eval)。
 
 ## 在编辑器里使用（ACP）
 

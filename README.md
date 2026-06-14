@@ -62,6 +62,17 @@ Take a look at this project and explain its main directories.
 - **Subagents for focused, parallel work.** Dispatch built-in `coder`, `explore`, and `plan` subagents in isolated contexts while keeping the main conversation clean.
 - **Lifecycle hooks.** Run local commands at key points to gate risky tool calls, audit decisions, trigger desktop notifications, or connect to your own automation.
 - **Editor & IDE integration (ACP).** Drive a Kimi Code CLI session straight from Zed, JetBrains, or any [Agent Client Protocol](https://agentclientprotocol.com/) client with `kimi acp`.
+- **Persistent, learning memory.** Project facts, decisions, critiques, comparisons, and eval summaries survive across sessions, so the agent builds institutional knowledge.
+
+## Memory, reasoning, and quality loop
+
+These features work together so later sessions benefit from earlier ones:
+
+- **Persistent Memory** — project facts, user preferences, decisions, critique findings, comparison summaries, and eval results are recalled automatically when relevant. Use [`/memory`](https://moonshotai.github.io/kimi-code/en/reference/slash-commands) to list, pin, or delete memories.
+- **Think tool** — the agent can record concise reasoning steps; decision-category thoughts are promoted to long-term Memory at the end of a turn. See the [Tools reference](https://moonshotai.github.io/kimi-code/en/reference/tools).
+- **Criticize** — [`/criticize`](https://moonshotai.github.io/kimi-code/en/reference/slash-commands) spawns a critic that starts with the same relevant memories as the main agent and stores its findings as `critique-finding` memories.
+- **Compare** — [`/compare`](https://moonshotai.github.io/kimi-code/en/reference/slash-commands) runs the same prompt against 2–4 models side-by-side, remembers the comparison summary, and records promoted or synthesized choices as `decision` memories.
+- **Eval** — `kimi eval` runs prompt/model/variation benchmarks with a memory snapshot and stores an aggregate summary as an `eval` memory. See the [`kimi eval` reference](https://moonshotai.github.io/kimi-code/en/reference/kimi-command#kimi-eval).
 
 ## Use it in your editor (ACP)
 
