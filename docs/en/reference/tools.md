@@ -148,6 +148,8 @@ These tools help the Agent reason explicitly and discover capabilities that are 
 
 **`Think`** is a lightweight reasoning helper. The Agent writes a concise chain-of-thought in `thought`, which is recorded in the session log without changing files or running commands. It is useful before editing multiple interdependent files, choosing between implementation approaches, deciding whether to ask for clarification, or breaking a large request into smaller steps. After recording the thought, the Agent proceeds with the appropriate tools.
 
+`Think` accepts an optional `category` (for example `plan`, `constraint`, `decision`, or `reflection`) and optional `tags`. Thoughts tagged with `category: "decision"` are automatically promoted to long-term Memory at the end of the turn, so design rationale survives across sessions.
+
 **`ToolSearch`** is a read-only discovery tool for capabilities that are not in the current active tool set. Set `type` to:
 
 - `skill` — list invocable skills. Once a relevant skill is found, the Agent can call `Skill` with its name.

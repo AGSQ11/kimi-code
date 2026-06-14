@@ -28,9 +28,9 @@ export async function handleCompareCommand(host: SlashCommandHost, args: string)
   host.mountEditorReplacement(
     new CompareSelectorComponent({
       models,
-      onSelect: async (selection) => {
+      onSelect: (selection) => {
         host.restoreEditor();
-        await runComparison(host, prompt, selection.modelAliases);
+        void runComparison(host, prompt, selection.modelAliases);
       },
       onCancel: () => {
         host.restoreEditor();
@@ -76,11 +76,21 @@ async function runComparison(
           const entry = results[index];
           if (entry?.result === undefined) return;
           host.restoreEditor();
+          void rememberDecision(session, `Promoted ${entry.modelAlias} response for comparison.`, [
+            'compare',
+            'promote',
+            entry.modelAlias,
+          ]);
           host.sendNormalUserInput(entry.result);
         },
         onSynthesize: () => {
           host.restoreEditor();
           const synthesisPrompt = buildSynthesisPrompt(prompt, results);
+          void rememberDecision(session, `Synthesized comparison across ${modelAliases.join(', ')}.`, [
+            'compare',
+            'synthesize',
+            ...modelAliases,
+          ]);
           host.sendNormalUserInput(synthesisPrompt);
         },
         onClose: () => {
@@ -122,4 +132,16 @@ function buildSynthesisPrompt(
 
   parts.push('\nPlease provide a synthesized answer.');
   return parts.join('\n');
+}
+
+async function rememberDecision(
+  session: NonNullable<SlashCommandHost['session']>,
+  content: string,
+  tags: string[],
+): Promise<void> {
+  try {
+    await session.rememberMemory({ content, category: 'decision', tags });
+  } catch {
+    // Memory persistence failure should not break the compare UI flow.
+  }
 }

@@ -159,6 +159,7 @@ micro_compaction = false
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
     });
@@ -229,6 +230,7 @@ custom_headers = { "X-Test" = "1" }
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
     });
@@ -280,6 +282,7 @@ max_context_size = 100000
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
     });
@@ -304,6 +307,7 @@ max_context_size = 100000
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
     });
@@ -337,6 +341,7 @@ max_context_size = 100000
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
     });
@@ -374,6 +379,7 @@ max_context_size = 100000
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
     });
@@ -416,6 +422,7 @@ base_url = "https://search.example.test/v1"
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
     });

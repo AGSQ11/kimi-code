@@ -45,6 +45,7 @@ import {
 } from './config';
 import { handleCompareCommand } from './compare';
 import { handleCriticizeCommand } from './criticize';
+import { handleMemoryCommand } from './memory';
 import { handleReloadSyspromptCommand } from './reload-sysprompt';
 import { handleForceMcpCommand } from './force-mcp';
 import { handleGoalCommand } from './goal';
@@ -93,6 +94,7 @@ export {
 } from './info';
 export { handlePluginsCommand } from './plugins';
 export { handleCompareCommand } from './compare';
+export { handleMemoryCommand } from './memory';
 export { handleReloadCommand, handleReloadTuiCommand } from './reload';
 export { handleGoalCommand } from './goal';
 export {
@@ -355,6 +357,9 @@ async function handleBuiltInSlashCommand(
       return;
     case 'compare':
       await handleCompareCommand(host, args);
+      return;
+    case 'memory':
+      await handleMemoryCommand(host, args);
       return;
     case 'undo':
       await handleUndoCommand(host, args);

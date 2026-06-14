@@ -107,6 +107,7 @@ export interface TestAgentOptions {
   readonly onEvent?: ((event: AgentRecord) => AgentRecord | undefined) | undefined;
   readonly persistence?: AgentRecordPersistence | undefined;
   readonly homedir?: AgentOptions['homedir'];
+  readonly kimiHomeDir?: AgentOptions['kimiHomeDir'];
   readonly telemetry?: TelemetryClient | undefined;
   readonly log?: Logger;
   readonly experimentalFlags?: AgentOptions['experimentalFlags'];
@@ -185,6 +186,7 @@ export class AgentTestContext {
       config: this.kimiConfig,
       rpc: this.createRpcProxy(),
       homedir: options.homedir,
+      kimiHomeDir: options.kimiHomeDir,
       persistence,
       generate: options.generate ?? this.scriptedGenerate.generate,
       compactionStrategy: options.compactionStrategy,

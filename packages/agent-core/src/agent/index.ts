@@ -453,6 +453,27 @@ export class Agent {
       getUsage: () => this.usage.data(),
       getTools: () => this.tools.data(),
       getBackground: (payload) => this.background.list(payload.activeOnly ?? false, payload.limit),
+      listMemories: () => this.memoryStore.list(),
+      rememberMemory: (payload) =>
+        this.memoryStore.remember({
+          content: payload.content,
+          category: payload.category,
+          tags: payload.tags,
+          source: 'user',
+        }),
+      recallMemories: (payload) =>
+        this.memoryStore.recall({
+          query: payload.query,
+          category: payload.category,
+          project: this.memoryStore.getProjectRoot(),
+          includeGlobal: true,
+          limit: payload.limit ?? 10,
+        }),
+      pinMemory: (payload) => this.memoryStore.pin(payload.id, payload.pinned),
+      deleteMemory: async (payload) => {
+        const count = await this.memoryStore.forget({ id: payload.id });
+        return count > 0;
+      },
     };
   }
 

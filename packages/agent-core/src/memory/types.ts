@@ -15,6 +15,7 @@ export interface Memory {
   readonly project: string | null;
   readonly tags: readonly string[] | null;
   readonly source: string | null;
+  readonly pinned: boolean;
   readonly createdAt: number;
   readonly updatedAt: number;
   readonly accessCount: number;

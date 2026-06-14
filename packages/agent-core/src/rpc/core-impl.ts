@@ -64,6 +64,7 @@ import type {
   GetPluginInfoPayload,
   InstallPluginPayload,
   ListSessionsPayload,
+  MemoryData,
   McpServerInfo,
   McpStartupMetrics,
   PluginInfo,
@@ -657,6 +658,18 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
     return this.sessionApi(sessionId).getBackground(payload);
   }
 
+  listMemories({ sessionId, agentId }: SessionAgentPayload<EmptyPayload>): Promise<readonly MemoryData[]> {
+    return this.sessionApi(sessionId).listMemories({ agentId });
+  }
+
+  pinMemory({ sessionId, ...payload }: SessionAgentPayload<{ id: string; pinned: boolean }>): Promise<MemoryData | undefined> {
+    return this.sessionApi(sessionId).pinMemory(payload);
+  }
+
+  deleteMemory({ sessionId, ...payload }: SessionAgentPayload<{ id: string }>): Promise<boolean> {
+    return this.sessionApi(sessionId).deleteMemory(payload);
+  }
+
   updateSessionMetadata({ sessionId, ...payload }: UpdateSessionMetadataRequest): Promise<void> {
     return this.sessionApi(sessionId).updateSessionMetadata(payload);
   }
@@ -707,6 +720,20 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
 
   compareModels({ sessionId, ...payload }: SessionAgentPayload<{ prompt: string; modelAliases: readonly string[] }>): Promise<readonly { modelAlias: string; result?: string; error?: string }[]> {
     return this.sessionApi(sessionId).compareModels(payload);
+  }
+
+  rememberMemory({
+    sessionId,
+    ...payload
+  }: SessionAgentPayload<{ content: string; category?: string; tags?: readonly string[] }>): Promise<MemoryData> {
+    return this.sessionApi(sessionId).rememberMemory(payload);
+  }
+
+  recallMemories({
+    sessionId,
+    ...payload
+  }: SessionAgentPayload<{ query: string; category?: string; limit?: number }>): Promise<readonly MemoryData[]> {
+    return this.sessionApi(sessionId).recallMemories(payload);
   }
 
   appendSystemReminder({ sessionId, ...payload }: SessionAgentPayload<{ text: string; kind?: string; name?: string }>): Promise<void> {

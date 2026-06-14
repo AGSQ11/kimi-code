@@ -152,9 +152,9 @@ export class SessionSubagentHost {
     const completion = this.runWithActiveChild(agentId, options, async (runOptions) => {
       this.emitSubagentSpawned(parent, agentId, profileName, runOptions, effectiveModel);
       try {
-        child.config.update({
-          ...(effectiveModel !== undefined ? { modelAlias: effectiveModel } : {}),
-        });
+        if (effectiveModel !== undefined) {
+          child.config.update({ modelAlias: effectiveModel });
+        }
         return await this.runPromptTurn(parent, agentId, child, profileName, runOptions);
       } catch (error) {
         this.emitSubagentFailed(parent, agentId, runOptions, error);
@@ -256,7 +256,7 @@ export class SessionSubagentHost {
   async runCritique(context: string, modelAlias: string): Promise<string> {
     const parent = await this.session.ensureAgentResumed(this.ownerAgentId);
     const profile = this.resolveProfile(parent, 'critic');
-    const { id, agent: child } = await this.session.createAgent(
+    const { agent: child } = await this.session.createAgent(
       {
         type: 'sub',
         generate: parent.rawGenerate,
@@ -266,6 +266,7 @@ export class SessionSubagentHost {
     );
 
     await this.configureChild(parent, child, profile, modelAlias);
+    await this.injectMemoryContext(child, context);
 
     const signal = new AbortController().signal;
     const prompt = `You are a critic. Analyze the following conversation context for flaws, hallucinations, missing edge cases, security issues, and alternative approaches. Be thorough and constructive.\n\n${context}`;
@@ -280,6 +281,7 @@ export class SessionSubagentHost {
     await runChildTurnToCompletion(child, signal);
 
     const result = lastAssistantText(child);
+    await this.rememberCritiqueFinding(child, result);
     return result;
   }
 
@@ -310,6 +312,7 @@ export class SessionSubagentHost {
           kind: 'system_trigger',
           name: 'compare',
         });
+        await this.injectMemoryContext(child, prompt);
 
         const turnId = child.turn.prompt([{ type: 'text', text: prompt }], SUBAGENT_PROMPT_ORIGIN);
         if (turnId === null) {
@@ -322,7 +325,9 @@ export class SessionSubagentHost {
       }
     };
 
-    return Promise.all(modelAliases.map(runOne));
+    const results = await Promise.all(modelAliases.map(runOne));
+    await this.rememberComparison(parent, prompt, results);
+    return results;
   }
 
   cancelAll(reason: unknown = userCancellationReason()): void {
@@ -439,6 +444,107 @@ export class SessionSubagentHost {
     });
     this.triggerSubagentStop(parent, profileName, result);
     return { result, usage };
+  }
+
+  /**
+   * Give a subagent the same institutional knowledge the parent would have for a
+   * given query. The default MemoryInjector only recalls against user-origin
+   * messages; subagent prompts originate from `system_trigger`, so we bootstrap
+   * the relevant memories explicitly before the turn starts.
+   */
+  private async injectMemoryContext(child: Agent, query: string): Promise<void> {
+    try {
+      const projectRoot = child.memoryStore.getProjectRoot();
+      const memories = await child.memoryStore.recall({
+        query,
+        project: projectRoot,
+        includeGlobal: true,
+        limit: 5,
+      });
+      if (memories.length === 0) return;
+
+      const lines = memories.map(
+        (memory) => `- [${memory.category ?? 'memory'}] ${memory.content}`,
+      );
+      child.context.appendSystemReminder(
+        `Relevant context from past sessions:\n${lines.join('\n')}`,
+        { kind: 'injection', variant: 'subagent_memory_context' },
+      );
+      child.telemetry.track('memory_context_injected_subagent', {
+        subagent_name: child.config.profileName ?? 'subagent',
+        memory_count: memories.length,
+      });
+    } catch {
+      // Memory recall should never break the subagent.
+    }
+  }
+
+  /**
+   * Persist a model-comparison summary so future turns can recall which model
+   * performed best for a given prompt. Stored against the parent agent so the
+   * memory survives the ephemeral compare subagents.
+   */
+  private async rememberComparison(
+    parent: Agent,
+    prompt: string,
+    results: readonly ModelComparisonResult[],
+  ): Promise<void> {
+    const successful = results.filter((r) => r.result !== undefined && r.error === undefined);
+    if (successful.length === 0) return;
+
+    const modelLines = results.map((r) => {
+      const status = r.error !== undefined ? `(error: ${r.error})` : '';
+      const text = r.result ?? '(no response)';
+      return `- ${r.modelAlias}: ${status}${text.length > 120 ? `${text.slice(0, 117)}...` : text}`;
+    });
+
+    const content = [
+      `Comparison prompt: ${prompt}`,
+      '',
+      ...modelLines,
+    ].join('\n');
+
+    try {
+      await parent.memoryStore.remember({
+        content,
+        category: 'comparison',
+        tags: ['compare', ...results.map((r) => r.modelAlias)],
+        project: parent.memoryStore.getProjectRoot(),
+        source: 'compare',
+      });
+      parent.telemetry.track('comparison_remembered', {
+        model_count: results.length,
+        successful_count: successful.length,
+      });
+    } catch {
+      // Persistence failure must not break the compare flow.
+    }
+  }
+
+  /**
+   * Persist a critique as a long-term memory so recurring issues are visible to
+   * future sessions. The content is truncated to avoid bloating the store.
+   */
+  private async rememberCritiqueFinding(child: Agent, critique: string): Promise<void> {
+    const trimmed = critique.trim();
+    if (trimmed.length === 0) return;
+
+    const content = trimmed.length > 2000 ? `${trimmed.slice(0, 1997)}...` : trimmed;
+
+    try {
+      await child.memoryStore.remember({
+        content,
+        category: 'critique-finding',
+        tags: ['critique'],
+        project: child.memoryStore.getProjectRoot(),
+        source: 'critique',
+      });
+      child.telemetry.track('critique_finding_remembered', {
+        content_length: content.length,
+      });
+    } catch {
+      // Persistence failure must not break the critique flow.
+    }
   }
 
   private async configureChild(

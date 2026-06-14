@@ -138,6 +138,14 @@ export const BUILTIN_SLASH_COMMANDS = [
     availability: 'always',
   },
   {
+    name: 'memory',
+    aliases: [],
+    description: 'List, pin, or delete remembered memories',
+    priority: 90,
+    availability: 'always',
+    argumentHint: '[list|delete <id>|pin <id>|unpin <id>]',
+  },
+  {
     name: 'btw',
     aliases: [],
     description: 'Ask a forked side agent a question',

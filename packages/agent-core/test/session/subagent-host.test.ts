@@ -1,10 +1,11 @@
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'pathe';
 
 import { testKaos } from '../fixtures/test-kaos';
 import { APIStatusError, type Message, type ToolCall } from '@moonshot-ai/kosong';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Agent, AgentOptions } from '../../src/agent';
 import { AGENT_WIRE_PROTOCOL_VERSION } from '../../src/agent/records';
@@ -1480,6 +1481,143 @@ describe('Session.createAgent', () => {
 
     const sub = await session.createAgent({ type: 'sub' }, { parentAgentId: main.id });
     expect(sub.agent.mcp).toBe(session.mcp);
+  });
+
+  describe('memory learning loop', () => {
+    let tempDir: string;
+
+    beforeEach(() => {
+      tempDir = mkdtempSync(join(tmpdir(), 'kimi-subagent-memory-'));
+      mkdirSync(join(tempDir, '.git'), { recursive: true });
+    });
+
+    afterEach(() => {
+      rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    it('injects relevant memories into a critic subagent', async () => {
+      const parent = testAgent({
+        homedir: tempDir,
+        kimiHomeDir: tempDir,
+        kaos: testKaos.withCwd(tempDir),
+      });
+      parent.configure();
+      await parent.agent.memoryStore.remember({
+        content: 'When reviewing plans, always validate user input before Bash execution.',
+        category: 'project-fact',
+      });
+
+      const child = testAgent({
+        type: 'sub',
+        homedir: tempDir,
+        kimiHomeDir: tempDir,
+        kaos: testKaos.withCwd(tempDir),
+      });
+      child.mockNextResponse({ type: 'text', text: 'No issues found.' });
+
+      const session = fakeSession(parent.agent, child.agent);
+      const host = new SessionSubagentHost(session, 'main');
+
+      await host.runCritique('Review this plan.', 'mock-model');
+
+      const history = child.agent.context.history;
+      const reminder = history.find(
+        (message) => message.origin?.kind === 'injection' && message.origin.variant === 'subagent_memory_context',
+      );
+      expect(reminder).toBeDefined();
+      const text = reminder?.content.map((part) => (part.type === 'text' ? part.text : '')).join('');
+      expect(text).toContain('When reviewing plans');
+    });
+
+    it('persists critique findings as long-term memory', async () => {
+      const parent = testAgent({
+        homedir: tempDir,
+        kimiHomeDir: tempDir,
+        kaos: testKaos.withCwd(tempDir),
+      });
+      parent.configure();
+
+      const child = testAgent({
+        type: 'sub',
+        homedir: tempDir,
+        kimiHomeDir: tempDir,
+        kaos: testKaos.withCwd(tempDir),
+      });
+      child.mockNextResponse({ type: 'text', text: 'The plan omits error handling for network timeouts.' });
+
+      const session = fakeSession(parent.agent, child.agent);
+      const host = new SessionSubagentHost(session, 'main');
+
+      await host.runCritique('Review this plan.', 'mock-model');
+
+      const memories = await parent.agent.memoryStore.list();
+      const finding = memories.find((m) => m.category === 'critique-finding');
+      expect(finding).toBeDefined();
+      expect(finding?.content).toContain('error handling for network timeouts');
+      expect(finding?.tags).toContain('critique');
+    });
+
+    it('injects memories into compare subagents even with DenyAllPermissionPolicy', async () => {
+      const parent = testAgent({
+        homedir: tempDir,
+        kimiHomeDir: tempDir,
+        kaos: testKaos.withCwd(tempDir),
+      });
+      parent.configure();
+      await parent.agent.memoryStore.remember({
+        content: 'When installing dependencies, prefer pnpm for package management.',
+        category: 'user-preference',
+      });
+
+      const child = testAgent({
+        type: 'sub',
+        homedir: tempDir,
+        kimiHomeDir: tempDir,
+        kaos: testKaos.withCwd(tempDir),
+      });
+      child.mockNextResponse({ type: 'text', text: 'Response A' });
+
+      const session = fakeSession(parent.agent, child.agent);
+      const host = new SessionSubagentHost(session, 'main');
+
+      await host.runCompare('How do I install dependencies?', ['mock-model-a']);
+
+      const history = child.agent.context.history;
+      const reminder = history.find(
+        (message) => message.origin?.kind === 'injection' && message.origin.variant === 'subagent_memory_context',
+      );
+      expect(reminder).toBeDefined();
+      const text = reminder?.content.map((part) => (part.type === 'text' ? part.text : '')).join('');
+      expect(text).toContain('When installing dependencies');
+    });
+
+    it('persists a comparison summary after runCompare', async () => {
+      const parent = testAgent({
+        homedir: tempDir,
+        kimiHomeDir: tempDir,
+        kaos: testKaos.withCwd(tempDir),
+      });
+      parent.configure();
+
+      const child = testAgent({
+        type: 'sub',
+        homedir: tempDir,
+        kimiHomeDir: tempDir,
+        kaos: testKaos.withCwd(tempDir),
+      });
+      child.mockNextResponse({ type: 'text', text: 'Use pnpm install.' });
+
+      const session = fakeSession(parent.agent, child.agent);
+      const host = new SessionSubagentHost(session, 'main');
+
+      await host.runCompare('How do I install dependencies?', ['mock-model']);
+
+      const memories = await parent.agent.memoryStore.list();
+      const comparison = memories.find((m) => m.category === 'comparison');
+      expect(comparison).toBeDefined();
+      expect(comparison?.content).toContain('Comparison prompt:');
+      expect(comparison?.tags).toContain('compare');
+    });
   });
 });
 

@@ -41,6 +41,8 @@ export interface LLMChatParams {
   tools: readonly Tool[];
   signal: AbortSignal;
   requestLogContext?: LLMRequestLogContext;
+  /** Optional override for the LLM's default system prompt. */
+  systemPrompt?: string | undefined;
   onTextDelta?: ((delta: string) => void) | undefined;
   onThinkDelta?: ((delta: string) => void) | undefined;
   onToolCallDelta?: ((delta: ToolCallDelta) => void) | undefined;

@@ -58,6 +58,10 @@ export class ToolManager {
     };
   }
 
+  getToolStore(): ToolStore {
+    return this.toolStore;
+  }
+
   attachMcpTools(): void {
     const mcp = this.agent.mcp;
     if (mcp === undefined) return;

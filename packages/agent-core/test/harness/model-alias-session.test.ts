@@ -407,6 +407,7 @@ max_context_size = 1000000
     return sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async () => ({ decision: 'rejected' as const })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
     });

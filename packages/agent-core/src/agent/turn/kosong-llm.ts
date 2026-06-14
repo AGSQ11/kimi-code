@@ -112,7 +112,7 @@ export class KosongLLM implements LLM {
 
     const result = await this.generate(
       effectiveProvider,
-      this.systemPrompt,
+      params.systemPrompt ?? this.systemPrompt,
       [...params.tools],
       params.messages,
       callbacks,

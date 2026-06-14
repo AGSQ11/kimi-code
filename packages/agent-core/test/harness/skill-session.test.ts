@@ -635,6 +635,7 @@ describe('HarnessAPI session skills', () => {
         events.push(event);
       },
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
     });
