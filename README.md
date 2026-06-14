@@ -22,13 +22,21 @@ pnpm --filter @moonshot-ai/kimi-code build
 
 > On Windows, install [Git for Windows](https://gitforwindows.org/) before first launch because Kimi Code CLI uses the bundled Git Bash as its shell environment. If Git Bash is installed in a custom location, set `KIMI_SHELL_PATH` to the absolute path of `bash.exe`.
 
-Run the CLI from the repo root:
+Install the built CLI globally:
+
+```sh
+pnpm --filter @moonshot-ai/kimi-code exec pnpm pack
+npm install -g ./apps/kimi-code/moonshot-ai-kimi-code-*.tgz
+kimi --version
+```
+
+Or run it directly from the repo root without installing:
 
 ```sh
 pnpm --filter @moonshot-ai/kimi-code run dev:prod -- --version
 ```
 
-For convenience, add an alias to your shell (example for `.bashrc` / `.zshrc`):
+For the repo-root workflow, add an alias to your shell (example for `.bashrc` / `.zshrc`):
 
 ```sh
 alias kimi='pnpm --filter @moonshot-ai/kimi-code run dev:prod --'

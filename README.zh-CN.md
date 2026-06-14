@@ -25,13 +25,21 @@ pnpm --filter @moonshot-ai/kimi-code build
 
 > Windows 用户首次启动前还需要安装 [Git for Windows](https://gitforwindows.org/)，Kimi Code CLI 会使用其中的 Git Bash 作为 Shell 环境。如果 Git Bash 安装在非标准路径，请把 `KIMI_SHELL_PATH` 设为 `bash.exe` 的绝对路径。
 
-从仓库根目录运行 CLI：
+将构建好的 CLI 安装到全局：
+
+```sh
+pnpm --filter @moonshot-ai/kimi-code exec pnpm pack
+npm install -g ./apps/kimi-code/moonshot-ai-kimi-code-*.tgz
+kimi --version
+```
+
+或者不安装，直接从仓库根目录运行：
 
 ```sh
 pnpm --filter @moonshot-ai/kimi-code run dev:prod -- --version
 ```
 
-可以给 shell 加一个别名（以 `.bashrc` / `.zshrc` 为例）：
+如果常用仓库根目录的工作流，可以给 shell 加一个别名（以 `.bashrc` / `.zshrc` 为例）：
 
 ```sh
 alias kimi='pnpm --filter @moonshot-ai/kimi-code run dev:prod --'
