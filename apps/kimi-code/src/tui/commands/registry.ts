@@ -117,6 +117,14 @@ export const BUILTIN_SLASH_COMMANDS = [
     availability: 'always',
   },
   {
+    name: 'probemodels',
+    aliases: ['probe'],
+    description: 'Probe configured models for API health',
+    priority: 93,
+    availability: 'always',
+    argumentHint: '[alias]?',
+  },
+  {
     name: 'criticize',
     aliases: ['critique'],
     description: 'Critique the AI work for flaws and hallucinations',

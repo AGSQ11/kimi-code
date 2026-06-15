@@ -4,6 +4,7 @@ import {
   type AgentContextData,
   type KimiErrorCode,
   type MemoryData,
+  type ModelProbeResult,
   type SwarmModeTrigger,
 } from '@moonshot-ai/agent-core';
 
@@ -160,6 +161,16 @@ export class Session {
   ): Promise<readonly { modelAlias: string; result?: string; error?: string }[]> {
     this.ensureOpen();
     return this.rpc.compareModels({ sessionId: this.id, prompt, modelAliases });
+  }
+
+  async probeModel(alias: string): Promise<ModelProbeResult> {
+    this.ensureOpen();
+    return this.rpc.probeModel({ sessionId: this.id, alias });
+  }
+
+  async probeAllModels(): Promise<Record<string, ModelProbeResult>> {
+    this.ensureOpen();
+    return this.rpc.probeAllModels({ sessionId: this.id });
   }
 
   async cancel(): Promise<void> {

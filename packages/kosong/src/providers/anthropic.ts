@@ -37,6 +37,7 @@ import type {
   ToolUseBlockParam,
 } from '@anthropic-ai/sdk/resources/messages/messages.js';
 
+import { getAnthropicModelCapability } from './capability-registry';
 import {
   mergeRequestHeaders,
   requireProviderApiKey,

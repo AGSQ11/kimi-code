@@ -21,6 +21,7 @@ import type { SessionMeta } from '#/session';
 import type { ContentPart } from '@moonshot-ai/kosong';
 
 import type { PluginInfo, PluginSummary, ReloadSummary } from '#/plugin';
+import type { ModelProbeResult } from '../session/model-probe';
 import type { UsageStatus } from './events';
 import type { WithAgentId, WithSessionId } from './types';
 
@@ -314,6 +315,15 @@ export interface RemoveKimiProviderPayload {
   readonly providerId: string;
 }
 
+export interface ProbeModelPayload {
+  readonly sessionId: string;
+  readonly alias: string;
+}
+
+export interface ProbeAllModelsPayload {
+  readonly sessionId: string;
+}
+
 export interface MemoryData {
   readonly id: string;
   readonly content: string;
@@ -423,4 +433,6 @@ export interface CoreAPI extends SessionAPIWithId {
   removePlugin: (payload: RemovePluginPayload) => void;
   reloadPlugins: (payload: EmptyPayload) => ReloadPluginsResult;
   getPluginInfo: (payload: GetPluginInfoPayload) => PluginInfo;
+  probeModel: (payload: ProbeModelPayload) => ModelProbeResult;
+  probeAllModels: (payload: ProbeAllModelsPayload) => Record<string, ModelProbeResult>;
 }

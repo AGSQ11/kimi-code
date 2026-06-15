@@ -56,6 +56,7 @@ const appState: AppState = {
   availableProviders: {},
   generationKwargs: null,
   mcpServersSummary: null,
+  modelProbeStatus: {},
 };
 
 describe('FooterComponent', () => {

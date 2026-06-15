@@ -100,6 +100,7 @@ import { SessionEventHandler } from './controllers/session-event-handler';
 import { SessionReplayRenderer } from './controllers/session-replay';
 import { StreamingUIController } from './controllers/streaming-ui';
 import { TasksBrowserController } from './controllers/tasks-browser';
+import { ModelProbeService } from './services/model-probe';
 import { installRainbowDance } from './easter-eggs/dance';
 import { adaptPanelResponse } from './reverse-rpc/approval/adapter';
 import { ApprovalController } from './reverse-rpc/approval/controller';
@@ -201,6 +202,7 @@ function createInitialAppState(input: KimiTUIStartupInput): AppState {
     forceMcp: undefined,
     criticConfig: undefined,
     banner: undefined,
+    modelProbeStatus: {},
   };
 }
 
@@ -245,6 +247,7 @@ export class KimiTUI {
   readonly sessionReplay: SessionReplayRenderer;
   readonly tasksBrowserController: TasksBrowserController;
   readonly editorKeyboard: EditorKeyboardController;
+  readonly modelProbeService: ModelProbeService;
 
   // The currently-mounted approval panel, if any. Kept so the full-screen
   // preview viewer can restore focus to the exact same instance (and its
@@ -322,6 +325,7 @@ export class KimiTUI {
     this.sessionEventHandler = new SessionEventHandler(this);
     this.sessionReplay = new SessionReplayRenderer(this);
     this.tasksBrowserController = new TasksBrowserController(this);
+    this.modelProbeService = new ModelProbeService(this);
     this.editorKeyboard = new EditorKeyboardController(this, this.imageStore);
     this.editorKeyboard.install();
     this.buildLayout();
@@ -633,6 +637,7 @@ export class KimiTUI {
     await this.syncRuntimeState(session);
     this.applyStartupPermissionAndPlanToAppState();
     this.state.startupState = 'ready';
+    void this.modelProbeService.probeAll({ background: true });
     return shouldReplayHistory;
   }
 
@@ -648,6 +653,7 @@ export class KimiTUI {
     }
     this.reverseRpcDisposers.length = 0;
     this.disposeTerminalTracking();
+    this.modelProbeService.cancel();
     await this.closeSession('shutting down');
     await this.harness.close();
     this.sessionEventHandler.stopAllMcpServerStatusSpinners();

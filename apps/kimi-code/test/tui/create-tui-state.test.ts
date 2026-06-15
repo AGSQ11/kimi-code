@@ -30,6 +30,7 @@ function fakeInitialAppState(): AppState {
     sessionTitle: null,
     generationKwargs: null,
     mcpServersSummary: null,
+    modelProbeStatus: {},
   };
 }
 

@@ -313,6 +313,7 @@ export function showModelPicker(host: SlashCommandHost, selectedValue: string = 
       currentValue: host.state.appState.model,
       selectedValue,
       currentThinking: host.state.appState.thinking,
+      probeStatus: host.state.appState.modelProbeStatus,
       onSelect: ({ alias, thinking }) => {
         host.restoreEditor();
         void performModelSwitch(host, alias, thinking);

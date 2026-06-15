@@ -41,6 +41,8 @@ export type {
   McpServerInfo,
   McpStartupMetrics,
   ModelAlias,
+  ModelProbeResult,
+  ModelProbeStatus,
   MoonshotServiceConfig,
   OAuthRef,
   PluginGithubMetadata,

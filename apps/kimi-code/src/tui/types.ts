@@ -2,6 +2,7 @@ import type {
   GoalChange,
   GoalSnapshot,
   ModelAlias,
+  ModelProbeResult,
   PermissionMode,
   ProviderConfig,
   PromptPart,
@@ -56,6 +57,8 @@ export interface AppState {
   criticConfig?: { modelAlias: string } | undefined;
   /** Optional banner shown below the welcome panel; null means no banner to render. */
   banner?: BannerState | null;
+  /** Per-model health probe results for the current session. */
+  modelProbeStatus: Record<string, ModelProbeResult>;
 }
 
 export interface ToolCallBlockData {

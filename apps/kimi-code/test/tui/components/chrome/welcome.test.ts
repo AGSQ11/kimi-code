@@ -34,6 +34,7 @@ const appState: AppState = {
   availableProviders: {},
   generationKwargs: null,
   mcpServersSummary: null,
+  modelProbeStatus: {},
 };
 
 function truecolorCodes(text: string): Set<string> {

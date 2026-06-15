@@ -12,6 +12,7 @@ import {
   type MemoryApprovalRequest,
   type MemoryApprovalResponse,
   type MemoryData,
+  type ModelProbeResult,
   type QuestionRequest,
   type QuestionResult,
   type RPCMethods,
@@ -302,6 +303,16 @@ export abstract class SDKRpcClientBase {
       prompt: input.prompt,
       modelAliases: input.modelAliases,
     });
+  }
+
+  async probeModel(input: SessionIdRpcInput & { alias: string }): Promise<ModelProbeResult> {
+    const rpc = await this.getRpc();
+    return rpc.probeModel({ sessionId: input.sessionId, alias: input.alias });
+  }
+
+  async probeAllModels(input: SessionIdRpcInput): Promise<Record<string, ModelProbeResult>> {
+    const rpc = await this.getRpc();
+    return rpc.probeAllModels({ sessionId: input.sessionId });
   }
 
   async cancel(input: SessionIdRpcInput): Promise<void> {

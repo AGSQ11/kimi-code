@@ -50,6 +50,8 @@ export type {
   OAuthTokenProviderResolver,
   ResolvedRuntimeProvider,
 } from './session/provider-manager';
+export { ModelProbeService } from './session/model-probe';
+export type { ModelProbeResult, ModelProbeStatus } from './session/model-probe';
 
 // ─── Wire records (for in-monorepo consumers like apps/vis) ────────────────
 export type {
