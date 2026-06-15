@@ -515,6 +515,7 @@ export class ToolCallComponent extends Container {
   // parent tool call resolves.
   private subagentAgentId: string | undefined;
   private subagentAgentName: string | undefined;
+  private subagentModelAlias: string | undefined;
   private readonly ongoingSubCalls = new Map<string, OngoingSubCall>();
   private readonly finishedSubCalls: FinishedSubCall[] = [];
   private readonly subToolActivities = new Map<string, SubToolActivity>();
@@ -734,10 +735,17 @@ export class ToolCallComponent extends Container {
 
   // ── Subagent API (called by KimiTUI event routing) ───────────────
 
-  setSubagentMeta(agentId: string, agentName?: string): void {
-    if (this.subagentAgentId === agentId && this.subagentAgentName === agentName) return;
+  setSubagentMeta(agentId: string, agentName?: string, modelAlias?: string): void {
+    if (
+      this.subagentAgentId === agentId &&
+      this.subagentAgentName === agentName &&
+      this.subagentModelAlias === modelAlias
+    ) {
+      return;
+    }
     this.subagentAgentId = agentId;
     this.subagentAgentName = agentName;
+    this.subagentModelAlias = modelAlias;
     this.headerText.setText(this.buildHeader());
     this.rebuildContent();
     this.notifySnapshotChange();
@@ -948,10 +956,12 @@ export class ToolCallComponent extends Container {
   onSubagentSpawned(meta: {
     agentId: string;
     agentName?: string | undefined;
+    modelAlias?: string | undefined;
     runInBackground: boolean;
   }): void {
     this.subagentAgentId = meta.agentId;
     this.subagentAgentName = meta.agentName;
+    this.subagentModelAlias = meta.modelAlias;
     this.subagentPhase = meta.runInBackground ? 'backgrounded' : 'queued';
     this.subagentStartedAtMs = Date.now();
     this.subagentEndedAtMs = undefined;
@@ -966,10 +976,12 @@ export class ToolCallComponent extends Container {
   onSubagentStarted(meta: {
     agentId: string;
     agentName?: string | undefined;
+    modelAlias?: string | undefined;
     runInBackground: boolean;
   }): void {
     this.subagentAgentId = meta.agentId;
     this.subagentAgentName = meta.agentName;
+    this.subagentModelAlias = meta.modelAlias;
     if (
       !meta.runInBackground &&
       (this.subagentPhase === undefined || this.subagentPhase === 'queued')
@@ -1564,12 +1576,17 @@ export class ToolCallComponent extends Container {
     const description = str(this.toolCall.args['description']);
     const descriptionPlain = description.length > 0 ? ` (${description})` : '';
     const descriptionText = descriptionPlain.length > 0 ? currentTheme.dim(descriptionPlain) : '';
+    const modelAlias = this.subagentModelAlias;
+    const modelText =
+      modelAlias !== undefined && modelAlias.length > 0
+        ? currentTheme.dim(` · ${modelAlias}`)
+        : '';
     const statsText = this.formatSingleSubagentStatsText();
     if (isDone) {
-      return `${bullet}${currentTheme.boldFg('success', labelText)} ${currentTheme.fg('success', `Completed${descriptionPlain}${statsText}`)}`;
+      return `${bullet}${currentTheme.boldFg('success', labelText)} ${currentTheme.fg('success', `Completed${descriptionPlain}${modelText}${statsText}`)}`;
     }
     const stats = currentTheme.dim(statsText);
-    return `${bullet}${label} ${status}${descriptionText}${stats}`;
+    return `${bullet}${label} ${status}${descriptionText}${modelText}${stats}`;
   }
 
   private formatSingleSubagentStatus(phase: SubagentPhase | undefined): string {
