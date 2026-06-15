@@ -1,6 +1,11 @@
 import type { Logger } from '#/logging/types';
 import type { ProviderConfig as KosongProviderConfig, ModelCapability, ProviderRequestAuth } from '@moonshot-ai/kosong';
-import { APIStatusError, createProvider, getAnthropicModelCapability, UNKNOWN_CAPABILITY } from '@moonshot-ai/kosong';
+import {
+  APIStatusError,
+  getAnthropicModelCapability,
+  getModelCapability,
+  UNKNOWN_CAPABILITY,
+} from '@moonshot-ai/kosong';
 import type { KimiConfig, ModelAlias, OAuthRef, ProviderConfig } from '../config';
 import { ErrorCodes, isKimiError, KimiError } from '../errors';
 
@@ -211,8 +216,7 @@ function resolveModelCapabilities(
   provider: KosongProviderConfig,
 ): ModelCapability {
   const declared = new Set((alias.capabilities ?? []).map((c) => c.trim().toLowerCase()));
-  const probe = createProvider(providerForCapabilityProbe(provider));
-  const detected = probe.getCapability?.(provider.model) ?? UNKNOWN_CAPABILITY;
+  const detected = getModelCapability(provider.type, provider.model);
 
   return {
     image_in: declared.has('image_in') || detected.image_in,
@@ -307,14 +311,6 @@ function defaultHeadersField(
 ): { defaultHeaders?: Record<string, string> } {
   if (headers === undefined || Object.keys(headers).length === 0) return {};
   return { defaultHeaders: { ...headers } };
-}
-
-function providerForCapabilityProbe(provider: KosongProviderConfig): KosongProviderConfig {
-  const apiKey = provider.apiKey && provider.apiKey.length > 0 ? provider.apiKey : 'capability-probe';
-  if (provider.type === 'vertexai') {
-    return { ...provider, vertexai: false, project: undefined, location: undefined, apiKey };
-  }
-  return { ...provider, apiKey };
 }
 
 function providerApiKey(provider: ProviderConfig): string | undefined {

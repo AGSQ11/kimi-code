@@ -32,6 +32,7 @@ import type { Logger } from '../logging/types';
 import { resolveSessionMcpConfig, mergeCallerMcpServers, type SessionMcpConfig } from '../mcp';
 import { Session, type SessionMeta, type SessionSkillConfig } from '../session';
 import { exportSessionDirectory } from '../session/export';
+import { ModelProbeService, type ModelProbeResult } from '../session/model-probe';
 import {
   ProviderManager, type BearerTokenProvider,
   type OAuthTokenProviderResolver
@@ -834,6 +835,18 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
       );
     }
     return info;
+  }
+
+  async probeModel({ sessionId, alias }: { sessionId: string; alias: string }): Promise<ModelProbeResult> {
+    const service = new ModelProbeService({ providerManager: this.resolveProviderManager(sessionId) });
+    return service.probeModel(alias);
+  }
+
+  async probeAllModels({ sessionId }: { sessionId: string }): Promise<Record<string, ModelProbeResult>> {
+    const providerManager = this.resolveProviderManager(sessionId);
+    const models = this.config.models ?? {};
+    const service = new ModelProbeService({ providerManager });
+    return service.probeAll(Object.keys(models));
   }
 
   private assertPluginsLoaded(): void {

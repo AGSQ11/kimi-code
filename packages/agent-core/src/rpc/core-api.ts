@@ -21,6 +21,7 @@ import type { SessionMeta } from '#/session';
 import type { ContentPart } from '@moonshot-ai/kosong';
 
 import type { PluginInfo, PluginSummary, ReloadSummary } from '#/plugin';
+import type { ModelProbeResult } from '../session/model-probe';
 import type { UsageStatus } from './events';
 import type { WithAgentId, WithSessionId } from './types';
 
@@ -232,7 +233,7 @@ export interface ActivateSkillPayload {
 
 export interface McpServerInfo {
   readonly name: string;
-  readonly transport: 'stdio' | 'http';
+  readonly transport: 'stdio' | 'http' | 'sse';
   readonly status: 'pending' | 'connected' | 'failed' | 'disabled' | 'needs-auth';
   readonly toolCount: number;
   readonly error?: string;
@@ -312,6 +313,15 @@ export type SetKimiConfigPayload = KimiConfigPatch;
 
 export interface RemoveKimiProviderPayload {
   readonly providerId: string;
+}
+
+export interface ProbeModelPayload {
+  readonly sessionId: string;
+  readonly alias: string;
+}
+
+export interface ProbeAllModelsPayload {
+  readonly sessionId: string;
 }
 
 export interface MemoryData {
@@ -423,4 +433,6 @@ export interface CoreAPI extends SessionAPIWithId {
   removePlugin: (payload: RemovePluginPayload) => void;
   reloadPlugins: (payload: EmptyPayload) => ReloadPluginsResult;
   getPluginInfo: (payload: GetPluginInfoPayload) => PluginInfo;
+  probeModel: (payload: ProbeModelPayload) => ModelProbeResult;
+  probeAllModels: (payload: ProbeAllModelsPayload) => Record<string, ModelProbeResult>;
 }

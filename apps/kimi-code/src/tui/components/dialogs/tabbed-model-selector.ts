@@ -13,7 +13,7 @@
  * AskUserQuestion dialog's tab strip) — see .agents/skills/write-tui/DESIGN.md.
  */
 
-import type { ModelAlias } from '@moonshot-ai/kimi-code-sdk';
+import type { ModelAlias, ModelProbeResult } from '@moonshot-ai/kimi-code-sdk';
 import {
   Container,
   Key,
@@ -43,6 +43,8 @@ export interface TabbedModelSelectorOptions {
   /** When set, the tab for this provider id is initially active instead of the
    * tab derived from `currentValue`. */
   readonly initialTabId?: string;
+  /** Optional per-alias health probe results shown next to each choice. */
+  readonly probeStatus?: Readonly<Record<string, ModelProbeResult>>;
   readonly onSelect: (selection: ModelSelection) => void;
   readonly onCancel: () => void;
 }
@@ -249,6 +251,7 @@ function makeSelector(
     currentThinking: opts.currentThinking,
     searchable: true,
     providerSwitchHint: true,
+    probeStatus: opts.probeStatus,
     onSelect: opts.onSelect,
     onCancel: opts.onCancel,
   };

@@ -1,4 +1,3 @@
-import type { ModelCapability } from '#/capability';
 import {
   APIConnectionError,
   APITimeoutError,
@@ -939,10 +938,6 @@ export class AnthropicChatProvider implements ChatProvider {
       model: this._model,
       ...this._generationKwargs,
     };
-  }
-
-  getCapability(model?: string): ModelCapability {
-    return getAnthropicModelCapability(model ?? this._model);
   }
 
   async generate(

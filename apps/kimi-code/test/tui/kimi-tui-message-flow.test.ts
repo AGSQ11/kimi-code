@@ -742,7 +742,7 @@ command = "vim"
     let resolveSnapshot: (
       servers: Array<{
         name: string;
-        transport: 'stdio' | 'http';
+        transport: 'stdio' | 'http' | 'sse';
         status: 'pending' | 'connected' | 'failed' | 'disabled';
         toolCount: number;
         error?: string;
@@ -1181,12 +1181,32 @@ command = "vim"
     const { driver, session } = await makeDriver();
 
     driver.state.appState.streamingPhase = 'waiting';
+    driver.state.editor.setText('draft while streaming');
     driver.state.editor.onEscape?.();
 
     expect(session.cancel).toHaveBeenCalledTimes(1);
+    expect(driver.state.editor.getText()).toBe('draft while streaming');
 
     session.cancel.mockClear();
     driver.state.appState.streamingPhase = 'waiting';
+    driver.state.editor.setText('');
+    driver.state.editor.onCtrlC?.();
+
+    expect(session.cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears streaming editor text before cancelling the active turn on Ctrl-C', async () => {
+    const { driver, session } = await makeDriver();
+
+    driver.state.appState.streamingPhase = 'waiting';
+    driver.state.editor.setText('draft while streaming');
+
+    driver.state.editor.onCtrlC?.();
+
+    expect(driver.state.editor.getText()).toBe('');
+    expect(session.cancel).not.toHaveBeenCalled();
+    expect(driver.state.appState.streamingPhase).toBe('waiting');
+
     driver.state.editor.onCtrlC?.();
 
     expect(session.cancel).toHaveBeenCalledTimes(1);

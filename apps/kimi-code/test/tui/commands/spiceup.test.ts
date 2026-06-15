@@ -31,6 +31,7 @@ function fakeHost(overrides?: Partial<AppState>): SlashCommandHost {
     generationKwargs: null,
     sessionTitle: null,
     mcpServersSummary: null,
+    modelProbeStatus: {},
     ...overrides,
   };
 

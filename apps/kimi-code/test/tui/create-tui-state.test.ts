@@ -30,6 +30,7 @@ function fakeInitialAppState(): AppState {
     sessionTitle: null,
     generationKwargs: null,
     mcpServersSummary: null,
+    modelProbeStatus: {},
   };
 }
 
@@ -79,6 +80,7 @@ describe('createTUIState', () => {
     expect(state.activeDialog).toBeNull();
     expect(state.externalEditorRunning).toBe(false);
     expect(state.loadingSessions).toBe(false);
+    expect(state.sessionsScope).toBe('cwd');
     expect(state.activitySpinner).toBeNull();
   });
 });

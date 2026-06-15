@@ -46,6 +46,7 @@ import {
 import { handleCompareCommand } from './compare';
 import { handleCriticizeCommand } from './criticize';
 import { handleMemoryCommand } from './memory';
+import { handleProbeModelsCommand } from './probemodels';
 import { handleReloadSyspromptCommand } from './reload-sysprompt';
 import { handleForceMcpCommand } from './force-mcp';
 import { handleGoalCommand } from './goal';
@@ -161,6 +162,7 @@ export interface SlashCommandHost {
   readonly btwPanelController: BtwPanelController;
   readonly tasksBrowserController: TasksBrowserController;
   readonly authFlow: AuthFlowController;
+  readonly modelProbeService: import('../services/model-probe').ModelProbeService;
 }
 
 // ---------------------------------------------------------------------------
@@ -360,6 +362,9 @@ async function handleBuiltInSlashCommand(
       return;
     case 'memory':
       await handleMemoryCommand(host, args);
+      return;
+    case 'probemodels':
+      await handleProbeModelsCommand(host, args);
       return;
     case 'undo':
       await handleUndoCommand(host, args);

@@ -85,6 +85,7 @@ import type {
 } from '../types';
 import type { TUIState } from '../tui-state';
 import { createGoal as startGoalCommand } from '../commands/goal';
+import { isProviderErrorCode, type ModelProbeService } from '../services/model-probe';
 
 export interface SessionEventHost {
   state: TUIState;
@@ -112,6 +113,7 @@ export interface SessionEventHost {
   shiftQueuedMessage(): QueuedMessage | undefined;
   readonly btwPanelController: BtwPanelController;
   readonly tasksBrowserController: TasksBrowserController;
+  readonly modelProbeService: ModelProbeService;
 }
 
 export class SessionEventHandler {
@@ -818,6 +820,9 @@ export class SessionEventHandler {
     const sessionId = this.host.state.appState.sessionId;
     if (sessionId.length > 0) {
       this.host.showStatus(errorReportHintLine());
+    }
+    if (isProviderErrorCode(event.code)) {
+      this.host.modelProbeService.scheduleReprobe();
     }
   }
 

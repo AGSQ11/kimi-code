@@ -24,10 +24,12 @@ import { resolve } from 'pathe';
 
 import type { CLIOptions } from '#/cli/options';
 import { MigrationScreenComponent, type MigrationScreenResult } from '#/migration/index';
+import { copyTextToClipboard } from '#/utils/clipboard/clipboard-text';
 import { appendInputHistory, loadInputHistory } from '#/utils/history/input-history';
 import { openUrl } from '#/utils/open-url';
 import { getInputHistoryFile } from '#/utils/paths';
 import { detectFdPath, ensureFdPath } from '#/utils/process/fd-detect';
+import { quoteShellArg } from '#/utils/shell-quote';
 
 import { BannerProvider } from './banner/banner-provider';
 import {
@@ -56,7 +58,10 @@ import {
 import { CompactionComponent } from './components/dialogs/compaction';
 import { HelpPanelComponent } from './components/dialogs/help-panel';
 import { QuestionDialogComponent } from './components/dialogs/question-dialog';
-import { SessionPickerComponent } from './components/dialogs/session-picker';
+import {
+  SessionPickerComponent,
+  type SessionRow,
+} from './components/dialogs/session-picker';
 import {
   FileMentionProvider,
   type SlashAutocompleteCommand,
@@ -95,6 +100,7 @@ import { SessionEventHandler } from './controllers/session-event-handler';
 import { SessionReplayRenderer } from './controllers/session-replay';
 import { StreamingUIController } from './controllers/streaming-ui';
 import { TasksBrowserController } from './controllers/tasks-browser';
+import { ModelProbeService } from './services/model-probe';
 import { installRainbowDance } from './easter-eggs/dance';
 import { adaptPanelResponse } from './reverse-rpc/approval/adapter';
 import { ApprovalController } from './reverse-rpc/approval/controller';
@@ -196,6 +202,7 @@ function createInitialAppState(input: KimiTUIStartupInput): AppState {
     forceMcp: undefined,
     criticConfig: undefined,
     banner: undefined,
+    modelProbeStatus: {},
   };
 }
 
@@ -240,6 +247,7 @@ export class KimiTUI {
   readonly sessionReplay: SessionReplayRenderer;
   readonly tasksBrowserController: TasksBrowserController;
   readonly editorKeyboard: EditorKeyboardController;
+  readonly modelProbeService: ModelProbeService;
 
   // The currently-mounted approval panel, if any. Kept so the full-screen
   // preview viewer can restore focus to the exact same instance (and its
@@ -317,6 +325,7 @@ export class KimiTUI {
     this.sessionEventHandler = new SessionEventHandler(this);
     this.sessionReplay = new SessionReplayRenderer(this);
     this.tasksBrowserController = new TasksBrowserController(this);
+    this.modelProbeService = new ModelProbeService(this);
     this.editorKeyboard = new EditorKeyboardController(this, this.imageStore);
     this.editorKeyboard.install();
     this.buildLayout();
@@ -628,6 +637,7 @@ export class KimiTUI {
     await this.syncRuntimeState(session);
     this.applyStartupPermissionAndPlanToAppState();
     this.state.startupState = 'ready';
+    void this.modelProbeService.probeAll({ background: true });
     return shouldReplayHistory;
   }
 
@@ -643,6 +653,7 @@ export class KimiTUI {
     }
     this.reverseRpcDisposers.length = 0;
     this.disposeTerminalTracking();
+    this.modelProbeService.cancel();
     await this.closeSession('shutting down');
     await this.harness.close();
     this.sessionEventHandler.stopAllMcpServerStatusSpinners();
@@ -1192,10 +1203,14 @@ export class KimiTUI {
     session.setMemoryApprovalHandler?.(createMemoryApprovalHandler(this.memoryApprovalController));
   }
 
-  async fetchSessions(): Promise<void> {
+  async fetchSessions(scope: 'cwd' | 'all' = this.state.sessionsScope): Promise<void> {
     this.state.loadingSessions = true;
+    this.state.sessionsScope = scope;
     try {
-      const sessions = await this.harness.listSessions({ workDir: this.state.appState.workDir });
+      const sessions =
+        scope === 'all'
+          ? await this.harness.listSessions({})
+          : await this.harness.listSessions({ workDir: this.state.appState.workDir });
       this.state.sessions = sessionRowsForPicker(
         sessions,
         this.state.appState.sessionId,
@@ -1231,6 +1246,18 @@ export class KimiTUI {
     this.streamingUI.setStep(0);
     this.streamingUI.resetLiveText();
     this.updateQueueDisplay();
+  }
+
+  private async showResumeOtherWorkDirHint(session: SessionRow): Promise<void> {
+    this.hideSessionPicker();
+    const command = `cd ${quoteShellArg(session.work_dir)} && kimi --resume ${quoteShellArg(session.id)}`;
+    const message = `Current session is in a different working directory.\n  To resume, run: ${command}`;
+    try {
+      await copyTextToClipboard(command);
+      this.showStatus(`${message}\n  Command copied to clipboard`, 'warning');
+    } catch {
+      this.showStatus(`${message}\n  Failed to copy command to clipboard`, 'warning');
+    }
   }
 
   private async resumeSession(targetSessionId: string): Promise<boolean> {
@@ -1867,33 +1894,87 @@ export class KimiTUI {
     this.restoreEditor();
   }
 
+  private sessionPickerOptions: {
+    readonly applyStartupModes: boolean;
+    readonly closeOnCancel: boolean;
+    readonly forwardEditorExit: boolean;
+  } = {
+    applyStartupModes: false,
+    closeOnCancel: false,
+    forwardEditorExit: false,
+  };
+  private sessionPickerScopeRequestToken = 0;
+
   async showSessionPicker(): Promise<void> {
-    await this.fetchSessions();
-    this.mountSessionPicker({
-      onCancel: () => {
-        this.hideSessionPicker();
-      },
+    await this.openSessionPicker({
+      applyStartupModes: false,
+      closeOnCancel: false,
+      forwardEditorExit: false,
     });
   }
 
   private async bootstrapFromPicker(): Promise<void> {
-    await this.fetchSessions();
-    this.mountSessionPicker({
+    await this.openSessionPicker({
       applyStartupModes: true,
+      closeOnCancel: true,
+      forwardEditorExit: true,
+    });
+  }
+
+  private async openSessionPicker(options: {
+    readonly applyStartupModes: boolean;
+    readonly closeOnCancel: boolean;
+    readonly forwardEditorExit: boolean;
+  }): Promise<void> {
+    this.sessionPickerOptions = options;
+    await this.fetchSessions('cwd');
+    this.mountSessionPicker({
+      applyStartupModes: options.applyStartupModes,
       onCancel: () => {
         this.hideSessionPicker();
-        void this.stop();
+        if (options.closeOnCancel) void this.stop();
       },
-      onCtrlC: () => {
-        this.state.editor.onCtrlC?.();
+      onCtrlC: options.forwardEditorExit
+        ? () => {
+            this.state.editor.onCtrlC?.();
+          }
+        : undefined,
+      onCtrlD: options.forwardEditorExit
+        ? () => {
+            this.state.editor.onCtrlD?.();
+          }
+        : undefined,
+    });
+  }
+
+  private async toggleSessionPickerScope(selectedSessionId: string): Promise<void> {
+    const requestToken = ++this.sessionPickerScopeRequestToken;
+    const nextScope = this.state.sessionsScope === 'cwd' ? 'all' : 'cwd';
+    await this.fetchSessions(nextScope);
+    if (requestToken !== this.sessionPickerScopeRequestToken) return;
+    if (this.state.activeDialog !== 'session-picker') return;
+    this.mountSessionPicker({
+      initialSelectedSessionId: selectedSessionId,
+      applyStartupModes: this.sessionPickerOptions.applyStartupModes,
+      onCancel: () => {
+        this.hideSessionPicker();
+        if (this.sessionPickerOptions.closeOnCancel) void this.stop();
       },
-      onCtrlD: () => {
-        this.state.editor.onCtrlD?.();
-      },
+      onCtrlC: this.sessionPickerOptions.forwardEditorExit
+        ? () => {
+            this.state.editor.onCtrlC?.();
+          }
+        : undefined,
+      onCtrlD: this.sessionPickerOptions.forwardEditorExit
+        ? () => {
+            this.state.editor.onCtrlD?.();
+          }
+        : undefined,
     });
   }
 
   hideSessionPicker(): void {
+    this.sessionPickerScopeRequestToken += 1;
     this.editorKeyboard.clearPendingExit();
     this.state.activeDialog = null;
     this.restoreEditor();
@@ -1903,6 +1984,7 @@ export class KimiTUI {
     readonly onCancel: () => void;
     readonly onCtrlC?: () => void;
     readonly onCtrlD?: () => void;
+    readonly initialSelectedSessionId?: string;
     // CLI mode flags (--auto/--yolo/--plan) target the session picked at
     // startup (bare --session); later /sessions switches keep the picked
     // session's own persisted modes.
@@ -1914,27 +1996,43 @@ export class KimiTUI {
         sessions: this.state.sessions,
         loading: this.state.loadingSessions,
         currentSessionId: this.state.appState.sessionId,
-        onSelect: (sessionId: string) => {
-          void this.resumeSession(sessionId)
-            .then(async (switched) => {
-              if (!switched) {
-                return;
-              }
-              if (options.applyStartupModes === true) {
-                await this.applyStartupModesToResumedSession(this.requireSession());
-                this.applyStartupPermissionAndPlanToAppState();
-              }
-              this.hideSessionPicker();
-            })
-            .catch((error) => {
+        scope: this.state.sessionsScope,
+        initialSelectedSessionId: options.initialSelectedSessionId,
+        pageSize: 50,
+        onSelect: (session: SessionRow) => {
+          void this.handleSessionPickerSelect(session, options.applyStartupModes === true).catch(
+            (error) => {
               this.showError(`Failed to apply startup flags: ${formatErrorMessage(error)}`);
-            });
+            },
+          );
         },
         onCancel: options.onCancel,
         onCtrlC: options.onCtrlC,
         onCtrlD: options.onCtrlD,
+        onToggleScope: (selectedSessionId: string) => {
+          void this.toggleSessionPickerScope(selectedSessionId);
+        },
       }),
     );
+  }
+
+  private async handleSessionPickerSelect(
+    session: SessionRow,
+    applyStartupModes: boolean,
+  ): Promise<void> {
+    if (resolve(session.work_dir) !== resolve(this.state.appState.workDir)) {
+      await this.showResumeOtherWorkDirHint(session);
+      if (applyStartupModes) await this.stop(0);
+      return;
+    }
+
+    const switched = await this.resumeSession(session.id);
+    if (!switched) return;
+    if (applyStartupModes) {
+      await this.applyStartupModesToResumedSession(this.requireSession());
+      this.applyStartupPermissionAndPlanToAppState();
+    }
+    this.hideSessionPicker();
   }
 
   private showApprovalPanel(payload: ApprovalPanelData): void {

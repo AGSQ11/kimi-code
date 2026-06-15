@@ -1,3 +1,4 @@
+import { visibleWidth } from '@earendil-works/pi-tui';
 import chalk from 'chalk';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -33,6 +34,7 @@ const appState: AppState = {
   availableProviders: {},
   generationKwargs: null,
   mcpServersSummary: null,
+  modelProbeStatus: {},
 };
 
 function truecolorCodes(text: string): Set<string> {
@@ -91,5 +93,13 @@ describe('WelcomeComponent', () => {
     const off = headerOf(new WelcomeComponent(appState).render(80));
 
     expect(off).toBe(base);
+  });
+
+  it('keeps every line within the requested width on narrow terminals', () => {
+    for (const width of [0, 1, 2, 4, 10, 39, 80]) {
+      for (const line of new WelcomeComponent(appState).render(width)) {
+        expect(visibleWidth(line)).toBeLessThanOrEqual(width);
+      }
+    }
   });
 });

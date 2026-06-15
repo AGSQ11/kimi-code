@@ -1,4 +1,4 @@
-import type { ModelAlias } from '@moonshot-ai/kimi-code-sdk';
+import type { ModelAlias, ModelProbeResult } from '@moonshot-ai/kimi-code-sdk';
 import {
   Container,
   Key,
@@ -64,6 +64,8 @@ export interface ModelSelectorOptions {
   /** When true, the hint line mentions the Tab provider switch — set by
    * TabbedModelSelectorComponent so the inner list advertises the tab keys. */
   readonly providerSwitchHint?: boolean;
+  /** Optional per-alias health probe results shown next to each choice. */
+  readonly probeStatus?: Readonly<Record<string, ModelProbeResult>>;
   readonly onSelect: (selection: ModelSelection) => void;
   readonly onCancel: () => void;
 }
@@ -216,6 +218,10 @@ export class ModelSelectorComponent extends Container implements Focusable {
         let line = currentTheme.fg(isSelected ? 'primary' : 'textDim', `  ${pointer} `);
         line += (isSelected ? currentTheme.boldFg('primary', truncatedName) : currentTheme.fg('text', truncatedName)) + namePad;
         line += '  ' + currentTheme.fg('textMuted', choice.provider);
+        const probeGlyph = this.probeGlyph(choice.alias);
+        if (probeGlyph !== undefined) {
+          line += ' ' + probeGlyph;
+        }
         if (isCurrent) {
           line += ' ' + currentTheme.fg('success', CURRENT_MARK);
         }
@@ -252,6 +258,14 @@ export class ModelSelectorComponent extends Container implements Focusable {
 
   private selectedChoice(): ModelChoice | undefined {
     return this.list.selected();
+  }
+
+  private probeGlyph(alias: string): string | undefined {
+    const status = this.opts.probeStatus?.[alias]?.status;
+    if (status === undefined) return undefined;
+    if (status === 'ok') return currentTheme.fg('success', '●');
+    if (status === 'unknown') return currentTheme.fg('warning', '◐');
+    return currentTheme.fg('error', '●');
   }
 
   private renderThinkingControl(choice: ModelChoice): string {

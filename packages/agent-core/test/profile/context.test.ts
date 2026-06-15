@@ -167,3 +167,16 @@ describe('loadSystemPromptOverride', () => {
     await rm(brandHome, { recursive: true, force: true });
   });
 });
+
+describe('loadAgentsMd truncation marker', () => {
+  it('adds a marker when AGENTS.md content is truncated', async () => {
+    const largeContent = 'x'.repeat(40 * 1024);
+    await writeFile(join(workDir, 'AGENTS.md'), largeContent, 'utf-8');
+
+    const result = await loadAgentsMd(testKaos);
+
+    expect(result).toContain('Some AGENTS.md files were truncated or omitted');
+    expect(result).toContain(`<!-- From: ${join(workDir, 'AGENTS.md')} -->`);
+    expect(result).not.toContain(largeContent);
+  });
+});
