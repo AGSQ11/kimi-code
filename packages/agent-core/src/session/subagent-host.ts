@@ -403,6 +403,7 @@ export class SessionSubagentHost {
       if (gitContext) childPrompt = `${gitContext}\n\n${childPrompt}`;
     }
 
+    await this.injectMemoryContext(child, childPrompt);
     this.emitSubagentStarted(parent, childId);
     const turnId = child.turn.prompt([{ type: 'text', text: childPrompt }], SUBAGENT_PROMPT_ORIGIN);
     if (turnId === null) {
@@ -454,6 +455,13 @@ export class SessionSubagentHost {
    */
   private async injectMemoryContext(child: Agent, query: string): Promise<void> {
     try {
+      const alreadyInjected = child.context.history.some(
+        (message) =>
+          message.origin?.kind === 'injection' &&
+          message.origin.variant === 'subagent_memory_context',
+      );
+      if (alreadyInjected) return;
+
       const projectRoot = child.memoryStore.getProjectRoot();
       const memories = await child.memoryStore.recall({
         query,
