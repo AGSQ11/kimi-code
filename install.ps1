@@ -8,7 +8,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "https://github.com/AGSQ11/kimi-code.git"
-$Branch = "probemodels"
+$Branch = "main"
 $InstallDir = if ($env:KIMI_CODE_INSTALL_DIR) { $env:KIMI_CODE_INSTALL_DIR } else { Join-Path $env:USERPROFILE ".kimi-code-fork" }
 $NodeMinMajor = 24
 $NodeMinMinor = 15

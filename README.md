@@ -16,13 +16,13 @@ Kimi Code CLI is an AI coding agent that runs in your terminal — it can read a
 **macOS or Linux:**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/AGSQ11/kimi-code/probemodels/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AGSQ11/kimi-code/main/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-irm https://raw.githubusercontent.com/AGSQ11/kimi-code/probemodels/install.ps1 | iex
+irm https://raw.githubusercontent.com/AGSQ11/kimi-code/main/install.ps1 | iex
 ```
 
 > On Windows, install [Git for Windows](https://gitforwindows.org/) before first launch because Kimi Code CLI uses the bundled Git Bash as its shell environment. If Git Bash is installed in a custom location, set `KIMI_SHELL_PATH` to the absolute path of `bash.exe`.

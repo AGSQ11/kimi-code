@@ -8,7 +8,7 @@
 set -euo pipefail
 
 REPO="https://github.com/AGSQ11/kimi-code.git"
-BRANCH="probemodels"
+BRANCH="main"
 INSTALL_DIR="${KIMI_CODE_INSTALL_DIR:-$HOME/.kimi-code-fork}"
 NODE_MIN_MAJOR=24
 NODE_MIN_MINOR=15
