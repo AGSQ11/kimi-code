@@ -28,6 +28,7 @@ import {
   type ResolvedAgentProfile,
 } from '../profile';
 import type { ProviderManager } from './provider-manager';
+import type { ModelProbeResult } from './model-probe';
 import {
   registerBuiltinSkills,
   SessionSkillRegistry,
@@ -62,6 +63,7 @@ export interface SessionOptions {
   readonly pluginSessionStarts?: readonly EnabledPluginSessionStart[];
   readonly appVersion?: string;
   readonly experimentalFlags?: ExperimentalFlagResolver;
+  readonly modelProbeStatus?: Record<string, ModelProbeResult>;
 }
 
 export interface SessionSkillConfig {
@@ -158,6 +160,7 @@ export class Session {
     custom: {},
   };
   private writeMetadataPromise = Promise.resolve();
+  modelProbeStatus: Record<string, ModelProbeResult>;
 
   constructor(public readonly options: SessionOptions) {
     // Attach the per-session log sink up front so the constructor's
@@ -175,6 +178,7 @@ export class Session {
       (options.id === undefined ? log : log.createChild({ sessionId: options.id }));
     this.rpc = options.rpc;
     this.experimentalFlags = options.experimentalFlags ?? new FlagResolver();
+    this.modelProbeStatus = options.modelProbeStatus ?? {};
     this.hookEngine = new HookEngine(options.hooks, {
       cwd: options.kaos.getcwd(),
       sessionId: options.id,
@@ -211,6 +215,10 @@ export class Session {
       agent.setKaos(kaos.withCwd(agent.config.cwd));
     }
     this.refreshAgentBuiltinTools();
+  }
+
+  setModelProbeStatus(status: Record<string, ModelProbeResult>): void {
+    this.modelProbeStatus = { ...this.modelProbeStatus, ...status };
   }
 
   /**
@@ -346,9 +354,15 @@ export class Session {
     });
     if (keepAliveOnExit) return;
     await Promise.all(
-      Array.from(this.readyAgents(), (agent) =>
-        agent.background.stopAll('Session closed'),
-      ),
+      Array.from(this.readyAgents(), async (agent) => {
+        const activeTasks = agent.background.list(true);
+        await Promise.all(
+          activeTasks.map((task) =>
+            agent.background.suppressTerminalNotification(task.taskId),
+          ),
+        );
+        await agent.background.stopAll('Session closed');
+      }),
     );
   }
 
