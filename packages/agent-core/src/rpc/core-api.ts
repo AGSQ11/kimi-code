@@ -165,6 +165,9 @@ export interface SetModelResult {
   readonly model: string;
   readonly providerName?: string | undefined;
 }
+export interface SetModelProbeStatusPayload {
+  readonly status: Record<string, ModelProbeResult>;
+}
 export interface SetGenerationKwargsPayload {
   readonly kwargs: Record<string, number>;
 }
@@ -408,6 +411,7 @@ export interface SessionAPI extends AgentAPIWithId {
   reconnectMcpServer: (payload: ReconnectMcpServerPayload) => void;
   generateAgentsMd: (payload: EmptyPayload) => void;
   reloadSystemPrompt: (payload: EmptyPayload) => void;
+  setModelProbeStatus: (payload: SetModelProbeStatusPayload) => void;
 }
 
 type SessionAPIWithId = WithSessionId<SessionAPI>;

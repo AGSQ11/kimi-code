@@ -173,6 +173,11 @@ export class Session {
     return this.rpc.probeAllModels({ sessionId: this.id });
   }
 
+  async setModelProbeStatus(status: Record<string, ModelProbeResult>): Promise<void> {
+    this.ensureOpen();
+    return this.rpc.setModelProbeStatus({ sessionId: this.id, status });
+  }
+
   async cancel(): Promise<void> {
     this.ensureOpen();
     await this.rpc.cancel({ sessionId: this.id });

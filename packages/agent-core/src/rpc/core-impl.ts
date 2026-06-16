@@ -85,6 +85,7 @@ import type {
   SetKimiConfigPayload,
   SetGenerationKwargsPayload,
   SetModelPayload,
+  SetModelProbeStatusPayload,
   SetModelResult,
   SetPermissionPayload,
   SetPluginEnabledPayload,
@@ -546,6 +547,10 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
 
   reloadSystemPrompt({ sessionId }: SessionScopedPayload<EmptyPayload>): Promise<void> {
     return this.sessionApi(sessionId).reloadSystemPrompt({});
+  }
+
+  setModelProbeStatus({ sessionId, status }: SessionScopedPayload<SetModelProbeStatusPayload>): Promise<void> {
+    return this.sessionApi(sessionId).setModelProbeStatus({ status });
   }
 
   setThinking({ sessionId, ...payload }: SessionAgentPayload<SetThinkingPayload>) {

@@ -87,6 +87,7 @@ export class ModelProbeService {
       if (controller.signal.aborted) return;
 
       this.host.setAppState({ modelProbeStatus: results });
+      void session.setModelProbeStatus(results);
       this.reportSummary(results, options);
       this.host.track('model_probe_completed', {
         count: Object.keys(results).length,
@@ -123,6 +124,10 @@ export class ModelProbeService {
     this.host.setAppState({
       modelProbeStatus: { ...this.currentStatus, ...status },
     });
+    const session = this.host.session;
+    if (session !== undefined) {
+      void session.setModelProbeStatus(status);
+    }
   }
 
   private get currentStatus(): Record<string, ModelProbeResult> {

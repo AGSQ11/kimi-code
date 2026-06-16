@@ -21,6 +21,7 @@ import type {
   SetForceMcpPayload,
   SetGenerationKwargsPayload,
   SetModelPayload,
+  SetModelProbeStatusPayload,
   SetPermissionPayload,
   SetSystemPromptPayload,
   SetThinkingPayload,
@@ -127,6 +128,10 @@ export class SessionAPIImpl implements PromisableMethods<SessionAPI> {
 
   async reloadSystemPrompt(_payload: EmptyPayload): Promise<void> {
     return this.session.reloadSystemPrompt('main');
+  }
+
+  async setModelProbeStatus({ status }: SetModelProbeStatusPayload): Promise<void> {
+    this.session.setModelProbeStatus(status);
   }
 
   async setThinking({ agentId, ...payload }: AgentScopedPayload<SetThinkingPayload>) {

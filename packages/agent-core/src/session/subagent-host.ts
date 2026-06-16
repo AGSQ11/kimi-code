@@ -632,7 +632,21 @@ export class SessionSubagentHost {
     modelOverride?: string,
   ): string | undefined {
     const subagentModels = this.session.options.config?.subagentModels;
-    return modelOverride ?? subagentModels?.[profileName] ?? parent.config.modelAlias;
+    const desired = modelOverride ?? subagentModels?.[profileName] ?? parent.config.modelAlias;
+    if (desired === undefined) {
+      return desired;
+    }
+    const probeStatus = this.session.modelProbeStatus ?? {};
+    const status = probeStatus[desired];
+    if (status !== undefined && status.status !== 'ok' && status.status !== 'unknown') {
+      const fallback = Object.entries(probeStatus).find(
+        ([alias, result]) => alias !== desired && result.status === 'ok',
+      )?.[0];
+      if (fallback !== undefined) {
+        return fallback;
+      }
+    }
+    return desired;
   }
 
   private emitSubagentSpawned(

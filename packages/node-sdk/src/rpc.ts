@@ -315,6 +315,11 @@ export abstract class SDKRpcClientBase {
     return rpc.probeAllModels({ sessionId: input.sessionId });
   }
 
+  async setModelProbeStatus(input: SessionIdRpcInput & { status: Record<string, ModelProbeResult> }): Promise<void> {
+    const rpc = await this.getRpc();
+    return rpc.setModelProbeStatus({ sessionId: input.sessionId, status: input.status });
+  }
+
   async cancel(input: SessionIdRpcInput): Promise<void> {
     const agentId = this.interactiveAgentId;
     const rpc = await this.getRpc();
