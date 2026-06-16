@@ -1,4 +1,4 @@
-import type { ModelProbeResult, Session } from '@moonshot-ai/kimi-code-sdk';
+import type { ModelAlias, ModelProbeResult, Session } from '@moonshot-ai/kimi-code-sdk';
 
 import type { AppState } from '../types';
 import type { ColorToken } from '../theme';
@@ -16,9 +16,11 @@ const PROBE_ERROR_CODES: ReadonlySet<string> = new Set([
 
 export interface ModelProbeHost {
   session: Session | undefined;
+  state: { appState: AppState };
   setAppState(patch: Partial<AppState>): void;
   showStatus(message: string, color?: ColorToken): void;
   showError(message: string): void;
+  showProbeReport(results: Record<string, ModelProbeResult>, models: Record<string, ModelAlias>): void;
   track(event: string, properties?: Record<string, unknown>): void;
 }
 
@@ -106,7 +108,7 @@ export class ModelProbeService {
 
   private get currentModels(): Record<string, unknown> {
     // The host's appState is the source of truth for the model list.
-    return this.host.session === undefined ? {} : (this.host as unknown as { state: { appState: AppState } }).state.appState.availableModels;
+    return this.host.session === undefined ? {} : this.host.state.appState.availableModels;
   }
 
   private markPending(aliases: readonly string[]): void {
@@ -131,7 +133,7 @@ export class ModelProbeService {
   }
 
   private get currentStatus(): Record<string, ModelProbeResult> {
-    return (this.host as unknown as { state: { appState: AppState } }).state.appState.modelProbeStatus;
+    return this.host.state.appState.modelProbeStatus;
   }
 
   private reportSummary(results: Record<string, ModelProbeResult>, options: ProbeOptions): void {
@@ -146,13 +148,7 @@ export class ModelProbeService {
       return;
     }
 
-    if (errorCount === 0) {
-      this.host.showStatus(`All ${String(okCount)} model${okCount === 1 ? '' : 's'} reachable.`, 'success');
-    } else if (okCount === 0) {
-      this.host.showStatus(`All ${String(errorCount)} model${errorCount === 1 ? '' : 's'} unreachable.`, 'error');
-    } else {
-      this.host.showStatus(`${String(okCount)} reachable · ${String(errorCount)} unreachable`, 'warning');
-    }
+    this.host.showProbeReport(results, this.host.state.appState.availableModels);
   }
 
   private abortCurrent(): void {

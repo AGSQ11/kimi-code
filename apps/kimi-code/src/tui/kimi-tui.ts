@@ -15,6 +15,8 @@ import type {
   BackgroundTaskInfo,
   CreateSessionOptions,
   KimiHarness,
+  ModelAlias,
+  ModelProbeResult,
   PermissionMode,
   PromptPart,
   Session,
@@ -80,6 +82,8 @@ import {
   NoticeMessageComponent,
   StatusMessageComponent,
 } from './components/messages/status-message';
+import { buildProbeReportLines } from './components/messages/probemodels-panel';
+import { UsagePanelComponent } from './components/messages/usage-panel';
 import { ThinkingComponent } from './components/messages/thinking';
 import { ToolCallComponent } from './components/messages/tool-call';
 import { UserMessageComponent } from './components/messages/user-message';
@@ -1579,6 +1583,19 @@ export class KimiTUI {
 
   showError(message: string): void {
     this.showStatus(`Error: ${message}`, 'error');
+  }
+
+  showProbeReport(
+    results: Record<string, ModelProbeResult>,
+    models: Record<string, ModelAlias>,
+  ): void {
+    const panel = new UsagePanelComponent(
+      () => buildProbeReportLines({ results, availableModels: models }),
+      'primary',
+      ' Model probe ',
+    );
+    this.state.transcriptContainer.addChild(panel);
+    this.state.ui.requestRender();
   }
 
   showLoginProgressSpinner(label: string): LoginProgressSpinnerHandle {
