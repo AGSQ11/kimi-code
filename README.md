@@ -72,6 +72,30 @@ Take a look at this project and explain its main directories.
 - **Editor & IDE integration (ACP).** Drive a Kimi Code CLI session straight from Zed, JetBrains, or any [Agent Client Protocol](https://agentclientprotocol.com/) client with `kimi acp`.
 - **Persistent, learning memory.** Project facts, decisions, critiques, comparisons, and eval summaries survive across sessions, so the agent builds institutional knowledge.
 
+## Why this fork?
+
+This fork extends Kimi Code CLI with features the official release doesn't have yet — and stays fully synced with upstream so you never miss a fix.
+
+### Fork-exclusive features
+
+| Feature | What it does |
+|---|---|
+| **`/probemodels` health probing** | Probes all configured models at session start to check API reachability. Probe status (● ok / ◐ unknown / ● error) is shown in the model picker. When a provider error is detected later, models are automatically re-probed in the background. |
+| **Subagent model-probe fallback** | Subagents automatically fall back to a healthy model when their resolved model is known to be unreachable — no more silent failures when a provider goes down. |
+| **`/criticize`** | Spawns a dedicated critic subagent that analyzes the main agent's work for flaws, hallucinations, and edge cases. Critique findings are persisted as long-term memories. |
+| **`/compare` (alias `/ab`)** | Runs the same prompt against 2–4 models in parallel and displays results side-by-side. Comparison summaries are saved to memory. |
+| **`/spiceup`** | Override model sampling parameters (temperature, top_p, top_k, max_tokens, frequency_penalty, presence_penalty) for the session. Overrides are inherited by subagents. |
+| **`/forcemcp`** | Activates all connected MCP tools and reminds the model to proactively use them for context gathering instead of waiting for explicit instructions. |
+| **`/reloadsysprompt`** | Reloads the system prompt from `.kimi-code/sysprompt.md` without restarting the session. Supports both global (`~/.kimi-code/sysprompt.md`) and project-level overrides. |
+| **LLM-based memory extraction** | Replaces regex-based extraction with an LLM-based extractor that proposes 0–3 durable memories after each turn. In auto/yolo mode they're saved automatically; in manual mode a transient approval prompt appears. |
+| **SQLite FTS5 + BM25 memory recall** | Memories are ranked by relevance to the current query using Porter stemming, recency, and access-count boosts — not just recency. Legacy databases are migrated automatically. |
+| **Per-role subagent model selection** | Configure `[subagent_models]` in `config.toml` to assign different models to different subagent roles (e.g. `coder = "deepseek"`, `explore = "kimi"`). |
+| **Subagent memory integration** | Critic and compare subagents bootstrap relevant memories before each run and persist their findings as long-term memories. |
+
+### Always synced with upstream
+
+Every non-release commit from `MoonshotAI/kimi-code:main` is cherry-picked into this fork. You get all upstream bug fixes, features, and improvements (MCP SSE support, all-sessions picker, `kimi vis`, staged auto-updates, TUI hardening, and more) **plus** everything above.
+
 ## Memory, reasoning, and quality loop
 
 These features work together so later sessions benefit from earlier ones:
