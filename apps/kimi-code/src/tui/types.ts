@@ -18,10 +18,15 @@ import type {
 import type { SpiceupSelection } from './components/dialogs/spiceup-selector';
 import type { ColorToken, ThemeName } from './theme';
 
+export type BannerDisplay = 'always' | 'once' | 'cooldown';
+
 export interface BannerState {
+  key: string;
   tag: string | null;
   mainText: string;
   subText: string | null;
+  display: BannerDisplay;
+  ttlHours?: number;
 }
 
 export interface AppState {
