@@ -11,7 +11,37 @@ Kimi Code CLI is an AI coding agent that runs in your terminal — it can read a
 
 ## Install
 
-This fork is installed from source. Requires **Node.js ≥ 24.15.0** and **pnpm 10.33.0**.
+### One-shot install script
+
+**macOS or Linux:**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/AGSQ11/kimi-code/probemodels/install.sh | bash
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/AGSQ11/kimi-code/probemodels/install.ps1 | iex
+```
+
+> On Windows, install [Git for Windows](https://gitforwindows.org/) before first launch because Kimi Code CLI uses the bundled Git Bash as its shell environment. If Git Bash is installed in a custom location, set `KIMI_SHELL_PATH` to the absolute path of `bash.exe`.
+
+The script clones the repo, installs dependencies, builds, and installs `kimi` globally. Then run:
+
+```sh
+kimi --version
+```
+
+To customize the install location:
+
+```sh
+KIMI_CODE_INSTALL_DIR=/opt/kimi-code curl -fsSL .../install.sh | bash
+```
+
+### Manual install
+
+Requires **Node.js ≥ 24.15.0** and **pnpm 10.33.0**.
 
 ```sh
 git clone https://github.com/AGSQ11/kimi-code.git
@@ -19,8 +49,6 @@ cd kimi-code
 pnpm install
 pnpm --filter @moonshot-ai/kimi-code build
 ```
-
-> On Windows, install [Git for Windows](https://gitforwindows.org/) before first launch because Kimi Code CLI uses the bundled Git Bash as its shell environment. If Git Bash is installed in a custom location, set `KIMI_SHELL_PATH` to the absolute path of `bash.exe`.
 
 Install the built CLI globally:
 
