@@ -23,12 +23,9 @@ export interface ToolCallDelta {
   readonly argumentsPart?: string | undefined;
 }
 
-export interface LLMRequestLogContext {
-  readonly turnId?: string;
-  readonly step?: number;
-  readonly stepUuid?: string;
-  readonly attempt?: number;
-  readonly maxAttempts?: number;
+export interface LLMRequestLogFields {
+  readonly turnStep: string;
+  readonly attempt?: string;
 }
 
 export interface LLMStreamTiming {
@@ -40,7 +37,7 @@ export interface LLMChatParams {
   messages: Message[];
   tools: readonly Tool[];
   signal: AbortSignal;
-  requestLogContext?: LLMRequestLogContext;
+  requestLogFields?: LLMRequestLogFields;
   /** Optional override for the LLM's default system prompt. */
   systemPrompt?: string | undefined;
   onTextDelta?: ((delta: string) => void) | undefined;
