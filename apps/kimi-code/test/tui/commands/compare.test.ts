@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 
 import { handleCompareCommand } from '#/tui/commands/compare';
 import type { SlashCommandHost } from '#/tui/commands/dispatch';
@@ -87,7 +87,7 @@ describe('handleCompareCommand', () => {
     await handleCompareCommand(host, 'explain recursion');
 
     expect(host.mountEditorReplacement).toHaveBeenCalledTimes(1);
-    const selector = host.mountEditorReplacement.mock.calls[0]![0] as CompareSelectorComponent;
+    const selector = (host.mountEditorReplacement as Mock).mock.calls[0]![0] as CompareSelectorComponent;
     expect(selector).toBeInstanceOf(CompareSelectorComponent);
 
     selector['opts'].onSelect({ modelAliases: ['model-a', 'model-b'] });
@@ -95,7 +95,7 @@ describe('handleCompareCommand', () => {
 
     expect(session.compareModels).toHaveBeenCalledWith('explain recursion', ['model-a', 'model-b']);
     expect(host.mountEditorReplacement).toHaveBeenCalledTimes(2);
-    const resultsPanel = host.mountEditorReplacement.mock.calls[1]![0] as CompareResultsPanelComponent;
+    const resultsPanel = (host.mountEditorReplacement as Mock).mock.calls[1]![0] as CompareResultsPanelComponent;
     expect(resultsPanel).toBeInstanceOf(CompareResultsPanelComponent);
   });
 
@@ -108,7 +108,7 @@ describe('handleCompareCommand', () => {
 
     await handleCompareCommand(host, '');
 
-    const selector = host.mountEditorReplacement.mock.calls[0]![0] as CompareSelectorComponent;
+    const selector = (host.mountEditorReplacement as Mock).mock.calls[0]![0] as CompareSelectorComponent;
     selector['opts'].onSelect({ modelAliases: ['model-a', 'model-b'] });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -119,11 +119,11 @@ describe('handleCompareCommand', () => {
     const { host, session } = makeHost();
 
     await handleCompareCommand(host, 'prompt');
-    const selector = host.mountEditorReplacement.mock.calls[0]![0] as CompareSelectorComponent;
+    const selector = (host.mountEditorReplacement as Mock).mock.calls[0]![0] as CompareSelectorComponent;
     selector['opts'].onSelect({ modelAliases: ['model-a', 'model-b'] });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const resultsPanel = host.mountEditorReplacement.mock.calls[1]![0] as CompareResultsPanelComponent;
+    const resultsPanel = (host.mountEditorReplacement as Mock).mock.calls[1]![0] as CompareResultsPanelComponent;
     resultsPanel['opts'].onPromote(0);
 
     expect(host.restoreEditor).toHaveBeenCalled();
@@ -134,11 +134,11 @@ describe('handleCompareCommand', () => {
     const { host, session } = makeHost();
 
     await handleCompareCommand(host, 'prompt');
-    const selector = host.mountEditorReplacement.mock.calls[0]![0] as CompareSelectorComponent;
+    const selector = (host.mountEditorReplacement as Mock).mock.calls[0]![0] as CompareSelectorComponent;
     selector['opts'].onSelect({ modelAliases: ['model-a', 'model-b'] });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const resultsPanel = host.mountEditorReplacement.mock.calls[1]![0] as CompareResultsPanelComponent;
+    const resultsPanel = (host.mountEditorReplacement as Mock).mock.calls[1]![0] as CompareResultsPanelComponent;
     resultsPanel['opts'].onSynthesize();
 
     expect(host.restoreEditor).toHaveBeenCalled();
@@ -152,7 +152,7 @@ describe('handleCompareCommand', () => {
     session.compareModels.mockRejectedValueOnce(new Error('model unavailable'));
 
     await handleCompareCommand(host, 'prompt');
-    const selector = host.mountEditorReplacement.mock.calls[0]![0] as CompareSelectorComponent;
+    const selector = (host.mountEditorReplacement as Mock).mock.calls[0]![0] as CompareSelectorComponent;
     selector['opts'].onSelect({ modelAliases: ['model-a', 'model-b'] });
     await new Promise((resolve) => setTimeout(resolve, 0));
 

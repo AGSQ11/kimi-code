@@ -45,6 +45,7 @@ function resolvePrompt(host: SlashCommandHost, args: string): string | undefined
 
   for (let i = host.state.transcriptEntries.length - 1; i >= 0; i--) {
     const entry = host.state.transcriptEntries[i];
+    if (entry === undefined) continue;
     if (entry.kind === 'user' && entry.content.trim().length > 0) {
       return entry.content.trim();
     }
