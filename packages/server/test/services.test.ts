@@ -19,6 +19,21 @@ import {
 import { WSBroadcastService } from '#/services/gateway/wsBroadcastService';
 import type { WsConnection } from '../src/ws/connection';
 
+async function rmWithRetry(dir: string, retries = 10, delayMs = 20): Promise<void> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await rm(dir, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (i === retries - 1 || (code !== 'ENOTEMPTY' && code !== 'EBUSY')) {
+        throw error;
+      }
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+}
+
 class TestLogger implements ILoggerT {
   readonly _serviceBrand: undefined;
 
@@ -174,7 +189,9 @@ describe('WSBroadcastService (WS transport pump)', () => {
   });
 
   afterEach(async () => {
-    await rm(homeDir, { recursive: true, force: true });
+    // Journal close() flushes asynchronously; retry if the directory is still
+    // being written to when cleanup runs.
+    await rmWithRetry(homeDir);
   });
 
   it('publishes event with seq=1, broadcasts to subscribers, advances seq monotonically per session', async () => {
