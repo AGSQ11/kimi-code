@@ -87,9 +87,10 @@ export class ModelProbeService {
           : await session.probeAllModels();
 
       if (controller.signal.aborted) return;
+      if (this.host.session !== session) return;
 
       this.host.setAppState({ modelProbeStatus: results });
-      void session.setModelProbeStatus(results);
+      this.persistProbeStatus(session, results);
       this.reportSummary(results, options);
       this.host.track('model_probe_completed', {
         count: Object.keys(results).length,
@@ -128,12 +129,20 @@ export class ModelProbeService {
     });
     const session = this.host.session;
     if (session !== undefined) {
-      void session.setModelProbeStatus(status);
+      this.persistProbeStatus(session, status);
     }
   }
 
   private get currentStatus(): Record<string, ModelProbeResult> {
     return this.host.state.appState.modelProbeStatus;
+  }
+
+  private persistProbeStatus(session: Session, status: Record<string, ModelProbeResult>): void {
+    if (typeof session.setModelProbeStatus !== 'function') return;
+    void session.setModelProbeStatus(status).catch(() => {
+      // Best-effort persistence: a SESSION_CLOSED rejection is expected when the
+      // session is unloaded (switch/close/shutdown) while a probe is in flight.
+    });
   }
 
   private reportSummary(results: Record<string, ModelProbeResult>, options: ProbeOptions): void {
