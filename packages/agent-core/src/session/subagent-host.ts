@@ -456,6 +456,7 @@ export class SessionSubagentHost {
    * the relevant memories explicitly before the turn starts.
    */
   private async injectMemoryContext(child: Agent, query: string): Promise<void> {
+    if (!child.experimentalFlags.enabled('memory_auto_injection')) return;
     try {
       const alreadyInjected = child.context.history.some(
         (message) =>

@@ -38,16 +38,17 @@ export class ExitPlanModeReviewAskPermissionPolicy implements PermissionPolicy {
       (display as PlanReviewDisplay).critique = critique;
     }
 
+    const hasCritique = critique.length > 0;
     this.agent.telemetry.track('plan_submitted', {
       has_options: display.options !== undefined && display.options.length >= 2,
-      has_critique: critique.length > 0,
+      ...(hasCritique ? { has_critique: true } : undefined),
     });
 
     return {
       kind: 'ask',
       reason: {
         has_options: display.options !== undefined,
-        has_critique: critique.length > 0,
+        ...(hasCritique ? { has_critique: true } : undefined),
       },
       resolveApproval: (result) =>
         this.exitPlanModeApprovalResult(result, {

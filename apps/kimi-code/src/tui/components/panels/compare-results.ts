@@ -1,4 +1,4 @@
-import type { Component, Focusable, MarkdownTheme } from '@earendil-works/pi-tui';
+import type { Focusable, MarkdownTheme } from '@earendil-works/pi-tui';
 import {
   Container,
   Key,
@@ -12,6 +12,7 @@ import chalk from 'chalk';
 
 import { currentTheme } from '../../theme';
 import { createMarkdownTheme } from '../../theme/pi-tui-theme';
+import { printableChar } from '../../utils/printable-key';
 
 export interface ModelComparisonEntry {
   readonly modelAlias: string;
@@ -43,17 +44,18 @@ export class CompareResultsPanelComponent extends Container implements Focusable
   }
 
   handleInput(data: string): void {
-    if (matchesKey(data, Key.escape) || data === 'q' || data === 'Q') {
+    const ch = printableChar(data);
+    if (matchesKey(data, Key.escape) || ch === 'q' || ch === 'Q') {
       this.opts.onClose();
       return;
     }
 
-    if (data === 's' || data === 'S') {
+    if (ch === 's' || ch === 'S') {
       this.opts.onSynthesize();
       return;
     }
 
-    const index = Number(data) - 1;
+    const index = Number(ch) - 1;
     if (Number.isInteger(index) && index >= 0 && index < this.opts.results.length) {
       this.opts.onPromote(index);
       return;

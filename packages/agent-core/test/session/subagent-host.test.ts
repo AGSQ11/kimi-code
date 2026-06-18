@@ -20,6 +20,7 @@ import {
 import { abortError, userCancellationReason } from '../../src/utils/abort';
 import { testAgent, type AgentTestContext } from '../agent/harness/agent';
 import { createFakeKaos } from '../tools/fixtures/fake-kaos';
+import { FlagResolver } from '../../src/flags';
 import { executeTool } from '../tools/fixtures/execute-tool';
 
 // Git context collection is exercised in git-context.test.ts; here it is
@@ -446,6 +447,7 @@ describe('SessionSubagentHost', () => {
       'Glob',
       'Grep',
       'LSP',
+      'Memory',
       'NotebookEdit',
       'Read',
       'Think',
@@ -1519,10 +1521,14 @@ describe('Session.createAgent', () => {
     });
 
     it('injects relevant memories into a critic subagent', async () => {
+      const memoryFlags = new FlagResolver({
+        KIMI_CODE_EXPERIMENTAL_MEMORY_AUTO_INJECTION: '1',
+      });
       const parent = testAgent({
         homedir: tempDir,
         kimiHomeDir: tempDir,
         kaos: testKaos.withCwd(tempDir),
+        experimentalFlags: memoryFlags,
       });
       parent.configure();
       await parent.agent.memoryStore.remember({
@@ -1535,6 +1541,7 @@ describe('Session.createAgent', () => {
         homedir: tempDir,
         kimiHomeDir: tempDir,
         kaos: testKaos.withCwd(tempDir),
+        experimentalFlags: memoryFlags,
       });
       child.mockNextResponse({ type: 'text', text: 'No issues found.' });
 
@@ -1581,10 +1588,14 @@ describe('Session.createAgent', () => {
     });
 
     it('injects memories into compare subagents even with DenyAllPermissionPolicy', async () => {
+      const memoryFlags = new FlagResolver({
+        KIMI_CODE_EXPERIMENTAL_MEMORY_AUTO_INJECTION: '1',
+      });
       const parent = testAgent({
         homedir: tempDir,
         kimiHomeDir: tempDir,
         kaos: testKaos.withCwd(tempDir),
+        experimentalFlags: memoryFlags,
       });
       parent.configure();
       await parent.agent.memoryStore.remember({
@@ -1597,6 +1608,7 @@ describe('Session.createAgent', () => {
         homedir: tempDir,
         kimiHomeDir: tempDir,
         kaos: testKaos.withCwd(tempDir),
+        experimentalFlags: memoryFlags,
       });
       child.mockNextResponse({ type: 'text', text: 'Response A' });
 

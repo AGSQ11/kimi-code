@@ -21,9 +21,9 @@ export async function handleCriticizeCommand(host: SlashCommandHost, _args: stri
     new CriticSelectorComponent({
       models,
       currentValue: lastCriticModel,
-      onSelect: async (selection) => {
+      onSelect: (selection) => {
         host.restoreEditor();
-        await runCritique(host, selection.modelAlias);
+        void runCritique(host, selection.modelAlias);
       },
       onCancel: () => {
         host.restoreEditor();

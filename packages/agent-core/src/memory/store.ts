@@ -29,15 +29,18 @@ interface RawMemoryRow {
 
 export class MemoryStore {
   private readonly globalDbPath: string;
+  private readonly kaos: Kaos;
+  private readonly cwd: string;
   private projectDbPromise: Promise<string | undefined> | undefined;
   private projectRoot: string | undefined;
 
   constructor(options: MemoryStoreOptions) {
     this.globalDbPath = options.globalDbPath;
-    // Initialize the schema and immediately release the handle so tests and
-    // tooling can delete the parent directory on Windows.
-    openDatabase(this.globalDbPath).close();
-    this.projectDbPromise = this.initProjectDb(options.kaos, options.cwd);
+    this.kaos = options.kaos;
+    this.cwd = options.cwd;
+    // Keep the store lazy: do not touch the filesystem (or create parent
+    // directories) until an operation actually needs the database. This avoids
+    // permission errors in CI/test environments that never read or write memory.
   }
 
   getProjectRoot(): string | undefined {
@@ -224,7 +227,9 @@ export class MemoryStore {
   }
 
   private async projectDbPath(): Promise<string | undefined> {
-    if (this.projectDbPromise === undefined) return undefined;
+    if (this.projectDbPromise === undefined) {
+      this.projectDbPromise = this.initProjectDb(this.kaos, this.cwd);
+    }
     return this.projectDbPromise;
   }
 

@@ -355,6 +355,7 @@ export class TurnFlow {
    */
   private async proposeMemories(turnId: number, signal: AbortSignal): Promise<void> {
     if (signal.aborted) return;
+    if (!this.agent.experimentalFlags.enabled('llm_memory_extraction')) return;
     if (!this.isMemoryToolActive()) return;
 
     await this.promoteDecisionThoughts();
