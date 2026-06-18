@@ -1,7 +1,6 @@
 import { CLI_COMMAND_NAME } from '#/constant/app';
 import { registerMigrateCommand } from '#/migration/index';
 import { Command, Option } from 'commander';
-import { spawnSync } from 'node:child_process';
 
 import type { CLIOptions } from './options';
 import { registerAcpCommand } from './sub/acp';
@@ -139,17 +138,5 @@ export function createProgram(
 }
 
 function getFeatureSuffix(): string {
-  try {
-    const result = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
-      encoding: 'utf8',
-      timeout: 500,
-      windowsHide: true,
-    });
-    if (result.error || result.status !== 0) return 'feature';
-    const branch = result.stdout.trim();
-    if (branch === '' || branch === 'HEAD') return 'feature';
-    return branch;
-  } catch {
-    return 'feature';
-  }
+  return 'fixprobe';
 }
