@@ -44,9 +44,9 @@ async function showMemoryList(host: SlashCommandHost, session: NonNullable<Slash
   host.mountEditorReplacement(
     new MemoryListDialogComponent({
       memories,
-      onSelect: async (selection) => {
+      onSelect: (selection) => {
         host.restoreEditor();
-        await handleListSelection(host, session, selection);
+        void handleListSelection(host, session, selection);
       },
       onClose: () => {
         host.restoreEditor();

@@ -22,7 +22,7 @@ export class InjectionManager {
     this.injectors = [
       new PluginSessionStartInjector(agent),
       new ThoughtInjector(agent),
-      new MemoryInjector(agent),
+      ...(agent.experimentalFlags.enabled('memory_auto_injection') ? [new MemoryInjector(agent)] : []),
       new TodoListReminderInjector(agent),
       new PlanModeInjector(agent),
       new PermissionModeInjector(agent),

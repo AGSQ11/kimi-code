@@ -29,6 +29,24 @@ export const FLAG_DEFINITIONS = [
     default: false,
     surface: 'core',
   },
+  {
+    id: 'memory_auto_injection',
+    title: 'Memory auto-injection',
+    description:
+      'Automatically recall relevant memories from past sessions and inject them into the active context.',
+    env: 'KIMI_CODE_EXPERIMENTAL_MEMORY_AUTO_INJECTION',
+    default: false,
+    surface: 'core',
+  },
+  {
+    id: 'llm_memory_extraction',
+    title: 'LLM memory extraction',
+    description:
+      'After each completed assistant turn, use the current model to propose durable facts to remember.',
+    env: 'KIMI_CODE_EXPERIMENTAL_LLM_MEMORY_EXTRACTION',
+    default: false,
+    surface: 'core',
+  },
 ] as const satisfies readonly FlagDefinitionInput[];
 
 /** Literal union of registered flag ids. */

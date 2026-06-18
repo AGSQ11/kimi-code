@@ -42,14 +42,15 @@ export class GoalCompletionCritiquePermissionPolicy implements PermissionPolicy 
       context.execution.display = buildGoalCompletionDisplay(goal.objective, critique);
     }
 
+    const hasCritique = critique.length > 0;
     this.agent.telemetry.track('goal_completion_critique_attached', {
-      has_critique: critique.length > 0,
+      ...(hasCritique ? { has_critique: true } : undefined),
     });
 
     return {
       kind: 'ask',
       reason: {
-        has_critique: critique.length > 0,
+        ...(hasCritique ? { has_critique: true } : undefined),
       },
       resolveApproval: (result) => this.resolveGoalCompletionApproval(result),
     };

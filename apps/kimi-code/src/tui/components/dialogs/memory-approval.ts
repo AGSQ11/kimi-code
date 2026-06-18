@@ -10,7 +10,6 @@ import {
   matchesKey,
   Key,
   truncateToWidth,
-  visibleWidth,
   type Focusable,
 } from '@earendil-works/pi-tui';
 
@@ -26,29 +25,6 @@ export interface MemoryApprovalDialogOptions {
   readonly request: MemoryApprovalPanelData;
   readonly onResponse: (response: MemoryApprovalPanelResponse) => void;
   readonly onCancel: () => void;
-}
-
-function wrapDescription(text: string, width: number): string[] {
-  const maxWidth = Math.max(1, width);
-  const words = text
-    .trim()
-    .split(/\s+/)
-    .filter((word) => word.length > 0);
-  const lines: string[] = [];
-  let current = '';
-
-  for (const word of words) {
-    const candidate = current.length === 0 ? word : `${current} ${word}`;
-    if (visibleWidth(candidate) <= maxWidth) {
-      current = candidate;
-      continue;
-    }
-    if (current.length > 0) lines.push(current);
-    current = visibleWidth(word) <= maxWidth ? word : truncateToWidth(word, maxWidth, '…');
-  }
-
-  if (current.length > 0) lines.push(current);
-  return lines.length > 0 ? lines : [''];
 }
 
 export class MemoryApprovalDialogComponent extends Container implements Focusable {
@@ -164,7 +140,6 @@ export class MemoryApprovalDialogComponent extends Container implements Focusabl
   override render(width: number): string[] {
     const accent = (text: string) => currentTheme.fg('primary', text);
     const dim = (text: string) => currentTheme.fg('textDim', text);
-    const text = (t: string) => currentTheme.fg('text', t);
     const success = (t: string) => currentTheme.fg('success', t);
 
     const lines: string[] = [

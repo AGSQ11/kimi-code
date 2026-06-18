@@ -19,6 +19,7 @@ import chalk from 'chalk';
 
 import { SELECT_POINTER } from '#/tui/constant/symbols';
 import { currentTheme } from '#/tui/theme';
+import { printableChar } from '#/tui/utils/printable-key';
 
 export interface MemoryListSelection {
   readonly action: 'pin' | 'unpin' | 'delete';
@@ -46,7 +47,8 @@ export class MemoryListDialogComponent extends Container implements Focusable, C
   }
 
   handleInput(data: string): void {
-    if (matchesKey(data, Key.escape) || data === 'q' || data === 'Q') {
+    const ch = printableChar(data);
+    if (matchesKey(data, Key.escape) || ch === 'q' || ch === 'Q') {
       this.opts.onClose();
       return;
     }
@@ -70,14 +72,14 @@ export class MemoryListDialogComponent extends Container implements Focusable, C
       return;
     }
 
-    if (data === 'p' || data === 'P') {
+    if (ch === 'p' || ch === 'P') {
       const memory = memories[this.cursorIndex];
       if (memory !== undefined) {
         this.opts.onSelect({ action: memory.pinned ? 'unpin' : 'pin', memoryId: memory.id });
       }
       return;
     }
-    if (data === 'd' || data === 'D') {
+    if (ch === 'd' || ch === 'D') {
       const memory = memories[this.cursorIndex];
       if (memory !== undefined) {
         this.opts.onSelect({ action: 'delete', memoryId: memory.id });

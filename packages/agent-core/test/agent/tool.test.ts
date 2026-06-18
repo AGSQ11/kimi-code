@@ -372,6 +372,27 @@ describe('Agent tools', () => {
     `);
     await ctx.expectResumeMatches();
   });
+
+  it('forces UpdateGoal and SetGoalBudget into loopTools while a goal is active', async () => {
+    const ctx = testAgent();
+    ctx.configure({ tools: ['Bash'] });
+
+    const before = ctx.agent.tools.loopTools.map((tool) => tool.name);
+    expect(before).not.toContain('UpdateGoal');
+    expect(before).not.toContain('SetGoalBudget');
+
+    await ctx.agent.goal.createGoal({ objective: 'work' });
+
+    const during = ctx.agent.tools.loopTools.map((tool) => tool.name);
+    expect(during).toContain('UpdateGoal');
+    expect(during).toContain('SetGoalBudget');
+
+    await ctx.agent.goal.cancelGoal('user');
+
+    const after = ctx.agent.tools.loopTools.map((tool) => tool.name);
+    expect(after).not.toContain('UpdateGoal');
+    expect(after).not.toContain('SetGoalBudget');
+  });
 });
 
 function bashCall(): ToolCall {

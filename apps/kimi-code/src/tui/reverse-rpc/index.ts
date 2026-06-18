@@ -1,5 +1,4 @@
 import type { ApprovalController } from './approval/controller';
-import { createMemoryApprovalHandler } from './memory/handler';
 import type { MemoryApprovalController } from './memory/controller';
 import { ReverseRpcModalCoordinator } from './modal-coordinator';
 import type { QuestionController } from './question/controller';

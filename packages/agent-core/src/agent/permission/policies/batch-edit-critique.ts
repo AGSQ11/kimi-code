@@ -2,7 +2,6 @@ import type { Agent } from '../..';
 import type { ToolCall } from '../../../loop/types';
 import { runCheckpointCritique } from '../../critique/checkpoint';
 import type {
-  ApprovalResponse,
   PermissionPolicy,
   PermissionPolicyContext,
   PermissionPolicyResult,
@@ -55,11 +54,12 @@ export class BatchEditCritiquePermissionPolicy implements PermissionPolicy {
       fileDisplay.critique = critique;
     }
 
+    const hasCritique = critique.length > 0;
     this.agent.telemetry.track('batch_edit_critique_attached', {
       tool_name: context.toolCall.name,
       path: fileDisplay.path,
       is_multi_file: isMultiFileBatch,
-      has_critique: critique.length > 0,
+      ...(hasCritique ? { has_critique: true } : undefined),
     });
 
     // Deliberately fall through: this policy only enriches the display; the

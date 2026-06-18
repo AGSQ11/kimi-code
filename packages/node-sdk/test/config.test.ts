@@ -343,9 +343,13 @@ micro_compaction = false
       configValue: false,
       env: 'KIMI_CODE_EXPERIMENTAL_MICRO_COMPACTION',
     });
-    expect(features).toEqual([
-      expect.objectContaining({ id: 'micro_compaction', enabled: false }),
-    ]);
+    expect(features).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'micro_compaction', enabled: false }),
+        expect.objectContaining({ id: 'memory_auto_injection', enabled: false }),
+        expect.objectContaining({ id: 'llm_memory_extraction', enabled: false }),
+      ]),
+    );
   });
 
   it('can create the default config scaffold without selecting a model', async () => {

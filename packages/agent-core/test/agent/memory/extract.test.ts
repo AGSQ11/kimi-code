@@ -11,7 +11,7 @@ function makeLlm(responseText: string): LLM {
       if (systemPrompt !== undefined && systemPrompt.length > 0) {
         // Verify the extraction prompt is passed as the system prompt.
       }
-      onTextPart?.({ type: 'text', text: responseText });
+      await onTextPart?.({ type: 'text', text: responseText });
       return {
         toolCalls: [],
         usage: { inputOther: 0, output: 0, inputCacheRead: 0, inputCacheCreation: 0 },
