@@ -1,4 +1,3 @@
-import { uniq } from '@antfu/utils';
 import type { ChatProvider, Tool } from '@moonshot-ai/kosong';
 import picomatch from 'picomatch';
 
@@ -454,13 +453,17 @@ export class ToolManager {
     if (this.loopToolsOverride !== undefined) return this.loopToolsOverride;
     const mcpNames = [...this.mcpTools.keys()].filter((name) => this.isMcpToolEnabled(name));
     // Mutation goal tools are only offered to the model while a goal exists.
-    const hideGoalMutationTools = this.agent.goal.getGoal().goal === null;
-    return uniq([...this.enabledTools, ...mcpNames])
+    const goal = this.agent.goal.getGoal().goal;
+    const hideGoalMutationTools = goal === null;
+    const names = new Set<string>([...this.enabledTools, ...mcpNames]);
+    if (!hideGoalMutationTools) {
+      // Goal mode cannot function without these levers, so force them into the
+      // provider-facing tool list even if the active profile did not list them.
+      if (this.builtinTools.has('UpdateGoal')) names.add('UpdateGoal');
+      if (this.builtinTools.has('SetGoalBudget')) names.add('SetGoalBudget');
+    }
+    return [...names]
       .toSorted((a, b) => a.localeCompare(b))
-      .filter(
-        (name) =>
-          !(hideGoalMutationTools && (name === 'SetGoalBudget' || name === 'UpdateGoal')),
-      )
       .map(
         (name) =>
           this.userTools.get(name) ??
