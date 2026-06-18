@@ -10,6 +10,7 @@ import { registerEvalCommand } from './sub/eval';
 import { registerExportCommand } from './sub/export';
 import { registerLoginCommand } from './sub/login';
 import { registerProviderCommand } from './sub/provider';
+import { registerServerCommand } from './sub/server';
 import { registerVisCommand } from './sub/vis';
 
 export type MainCommandHandler = (opts: CLIOptions) => void;
@@ -85,6 +86,7 @@ export function createProgram(
   registerExportCommand(program);
   registerProviderCommand(program);
   registerAcpCommand(program);
+  registerServerCommand(program);
   registerLoginCommand(program);
   registerDoctorCommand(program);
   registerEvalCommand(program);
