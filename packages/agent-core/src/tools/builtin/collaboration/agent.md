@@ -7,14 +7,20 @@ Writing the prompt:
 - Do not delegate understanding. If the task hinges on a file path or line number, find it yourself first and write it into the prompt.
 
 Model selection:
-- The model for a subagent is resolved automatically. Highest priority is an explicit `model` argument, next is a per-role entry in config.toml under `[subagent_models]`, and finally the parent agent's model is inherited when nothing else is configured.
+- The model for a subagent is resolved in this order:
+  1. An explicit `model` argument.
+  2. A per-role entry in config.toml under `[subagent_models]`.
+  3. The parent agent's model.
 - `[subagent_models]` accepts either a plain alias (`coder = "gpt-5.2"`) or a model pool with an optional strategy:
   ```toml
   [subagent_models]
   explore = { strategy = "prefer_main", models = ["kimi-lite", "kimi-standard"] }
   coder = { strategy = "balanced", models = ["gpt-5.2", "claude-opus-4"] }
   ```
-  `prefer_main` uses the first healthy model and falls back through the list; `balanced` round-robins across healthy models. Probes run automatically before the first subagent spawn and again after provider errors.
+  - `prefer_main` tries the first model in the list, then falls back to the next healthy model if that one is unhealthy. If none are healthy, it keeps the first configured model.
+  - `balanced` round-robins across healthy models, skipping unhealthy ones.
+- Model health is determined by automatic probes. The first probe runs before the first subagent spawn; a background re-probe runs after a provider error so the next spawn can pick a healthy model.
+- An unknown or unprobed alias is treated as healthy. If the alias is not actually configured as a provider/model, the provider layer will report a configuration error.
 - Do not pass `model` unless the user explicitly asks for a specific model. Rely on `[subagent_models]` for routine role-based routing.
 - If a role has no `[subagent_models]` entry and the task is lightweight (exploration, planning, critique), read config.toml to find a cheaper available alias and pass it via `model`. Avoid using the parent model for those roles when a cheaper alternative is available.
 

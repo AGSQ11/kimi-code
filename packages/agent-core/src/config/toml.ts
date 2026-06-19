@@ -453,7 +453,7 @@ function transformSubagentModels(
     if (typeof value === 'string') {
       out[key] = value;
     } else if (isPlainObject(value)) {
-      const cloned = cloneUnknown(value) as Record<string, unknown>;
+      const cloned = cloneUnknown(value);
       // `strategy` and `models` are already valid snake_case keys in TOML; no
       // case conversion is needed here. Arrays of model aliases pass through.
       out[key] = cloned as SubagentModelEntry;

@@ -1670,6 +1670,7 @@ describe('Session.createAgent', () => {
         },
       });
       const host = new SessionSubagentHost(session, 'main');
+      const controller = new AbortController();
 
       const handle = await host.spawn({
         profileName: 'coder',
@@ -1677,11 +1678,12 @@ describe('Session.createAgent', () => {
         prompt: 'Do work',
         description: 'Work',
         runInBackground: false,
-        signal,
+        signal: controller.signal,
       });
-      void handle.completion.catch(() => {});
+      controller.abort();
 
       expect(handle.modelAlias).toBe('mock-model');
+      await expect(handle.completion).rejects.toThrow('aborted');
     });
 
     it('falls back to a globally-healthy alias when the configured model is unhealthy', async () => {
@@ -1701,6 +1703,7 @@ describe('Session.createAgent', () => {
         'mock-model': probeResult('mock-model', 'ok'),
       };
       const host = new SessionSubagentHost(session, 'main');
+      const controller = new AbortController();
 
       const handle = await host.spawn({
         profileName: 'coder',
@@ -1708,11 +1711,12 @@ describe('Session.createAgent', () => {
         prompt: 'Do work',
         description: 'Work',
         runInBackground: false,
-        signal,
+        signal: controller.signal,
       });
-      void handle.completion.catch(() => {});
+      controller.abort();
 
       expect(handle.modelAlias).toBe('mock-model');
+      await expect(handle.completion).rejects.toThrow('aborted');
     });
 
     it('runs an initial model probe before the first subagent spawn', async () => {
@@ -1729,6 +1733,7 @@ describe('Session.createAgent', () => {
         requestModelProbe: probe,
       });
       const host = new SessionSubagentHost(session, 'main');
+      const controller = new AbortController();
 
       const handle = await host.spawn({
         profileName: 'coder',
@@ -1736,12 +1741,13 @@ describe('Session.createAgent', () => {
         prompt: 'Do work',
         description: 'Work',
         runInBackground: false,
-        signal,
+        signal: controller.signal,
       });
-      void handle.completion.catch(() => {});
+      controller.abort();
 
       expect(probe).toHaveBeenCalledTimes(1);
       expect(probe).toHaveBeenCalledWith({ background: false });
+      await expect(handle.completion).rejects.toThrow('aborted');
     });
 
     it('re-probes in the background after a provider error', async () => {
