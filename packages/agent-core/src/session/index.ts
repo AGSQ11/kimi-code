@@ -64,6 +64,9 @@ export interface SessionOptions {
   readonly appVersion?: string;
   readonly experimentalFlags?: ExperimentalFlagResolver;
   readonly modelProbeStatus?: Record<string, ModelProbeResult>;
+  readonly requestModelProbe?: (options?: {
+    background?: boolean;
+  }) => Promise<Record<string, ModelProbeResult>>;
 }
 
 export interface SessionSkillConfig {
@@ -720,6 +723,7 @@ export class Session {
 }
 
 export * from './subagent-host';
+export * from './subagent-model-resolver';
 
 function initCompletionReminder(agentsMd: string): string {
   const latest =

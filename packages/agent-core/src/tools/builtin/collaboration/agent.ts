@@ -261,6 +261,7 @@ export class AgentTool implements BuiltinTool<AgentToolInput> {
           'status: running',
           `agent_id: ${handle.agentId}`,
           `actual_subagent_type: ${handle.profileName}`,
+          `actual_model: ${handle.modelAlias ?? 'inherited'}`,
           'automatic_notification: true',
           '',
           `description: ${args.description}`,
@@ -276,6 +277,7 @@ export class AgentTool implements BuiltinTool<AgentToolInput> {
         const lines = [
           `agent_id: ${handle.agentId}`,
           `actual_subagent_type: ${handle.profileName}`,
+          `actual_model: ${handle.modelAlias ?? 'inherited'}`,
           'status: completed',
           '',
           '[summary]',
@@ -298,6 +300,7 @@ export class AgentTool implements BuiltinTool<AgentToolInput> {
         const lines = [
           `agent_id: ${handle.agentId}`,
           `actual_subagent_type: ${handle.profileName}`,
+          `actual_model: ${handle.modelAlias ?? 'inherited'}`,
           'status: failed',
           '',
           `subagent error: ${message}`,

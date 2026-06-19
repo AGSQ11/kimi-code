@@ -753,6 +753,67 @@ coder = "gpt-52"
     const config = parseConfigString('');
     expect(config.subagentModels).toBeUndefined();
   });
+
+  it('parses multi-model subagent_models entries with strategies', () => {
+    const toml = `
+[providers.openai]
+type = "openai"
+api_key = "sk-test"
+
+[models.gpt-52]
+provider = "openai"
+model = "gpt-5.2"
+max_context_size = 200000
+
+[models.glm-47]
+provider = "openai"
+model = "glm-4.7"
+max_context_size = 128000
+
+[subagent_models]
+explore = { strategy = "prefer_main", models = ["gpt-52", "glm-47"] }
+coder = { models = ["glm-47"] }
+`;
+    const config = parseConfigString(toml, 'config.toml');
+    expect(config.subagentModels).toEqual({
+      explore: { strategy: 'prefer_main', models: ['gpt-52', 'glm-47'] },
+      coder: { strategy: 'prefer_main', models: ['glm-47'] },
+    });
+  });
+
+  it('round-trips multi-model subagent_models entries', async () => {
+    const dir = makeTempDir();
+    const configPath = join(dir, 'subagent-models-pool.toml');
+    const toml = `
+[providers.openai]
+type = "openai"
+api_key = "sk-test"
+
+[models.gpt-52]
+provider = "openai"
+model = "gpt-5.2"
+max_context_size = 200000
+
+[models.glm-47]
+provider = "openai"
+model = "glm-4.7"
+max_context_size = 128000
+
+[subagent_models]
+explore = { strategy = "balanced", models = ["gpt-52", "glm-47"] }
+`;
+    await writeFile(configPath, toml, 'utf-8');
+    const config = readConfigFile(configPath);
+    expect(config.subagentModels).toEqual({
+      explore: { strategy: 'balanced', models: ['gpt-52', 'glm-47'] },
+    });
+
+    await writeConfigFile(configPath, config);
+    const reloaded = readConfigFile(configPath);
+    expect(reloaded.subagentModels).toEqual({
+      explore: { strategy: 'balanced', models: ['gpt-52', 'glm-47'] },
+    });
+  });
 });
 
 describe('loadRuntimeConfigSafe', () => {

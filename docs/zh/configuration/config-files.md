@@ -146,23 +146,40 @@ max_context_size = 1047576
 
 ## `subagent_models`
 
-`subagent_models` 将子 Agent profile 名称映射到模型别名，让不同角色可以使用不同的 LLM。子 Agent 启动时，模型按以下优先级解析：
+`subagent_models` 将子 Agent profile 名称映射到模型别名或模型池，让不同角色可以使用不同的 LLM。子 Agent 启动时，模型按以下优先级解析：
 
-1. `Agent` 工具的 `model` 参数（父 Agent 显式指定模型时）
-2. `[subagent_models]` 中的角色映射（该 profile 有配置项时）
-3. 父 Agent 的模型（默认继承）
+1. `Agent` 或 `AgentSwarm` 工具的 `model` 参数
+2. `[subagent_models]` 中的角色映射
+3. 父 Agent 的模型
+
+每个条目可以是普通别名或带策略的模型池：
+
+```toml
+[subagent_models]
+coder = "gpt-5.2"
+explore = { strategy = "prefer_main", models = ["kimi-lite", "kimi-standard"] }
+review = { strategy = "balanced", models = ["claude-opus-4", "gpt-5.2"] }
+```
+
+- `prefer_main` 先尝试 `models` 中的第一个模型；如果不健康，则回退到下一个健康模型。如果全部不健康，则保留第一个配置的模型。
+- `balanced` 在健康模型之间轮询，跳过不健康的模型。
+
+模型健康状态由自动探针决定。首次探针在第一次子 Agent 启动前运行；发生 provider 错误后还会在后台重新探针，以便下次启动时选择健康模型。你也可以通过 `/probemodels` 斜杠命令手动触发探针。
+
+未知或未探针的别名会被视为健康。如果该别名实际上没有配置为 provider/model，provider 层会报告配置错误。
 
 当子 Agent 使用的模型不支持 Thinking 时，Thinking 级别会自动关闭，以避免 API 报错。
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `<profile_name>` | `string` | 否 | 该 profile 使用的模型别名；有效名称包括 `coder`、`explore`、`plan` |
+| `<profile_name>` | `string` 或 `table` | 否 | 该 profile 使用的模型别名或模型池；有效名称包括 `coder`、`explore`、`plan` |
 
-```toml
-[subagent_models]
-coder = "gpt-5.2"
-explore = "glm-4.7"
-```
+模型池使用以下字段：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `strategy` | `string` | 否 | 选择策略：`prefer_main`（默认）或 `balanced` |
+| `models` | `array<string>` | 是 | 候选模型别名列表，按顺序排列 |
 
 ## `thinking`
 

@@ -6,7 +6,13 @@ import {
 
 import type { Agent } from '../agent';
 import type { PromptOrigin } from '../agent/context';
-import { ErrorCodes, type KimiErrorPayload } from '../errors';
+import {
+  ErrorCodes,
+  fromKimiErrorPayload,
+  isKimiError,
+  type KimiErrorCode,
+  type KimiErrorPayload,
+} from '../errors';
 import { DenyAllPermissionPolicy } from '../agent/permission/policies/deny-all';
 import { InMemoryAgentRecordPersistence } from '../agent/records';
 import { isAbortError } from '../loop/errors';
@@ -21,6 +27,7 @@ import {
 } from '../utils/abort';
 import { collectGitContext } from './git-context';
 import type { Session } from './index';
+import { SubagentModelResolver } from './subagent-model-resolver';
 import {
   SubagentBatch,
   resolveSwarmMaxConcurrency,
@@ -59,6 +66,12 @@ const SUBAGENT_MAX_TOKENS_ERROR =
 const TOOL_CALL_DISABLED_MESSAGE =
   'Tool calls are disabled for side questions. Answer with text only.';
 const SUBAGENT_PROMPT_ORIGIN: PromptOrigin = { kind: 'system_trigger', name: 'subagent' };
+const SUBAGENT_REPROBE_ERROR_CODES: ReadonlySet<KimiErrorCode> = new Set([
+  ErrorCodes.PROVIDER_RATE_LIMIT,
+  ErrorCodes.PROVIDER_API_ERROR,
+  ErrorCodes.PROVIDER_CONNECTION_ERROR,
+  ErrorCodes.PROVIDER_AUTH_ERROR,
+]);
 const SIDE_QUESTION_SYSTEM_REMINDER = `
 This is a side-channel conversation with the user. You should answer user questions directly based on what you already know.
 
@@ -100,6 +113,7 @@ type SubagentCompletion = {
 export type SubagentHandle = {
   readonly agentId: string;
   readonly profileName: string;
+  readonly modelAlias?: string;
   readonly resumed: boolean;
   readonly completion: Promise<SubagentCompletion>;
 };
@@ -113,13 +127,22 @@ export class SessionSubagentHost {
     }
   >();
 
+  private readonly modelResolver: SubagentModelResolver;
+  private probeRequested = false;
+
   constructor(
     private readonly session: Session,
     private readonly ownerAgentId: string,
-  ) {}
+  ) {
+    this.modelResolver = new SubagentModelResolver({
+      subagentModels: session.options?.config?.subagentModels,
+      probeStatus: () => session.modelProbeStatus ?? {},
+    });
+  }
 
   async spawn(options: SpawnSubagentOptions): Promise<SubagentHandle> {
     options.signal.throwIfAborted();
+    await this.ensureProbed();
 
     const parent = await this.session.ensureAgentResumed(this.ownerAgentId);
     const profile = this.resolveProfile(parent, options.profileName);
@@ -141,6 +164,7 @@ export class SessionSubagentHost {
     return {
       agentId: id,
       profileName: profile.name,
+      modelAlias: effectiveModel,
       resumed: false,
       completion,
     };
@@ -148,6 +172,7 @@ export class SessionSubagentHost {
 
   async resume(agentId: string, options: RunSubagentOptions): Promise<SubagentHandle> {
     options.signal.throwIfAborted();
+    await this.ensureProbed();
     const { parent, child, profileName } = await this.ensureIdleSubagent(agentId);
     const effectiveModel = this.resolveSubagentModel(parent, profileName);
     const completion = this.runWithActiveChild(agentId, options, async (runOptions) => {
@@ -162,7 +187,7 @@ export class SessionSubagentHost {
         throw error;
       }
     });
-    return { agentId, profileName, resumed: true, completion };
+    return { agentId, profileName, modelAlias: effectiveModel, resumed: true, completion };
   }
 
   async retry(agentId: string, options: RunSubagentOptions): Promise<SubagentHandle> {
@@ -382,10 +407,15 @@ export class SessionSubagentHost {
       runInBackground: options.runInBackground,
     });
 
-    return run({ ...options, signal: controller.signal }).finally(() => {
-      unlinkAbortSignal();
-      this.activeChildren.delete(childId);
-    });
+    return run({ ...options, signal: controller.signal })
+      .catch((error: unknown) => {
+        this.maybeReprobeAfterError(error);
+        throw error;
+      })
+      .finally(() => {
+        unlinkAbortSignal();
+        this.activeChildren.delete(childId);
+      });
   }
 
   private async runPromptTurn(
@@ -634,11 +664,15 @@ export class SessionSubagentHost {
     profileName: string,
     modelOverride?: string,
   ): string | undefined {
-    const subagentModels = this.session.options.config?.subagentModels;
-    const desired = modelOverride ?? subagentModels?.[profileName] ?? parent.config.modelAlias;
+    const desired = this.modelResolver.resolve(
+      profileName,
+      parent.config.modelAlias ?? undefined,
+      modelOverride,
+    );
     if (desired === undefined) {
       return desired;
     }
+
     const probeStatus = this.session.modelProbeStatus ?? {};
     const status = probeStatus[desired];
     if (status !== undefined && status.status !== 'ok' && status.status !== 'unknown') {
@@ -650,6 +684,47 @@ export class SessionSubagentHost {
       }
     }
     return desired;
+  }
+
+  private async ensureProbed(): Promise<void> {
+    if (this.probeRequested) return;
+    const requestProbe = this.session.options?.requestModelProbe;
+    if (requestProbe === undefined) return;
+
+    this.probeRequested = true;
+    try {
+      const status = await requestProbe({ background: false });
+      this.session.setModelProbeStatus(status);
+    } catch (error) {
+      this.session.log.warn(
+        'Initial model probe failed; continuing without updated probe status',
+        { error: error instanceof Error ? error.message : String(error) },
+      );
+    }
+  }
+
+  private maybeReprobeAfterError(error: unknown): void {
+    if (isAbortError(error)) return;
+    const isProviderError =
+      error instanceof APIProviderRateLimitError ||
+      (isKimiError(error) && SUBAGENT_REPROBE_ERROR_CODES.has(error.code));
+    if (!isProviderError) return;
+
+    const requestProbe = this.session.options?.requestModelProbe;
+    if (requestProbe === undefined) return;
+
+    this.probeRequested = true;
+    void (async () => {
+      try {
+        const status = await requestProbe({ background: true });
+        this.session.setModelProbeStatus(status);
+      } catch (probeError) {
+        this.session.log.warn(
+          'Background model probe failed after subagent error',
+          { error: probeError instanceof Error ? probeError.message : String(probeError) },
+        );
+      }
+    })();
   }
 
   private emitSubagentSpawned(
@@ -709,11 +784,10 @@ async function runChildTurnToCompletion(child: Agent, signal: AbortSignal): Prom
     if (turnEnded.error?.code === ErrorCodes.PROVIDER_RATE_LIMIT) {
       throw providerRateLimitErrorFromPayload(turnEnded.error);
     }
-    throw new Error(
-      turnEnded.error === undefined
-        ? `Subagent turn ${turnEnded.reason}`
-        : `[${turnEnded.error.code}] ${turnEnded.error.message}`,
-    );
+    if (turnEnded.error !== undefined) {
+      throw fromKimiErrorPayload(turnEnded.error);
+    }
+    throw new Error(`Subagent turn ${turnEnded.reason}`);
   }
   if (completion.stopReason === 'max_tokens') {
     throw new Error(`${SUBAGENT_MAX_TOKENS_ERROR}.`);
