@@ -146,23 +146,40 @@ You can also switch models temporarily without touching the config file — by s
 
 ## `subagent_models`
 
-`subagent_models` maps subagent profile names to model aliases, so different roles can use different LLMs. When a subagent is spawned, the model is resolved in this priority order:
+`subagent_models` maps subagent profile names to model aliases or model pools, so different roles can use different LLMs. When a subagent is spawned, the model is resolved in this priority order:
 
-1. Per-invocation `model` parameter on the `Agent` tool (if the parent agent explicitly requests a model)
-2. Role-based mapping in `[subagent_models]` (if the profile name has an entry)
-3. Parent agent's model (default inheritance)
+1. Per-invocation `model` parameter on the `Agent` or `AgentSwarm` tool
+2. Role-based mapping in `[subagent_models]`
+3. Parent agent's model
+
+Each entry can be a plain alias or a pool with a strategy:
+
+```toml
+[subagent_models]
+coder = "gpt-5.2"
+explore = { strategy = "prefer_main", models = ["kimi-lite", "kimi-standard"] }
+review = { strategy = "balanced", models = ["claude-opus-4", "gpt-5.2"] }
+```
+
+- `prefer_main` tries the first model in `models`; if it is unhealthy, it falls back to the next healthy model. If none are healthy, it keeps the first configured model.
+- `balanced` round-robins across healthy models, skipping unhealthy ones.
+
+Model health is determined by automatic probes. The first probe runs before the first subagent spawn; a background re-probe runs after a provider error so the next spawn can pick a healthy model. You can also trigger a probe manually with `/probemodels`.
+
+An unknown or unprobed alias is treated as healthy. If the alias is not actually configured as a provider/model, the provider layer reports a configuration error.
 
 When a subagent uses a model that does not support Thinking, the thinking level is automatically disabled to avoid API errors.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `<profile_name>` | `string` | No | Model alias to use for the given profile; valid names are `coder`, `explore`, and `plan` |
+| `<profile_name>` | `string` or `table` | No | Model alias or model pool for the profile; valid profile names are `coder`, `explore`, and `plan` |
 
-```toml
-[subagent_models]
-coder = "gpt-5.2"
-explore = "glm-4.7"
-```
+A model pool uses these fields:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `strategy` | `string` | No | Selection strategy: `prefer_main` (default) or `balanced` |
+| `models` | `array<string>` | Yes | Ordered list of model aliases to consider |
 
 ## `thinking`
 
