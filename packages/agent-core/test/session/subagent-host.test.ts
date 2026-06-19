@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'pathe';
 
 import { testKaos } from '../fixtures/test-kaos';
-import { APIStatusError, type Message, type ToolCall } from '@moonshot-ai/kosong';
+import { APIStatusError, ChatProviderError, type Message, type ToolCall } from '@moonshot-ai/kosong';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Agent, AgentOptions } from '../../src/agent';
@@ -12,6 +12,7 @@ import { AGENT_WIRE_PROTOCOL_VERSION } from '../../src/agent/records';
 import type { ResolvedAgentProfile } from '../../src/profile';
 import type { SDKSessionRPC } from '../../src/rpc';
 import { Session } from '../../src/session';
+import type { ModelProbeResult } from '../../src/session/model-probe';
 import { collectGitContext } from '../../src/session/git-context';
 import {
   SessionSubagentHost,
@@ -1654,12 +1655,147 @@ describe('Session.createAgent', () => {
       expect(comparison?.tags).toContain('compare');
     });
   });
+
+  describe('model routing', () => {
+    it('uses the subagent_models config entry for the role', async () => {
+      const parent = testAgent();
+      parent.configure();
+      parent.agent.config.update({ modelAlias: 'parent-model' });
+      const child = testAgent();
+      const session = fakeSession(parent.agent, child.agent, {}, {
+        config: {
+          providers: {},
+          models: {},
+          subagentModels: { coder: 'mock-model' },
+        },
+      });
+      const host = new SessionSubagentHost(session, 'main');
+
+      const handle = await host.spawn({
+        profileName: 'coder',
+        parentToolCallId: 'call_agent',
+        prompt: 'Do work',
+        description: 'Work',
+        runInBackground: false,
+        signal,
+      });
+      void handle.completion.catch(() => {});
+
+      expect(handle.modelAlias).toBe('mock-model');
+    });
+
+    it('falls back to a globally-healthy alias when the configured model is unhealthy', async () => {
+      const parent = testAgent();
+      parent.configure();
+      parent.agent.config.update({ modelAlias: 'parent-model' });
+      const child = testAgent();
+      const session = fakeSession(parent.agent, child.agent, {}, {
+        config: {
+          providers: {},
+          models: {},
+          subagentModels: { coder: 'sick-model' },
+        },
+      });
+      (session as unknown as { modelProbeStatus: Record<string, ModelProbeResult> }).modelProbeStatus = {
+        'sick-model': probeResult('sick-model', 'auth_error'),
+        'mock-model': probeResult('mock-model', 'ok'),
+      };
+      const host = new SessionSubagentHost(session, 'main');
+
+      const handle = await host.spawn({
+        profileName: 'coder',
+        parentToolCallId: 'call_agent',
+        prompt: 'Do work',
+        description: 'Work',
+        runInBackground: false,
+        signal,
+      });
+      void handle.completion.catch(() => {});
+
+      expect(handle.modelAlias).toBe('mock-model');
+    });
+
+    it('runs an initial model probe before the first subagent spawn', async () => {
+      const parent = testAgent();
+      parent.configure();
+      const child = testAgent();
+      const probe = vi.fn(async () => ({ 'mock-model': probeResult('mock-model', 'ok') }));
+      const session = fakeSession(parent.agent, child.agent, {}, {
+        config: {
+          providers: {},
+          models: {},
+          subagentModels: { coder: 'mock-model' },
+        },
+        requestModelProbe: probe,
+      });
+      const host = new SessionSubagentHost(session, 'main');
+
+      const handle = await host.spawn({
+        profileName: 'coder',
+        parentToolCallId: 'call_agent',
+        prompt: 'Do work',
+        description: 'Work',
+        runInBackground: false,
+        signal,
+      });
+      void handle.completion.catch(() => {});
+
+      expect(probe).toHaveBeenCalledTimes(1);
+      expect(probe).toHaveBeenCalledWith({ background: false });
+    });
+
+    it('re-probes in the background after a provider error', async () => {
+      const parent = testAgent();
+      parent.configure();
+      const child = testAgent({
+        generate: async () => {
+          throw new ChatProviderError('provider failed');
+        },
+      });
+      const probe = vi.fn(async () => ({ 'mock-model': probeResult('mock-model', 'ok') }));
+      const session = fakeSession(parent.agent, child.agent, {}, {
+        config: { providers: {}, models: {} },
+        requestModelProbe: probe,
+      });
+      const host = new SessionSubagentHost(session, 'main');
+
+      const handle = await host.spawn({
+        profileName: 'coder',
+        parentToolCallId: 'call_agent',
+        prompt: 'Fail',
+        description: 'Fail',
+        runInBackground: false,
+        signal,
+      });
+      await expect(handle.completion).rejects.toThrow('provider failed');
+
+      // The initial blocking probe runs before the turn, then a background
+      // re-probe fires after the provider error.
+      expect(probe).toHaveBeenCalledTimes(2);
+      expect(probe).toHaveBeenNthCalledWith(1, { background: false });
+      expect(probe).toHaveBeenLastCalledWith({ background: true });
+    });
+  });
 });
+
+function probeResult(alias: string, status: ModelProbeResult['status']): ModelProbeResult {
+  return {
+    alias,
+    status,
+    providerName: 'test',
+    model: alias,
+    probedAt: 1,
+  };
+}
 
 function fakeSession(
   parent: Agent,
   child: Agent,
   metadataAgents: Session['metadata']['agents'] = {},
+  sessionConfig?: {
+    config?: Session['options']['config'];
+    requestModelProbe?: Session['options']['requestModelProbe'];
+  },
 ) {
   const agents = new Map<string, Agent>([['main', parent]]);
   if (metadataAgents['agent-0'] !== undefined) {
@@ -1667,7 +1803,14 @@ function fakeSession(
   }
   return {
     agents,
-    options: { kimiHomeDir: undefined },
+    options: {
+      kimiHomeDir: undefined,
+      config: sessionConfig?.config,
+      requestModelProbe: sessionConfig?.requestModelProbe,
+    },
+    modelProbeStatus: {},
+    setModelProbeStatus: vi.fn(),
+    log: { warn: vi.fn(), createChild: vi.fn(() => ({ warn: vi.fn() })) },
     metadata: {
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',

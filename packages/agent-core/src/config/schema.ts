@@ -53,6 +53,20 @@ export const ModelAliasSchema = z.object({
 
 export type ModelAlias = z.infer<typeof ModelAliasSchema>;
 
+export const SubagentModelConfigSchema = z.object({
+  strategy: z.enum(['prefer_main', 'balanced']).default('prefer_main'),
+  models: z.array(z.string().min(1)).min(1),
+});
+
+export type SubagentModelConfig = z.infer<typeof SubagentModelConfigSchema>;
+
+export const SubagentModelEntrySchema = z.union([
+  z.string().min(1),
+  SubagentModelConfigSchema,
+]);
+
+export type SubagentModelEntry = z.infer<typeof SubagentModelEntrySchema>;
+
 export const ThinkingConfigSchema = z.object({
   mode: z.enum(['auto', 'on', 'off']).optional(),
   effort: z.string().optional(),
@@ -220,14 +234,14 @@ export const KimiConfigSchema = z.object({
   background: BackgroundConfigSchema.optional(),
   experimental: ExperimentalConfigSchema.optional(),
   telemetry: z.boolean().optional(),
-  subagentModels: z.record(z.string(), z.string()).optional(),
+  subagentModels: z.record(z.string(), SubagentModelEntrySchema).optional(),
   raw: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type KimiConfig = z.infer<typeof KimiConfigSchema>;
 
 /** Maps subagent profile names (coder, explore, plan) to model aliases. */
-export type SubagentModels = Record<string, string>;
+export type SubagentModels = Record<string, SubagentModelEntry>;
 
 const ProviderConfigPatchSchema = ProviderConfigSchema.partial();
 const ModelAliasPatchSchema = ModelAliasSchema.partial();
@@ -263,7 +277,7 @@ export const KimiConfigPatchSchema = z
     background: BackgroundConfigPatchSchema.optional(),
     experimental: ExperimentalConfigPatchSchema.optional(),
     telemetry: z.boolean().optional(),
-    subagentModels: z.record(z.string(), z.string()).optional(),
+    subagentModels: z.record(z.string(), SubagentModelEntrySchema).optional(),
   })
   .strict();
 

@@ -269,6 +269,7 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
       telemetry: sessionTelemetry,
       pluginSessionStarts,
       appVersion: this.appVersion,
+      requestModelProbe: async () => this.probeAllModels({ sessionId: summary.id }),
     });
     try {
       session.metadata = {
@@ -379,6 +380,7 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
       initializeMainAgent: false,
       pluginSessionStarts,
       appVersion: this.appVersion,
+      requestModelProbe: async () => this.probeAllModels({ sessionId: summary.id }),
     });
     let warning: string | undefined;
     try {

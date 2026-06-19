@@ -19,6 +19,7 @@ import {
   type PermissionConfig,
   type ProviderConfig,
   type ServicesConfig,
+  type SubagentModelEntry,
   type ThinkingConfig,
   validateConfig,
 } from '#/config/schema';
@@ -315,9 +316,9 @@ export function transformTomlData(data: Record<string, unknown>): Record<string,
     } else if (targetKey === 'experimental' && isPlainObject(value)) {
       result[targetKey] = cloneRecord(value);
     } else if (targetKey === 'subagentModels' && isPlainObject(value)) {
-      // Record<string, string> — keys are profile names, values are model aliases.
-      // No per-entry transform needed; just clone the strings through.
-      result[targetKey] = cloneRecord(value);
+      // Record<string, string | SubagentModelConfig> — keys are profile names.
+      // Strings pass through; objects are cloned so nested arrays are preserved.
+      result[targetKey] = transformSubagentModels(value);
     } else if (!isPlainObject(value)) {
       result[targetKey] = value;
     }
@@ -441,6 +442,27 @@ function transformLoopControlData(data: Record<string, unknown>): Record<string,
     out['maxStepsPerTurn'] = out['maxStepsPerRun'];
   }
   delete out['maxStepsPerRun'];
+  return out;
+}
+
+function transformSubagentModels(
+  data: Record<string, unknown>,
+): Record<string, SubagentModelEntry> {
+  const out: Record<string, SubagentModelEntry> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value === 'string') {
+      out[key] = value;
+    } else if (isPlainObject(value)) {
+      const cloned = cloneUnknown(value) as Record<string, unknown>;
+      // `strategy` and `models` are already valid snake_case keys in TOML; no
+      // case conversion is needed here. Arrays of model aliases pass through.
+      out[key] = cloned as SubagentModelEntry;
+    } else {
+      // Non-object, non-string values will fail schema validation with a clear
+      // message pointing at the offending profile key.
+      out[key] = value as SubagentModelEntry;
+    }
+  }
   return out;
 }
 
@@ -663,12 +685,20 @@ function experimentalToToml(
 }
 
 function subagentModelsToToml(
-  subagentModels: Record<string, string>,
+  subagentModels: Record<string, SubagentModelEntry>,
   _raw: unknown,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(subagentModels)) {
-    setDefined(out, key, value);
+    if (typeof value === 'string') {
+      setDefined(out, key, value);
+    } else if (isPlainObject(value)) {
+      // Keep strategy and models in snake_case as expected by the TOML parser.
+      const entry: Record<string, unknown> = {};
+      setDefined(entry, 'strategy', value.strategy);
+      setDefined(entry, 'models', value.models);
+      setDefined(out, key, entry);
+    }
   }
   return out;
 }
