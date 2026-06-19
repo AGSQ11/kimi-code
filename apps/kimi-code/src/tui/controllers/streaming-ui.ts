@@ -156,6 +156,21 @@ export class StreamingUIController {
     return this._pendingToolComponents.get(id);
   }
 
+  getActiveSubagentIds(): string[] {
+    const ids = new Set<string>();
+    for (const tc of this._pendingToolComponents.values()) {
+      const agentId = tc.getSubagentAgentId();
+      const phase = tc.getSubagentSnapshot().phase;
+      if (
+        agentId !== undefined &&
+        (phase === 'queued' || phase === 'spawning' || phase === 'running' || phase === 'backgrounded')
+      ) {
+        ids.add(agentId);
+      }
+    }
+    return [...ids];
+  }
+
   removeToolComponent(id: string): void {
     this._pendingToolComponents.delete(id);
   }

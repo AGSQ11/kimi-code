@@ -1,7 +1,8 @@
 import type * as KosongModule from '@moonshot-ai/kosong';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createKimiHarness, type KimiError } from '#/index';
+import { createKimiHarness, Session, type KimiError } from '#/index';
+import type { SDKRpcClientBase } from '#/rpc';
 
 import { makeTempDir, removeTempDirs, waitForAgentWireEvent } from './session-runtime-helpers';
 import { TEST_IDENTITY } from './test-identity';
@@ -108,5 +109,54 @@ describe('Session.steer', () => {
     } finally {
       await harness.close();
     }
+  });
+});
+
+describe('Session.steerAgent', () => {
+  it('steers a specific agent using the interactive agent scope', async () => {
+    const steer = vi.fn<SDKRpcClientBase['steer']>().mockResolvedValue(undefined);
+    const withInteractiveAgent = vi
+      .fn<SDKRpcClientBase['withInteractiveAgent']>()
+      .mockImplementation((_agentId, fn) => fn() as never);
+    const rpc = {
+      steer,
+      withInteractiveAgent,
+    } as unknown as SDKRpcClientBase;
+    const session = new Session({ id: 'ses_steer_agent', workDir: '/tmp', rpc });
+
+    await session.steerAgent('agent-42', 'focus on the auth module');
+
+    expect(withInteractiveAgent).toHaveBeenCalledWith('agent-42', expect.any(Function));
+    expect(steer).toHaveBeenCalledWith({
+      sessionId: 'ses_steer_agent',
+      input: [{ type: 'text', text: 'focus on the auth module' }],
+    });
+  });
+
+  it('rejects empty steer input for an agent', async () => {
+    const rpc = {
+      steer: vi.fn().mockResolvedValue(undefined),
+      withInteractiveAgent: vi.fn((_, fn) => fn()),
+    } as unknown as SDKRpcClientBase;
+    const session = new Session({ id: 'ses_steer_agent_empty', workDir: '/tmp', rpc });
+
+    await expect(session.steerAgent('agent-1', '   ')).rejects.toMatchObject({
+      name: 'KimiError',
+      code: 'request.prompt_input_empty',
+    } satisfies Partial<KimiError>);
+  });
+
+  it('rejects after the session is closed', async () => {
+    const rpc = {
+      steer: vi.fn().mockResolvedValue(undefined),
+      withInteractiveAgent: vi.fn((_, fn) => fn()),
+    } as unknown as SDKRpcClientBase;
+    const session = new Session({ id: 'ses_steer_agent_closed', workDir: '/tmp', rpc });
+    await session.close();
+
+    await expect(session.steerAgent('agent-1', 'hello')).rejects.toMatchObject({
+      name: 'KimiError',
+      code: 'session.closed',
+    } satisfies Partial<KimiError>);
   });
 });

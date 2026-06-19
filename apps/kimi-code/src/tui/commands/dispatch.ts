@@ -40,6 +40,7 @@ import { handleCriticizeCommand } from './criticize';
 import { handleMemoryCommand } from './memory';
 import { handleProbeModelsCommand } from './probemodels';
 import { handleReloadSyspromptCommand } from './reload-sysprompt';
+import { handleSteerCommand } from './steer';
 import { handleForceMcpCommand } from './force-mcp';
 import { handleGoalCommand } from './goal';
 import { handleFeedbackCommand, showMcpServers, showStatusReport, showUsage } from './info';
@@ -355,6 +356,9 @@ async function handleBuiltInSlashCommand(
       return;
     case 'probemodels':
       await handleProbeModelsCommand(host, args);
+      return;
+    case 'steer':
+      await handleSteerCommand(host, args);
       return;
     case 'undo':
       await handleUndoCommand(host, args);
