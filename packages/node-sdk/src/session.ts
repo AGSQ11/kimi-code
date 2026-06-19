@@ -122,6 +122,16 @@ export class Session {
     });
   }
 
+  async steerAgent(agentId: string, input: string | PromptInput): Promise<void> {
+    this.ensureOpen();
+    await this.rpc.withInteractiveAgent(agentId, async () => {
+      await this.rpc.steer({
+        sessionId: this.id,
+        input: normalizePromptInput(input),
+      });
+    });
+  }
+
   async swarm(input: string | PromptInput): Promise<void> {
     this.ensureOpen();
     await this.rpc.swarm({

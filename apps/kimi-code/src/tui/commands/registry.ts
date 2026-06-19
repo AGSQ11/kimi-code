@@ -125,6 +125,14 @@ export const BUILTIN_SLASH_COMMANDS = [
     argumentHint: '[alias]?',
   },
   {
+    name: 'steer',
+    aliases: [],
+    description: 'Send new instructions to a running subagent',
+    priority: 92,
+    availability: 'always',
+    argumentHint: '<agent-id> <instructions>',
+  },
+  {
     name: 'criticize',
     aliases: ['critique'],
     description: 'Critique the AI work for flaws and hallucinations',
