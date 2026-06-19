@@ -7,9 +7,9 @@ Writing the prompt:
 - Do not delegate understanding. If the task hinges on a file path or line number, find it yourself first and write it into the prompt.
 
 Model selection:
-- By default, subagents inherit the parent agent's model.
-- The user can configure per-role model aliases in config.toml under `[subagent_models]` (e.g., `coder = "gpt-5.2"`). When set, that role always uses the configured model.
-- You can also pass `model` to override the model for a single invocation. The value must be a model alias defined in config.toml. This takes highest priority. Only use this when the user explicitly asks you to use a specific model for a task.
+- The model for a subagent is resolved automatically. Highest priority is an explicit `model` argument, next is a per-role entry in config.toml under `[subagent_models]` (e.g., `coder = "gpt-5.2"`, `explore = "kimi-lite"`), and finally the parent agent's model is inherited when nothing else is configured.
+- Do not pass `model` unless the user explicitly asks for a specific model. Rely on `[subagent_models]` for routine role-based routing.
+- If a role has no `[subagent_models]` entry and the task is lightweight (exploration, planning, critique), read config.toml to find a cheaper available alias and pass it via `model`. Avoid using the parent model for those roles when a cheaper alternative is available.
 
 Usage notes:
 - When the task continues earlier work a subagent already did, prefer resuming that agent (pass its `resume` id) over spawning a fresh instance — the resumed agent keeps its prior context.

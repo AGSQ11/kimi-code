@@ -31,6 +31,14 @@ export const AgentSwarmToolInputSchema = z
       .describe(
         'Subagent type used for every spawned subagent. Defaults to coder when omitted.',
       ),
+    model: z
+      .string()
+      .trim()
+      .min(1)
+      .optional()
+      .describe(
+        'Model alias from config.toml to use for every spawned subagent. Overrides the default model for the subagent role. Only use this when the user explicitly asks for a specific model.',
+      ),
     prompt_template: z
       .string()
       .trim()
@@ -132,6 +140,7 @@ export class AgentSwarmTool implements BuiltinTool<AgentSwarmToolInput> {
     toolCallId: string,
   ): Promise<string> {
     const profileName = normalizeOptionalString(args.subagent_type) ?? DEFAULT_SUBAGENT_TYPE;
+    const model = normalizeOptionalString(args.model);
     const specs = createAgentSwarmSpecs(args, (agentId) => this.subagentHost.getSwarmItem(agentId));
     const tasks = specs.map((spec): QueuedSubagentTask<AgentSwarmSpec> => {
       const descriptionName = spec.kind === 'resume' ? 'resume' : profileName;
@@ -146,6 +155,7 @@ export class AgentSwarmTool implements BuiltinTool<AgentSwarmToolInput> {
         swarmItem: spec.item,
         signal,
         timeout: DEFAULT_SUBAGENT_TIMEOUT_MS,
+        model,
       };
       if (spec.kind === 'resume') {
         return {

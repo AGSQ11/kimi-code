@@ -122,6 +122,60 @@ describe('AgentTool', () => {
     expect(properties['model']?.description).toContain('config.toml');
   });
 
+  it('passes an explicit model override to the subagent host', async () => {
+    const host = mockSubagentHost({
+      spawn: vi.fn().mockResolvedValue({
+        agentId: 'agent-child',
+        profileName: 'explore',
+        modelAlias: 'cheap-model',
+        resumed: false,
+        completion: Promise.resolve({ result: 'child result' }),
+      }),
+    });
+    const tool = new AgentTool(host);
+
+    await executeTool(
+      tool,
+      context({
+        prompt: 'Investigate',
+        description: 'Find cause',
+        subagent_type: 'explore',
+        model: 'cheap-model',
+      }),
+    );
+
+    expect(host.spawn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        profileName: 'explore',
+        model: 'cheap-model',
+      }),
+    );
+  });
+
+  it('reports the actual model used in the subagent result', async () => {
+    const host = mockSubagentHost({
+      spawn: vi.fn().mockResolvedValue({
+        agentId: 'agent-child',
+        profileName: 'explore',
+        modelAlias: 'cheap-model',
+        resumed: false,
+        completion: Promise.resolve({ result: 'child result' }),
+      }),
+    });
+    const tool = new AgentTool(host);
+
+    const result = await executeTool(
+      tool,
+      context({
+        prompt: 'Investigate',
+        description: 'Find cause',
+        subagent_type: 'explore',
+      }),
+    );
+
+    expect(result.output).toContain('actual_model: cheap-model');
+  });
+
   it('renders the tool set for each subagent type', () => {
     const host = mockSubagentHost({ spawn: vi.fn() });
     const subagents = {

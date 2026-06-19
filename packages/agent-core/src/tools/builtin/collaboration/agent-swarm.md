@@ -6,4 +6,9 @@ Use `resume_agent_ids` to continue subagents that already exist from earlier wor
 
 Use enough subagents to keep the work focused and parallel. AgentSwarm supports up to 128 subagents, and launches are queued automatically, so it is safe to split large tasks into many clear, independent items.
 
+Model selection:
+- The model for each spawned subagent is resolved automatically. Highest priority is an explicit `model` argument, next is a per-role entry in config.toml under `[subagent_models]`, and finally the parent agent's model is inherited when nothing else is configured.
+- Do not pass `model` unless the user explicitly asks for a specific model. Rely on `[subagent_models]` for routine role-based routing.
+- If the role has no `[subagent_models]` entry and the swarm is lightweight (exploration, planning, critique), read config.toml to find a cheaper available alias and pass it via `model`. Avoid using the parent model for those roles when a cheaper alternative is available.
+
 If `AgentSwarm` is called, that call must be the only tool call in the response.

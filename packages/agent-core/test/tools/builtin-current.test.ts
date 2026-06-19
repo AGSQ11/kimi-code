@@ -425,6 +425,65 @@ describe('current builtin collaboration tools', () => {
     expect(result.isError).toBeUndefined();
   });
 
+  it('AgentSwarm forwards a model override to every spawned subagent', async () => {
+    const host = mockSubagentHost({
+      runQueued: vi.fn().mockResolvedValue([
+        {
+          task: {
+            kind: 'spawn',
+            data: { kind: 'spawn', index: 1, item: 'src/a.ts', prompt: 'Review src/a.ts' },
+            profileName: 'explore',
+            parentToolCallId: 'call_swarm',
+            prompt: 'Review src/a.ts',
+            description: 'Review files #1 (explore)',
+            runInBackground: false,
+            model: 'cheap-model',
+          },
+          agentId: 'agent-explore-1',
+          status: 'completed',
+          result: 'explore result a',
+        },
+        {
+          task: {
+            kind: 'spawn',
+            data: { kind: 'spawn', index: 2, item: 'src/b.ts', prompt: 'Review src/b.ts' },
+            profileName: 'explore',
+            parentToolCallId: 'call_swarm',
+            prompt: 'Review src/b.ts',
+            description: 'Review files #2 (explore)',
+            runInBackground: false,
+            model: 'cheap-model',
+          },
+          agentId: 'agent-explore-2',
+          status: 'completed',
+          result: 'explore result b',
+        },
+      ]),
+    });
+    const swarmMode = mockSwarmMode();
+    const tool = new AgentSwarmTool(host, swarmMode);
+    const input = {
+      description: 'Review files',
+      prompt_template: 'Review {{item}}',
+      items: ['src/a.ts', 'src/b.ts'],
+      subagent_type: 'explore',
+      model: 'cheap-model',
+    };
+
+    expect(AgentSwarmToolInputSchema.safeParse(input).success).toBe(true);
+
+    await executeTool(tool, context(input, 'call_swarm'));
+
+    expect(host.runQueued).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          profileName: 'explore',
+          model: 'cheap-model',
+        }),
+      ]),
+    );
+  });
+
   it('AgentSwarm does not expose permission rule argument matching', () => {
     const tool = new AgentSwarmTool(mockSubagentHost({}), mockSwarmMode());
     const execution = tool.resolveExecution({

@@ -100,6 +100,7 @@ type SubagentCompletion = {
 export type SubagentHandle = {
   readonly agentId: string;
   readonly profileName: string;
+  readonly modelAlias?: string;
   readonly resumed: boolean;
   readonly completion: Promise<SubagentCompletion>;
 };
@@ -141,6 +142,7 @@ export class SessionSubagentHost {
     return {
       agentId: id,
       profileName: profile.name,
+      modelAlias: effectiveModel,
       resumed: false,
       completion,
     };
@@ -162,7 +164,7 @@ export class SessionSubagentHost {
         throw error;
       }
     });
-    return { agentId, profileName, resumed: true, completion };
+    return { agentId, profileName, modelAlias: effectiveModel, resumed: true, completion };
   }
 
   async retry(agentId: string, options: RunSubagentOptions): Promise<SubagentHandle> {
