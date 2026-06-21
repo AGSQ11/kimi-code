@@ -9,11 +9,16 @@ import { isDaemonApiError, isDaemonNetworkError } from '../api/errors';
 import type {
   AppApprovalRequest,
   AppConfig,
+  AppCompareResult,
+  AppFeatureFlag,
   AppGoal,
+  AppMemory,
+  AppMcpServer,
   AppNotice,
   AppNoticeDetail,
   AppMessage,
   AppModel,
+  AppPlugin,
   AppProvider,
   AppQuestionRequest,
   AppSession,
@@ -24,6 +29,7 @@ import type {
   AppWorkspace,
   ApprovalDecision,
   ApprovalResponse,
+  ExportFormat,
   FsEntry,
   KimiEventConnection,
   QuestionResponse,
@@ -515,6 +521,11 @@ const starredModelIds = ref<string[]>(loadStarredModelsFromStorage());
 // session's list feeds the composer's `/` menu.
 const skillsBySession = ref<Record<string, AppSkill[]>>({});
 const providers = ref<AppProvider[]>([]);
+const memories = ref<AppMemory[]>([]);
+const mcpServers = ref<AppMcpServer[]>([]);
+const experiments = ref<AppFeatureFlag[]>([]);
+const plugins = ref<AppPlugin[]>([]);
+const version = ref<{ version: string; gitHash?: string } | null>(null);
 
 // CSS handles the moon frames; this only flips the spinner between normal and
 // fast classes when the active session is visibly producing content quickly.
@@ -2281,6 +2292,17 @@ const defaultModel = computed<string | null>(() => rawState.defaultModel);
 const managedProviderStatus = computed<string | null>(() => rawState.managedProviderStatus);
 const config = computed<AppConfig | null>(() => rawState.config);
 
+// Session-level generation parameter overrides (temperature, top_p, etc.)
+// Reactive getter/setter synced with config.generationKwargs
+const generationKwargs = computed<Record<string, number | undefined>>({
+  get: () => rawState.config?.generationKwargs ?? {},
+  set: (val) => {
+    if (rawState.config) {
+      rawState.config = { ...rawState.config, generationKwargs: val };
+    }
+  },
+});
+
 /** path → status map for quick badge lookup in the file tree */
 const changesByPath = computed<Record<string, string>>(() => {
   const sid = rawState.activeSessionId;
@@ -3967,6 +3989,262 @@ async function refreshProvider(id: string): Promise<void> {
   }
 }
 
+// -------------------------------------------------------------------------
+// Memory actions
+// -------------------------------------------------------------------------
+
+async function loadMemories(): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    memories.value = await api.getMemories();
+  } catch (err) {
+    pushOperationFailure('loadMemories', err);
+  }
+}
+
+async function pinMemory(id: string): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    await api.pinMemory(id);
+    memories.value = memories.value.map((m) =>
+      m.id === id ? { ...m, pinned: true } : m,
+    );
+  } catch (err) {
+    pushOperationFailure('pinMemory', err);
+  }
+}
+
+async function unpinMemory(id: string): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    await api.unpinMemory(id);
+    memories.value = memories.value.map((m) =>
+      m.id === id ? { ...m, pinned: false } : m,
+    );
+  } catch (err) {
+    pushOperationFailure('unpinMemory', err);
+  }
+}
+
+async function deleteMemory(id: string): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    await api.deleteMemory(id);
+    memories.value = memories.value.filter((m) => m.id !== id);
+  } catch (err) {
+    pushOperationFailure('deleteMemory', err);
+  }
+}
+
+async function approveMemories(ids: string[]): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    await api.approveMemories(ids);
+    await loadMemories();
+  } catch (err) {
+    pushOperationFailure('approveMemories', err);
+  }
+}
+
+async function rejectMemories(ids: string[]): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    await api.rejectMemories(ids);
+    await loadMemories();
+  } catch (err) {
+    pushOperationFailure('rejectMemories', err);
+  }
+}
+
+// -------------------------------------------------------------------------
+// MCP Server actions
+// -------------------------------------------------------------------------
+
+async function loadMcpServers(): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    mcpServers.value = await api.getMcpServers();
+  } catch (err) {
+    pushOperationFailure('loadMcpServers', err);
+  }
+}
+
+// -------------------------------------------------------------------------
+// Experiment actions
+// -------------------------------------------------------------------------
+
+async function loadExperiments(): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    experiments.value = await api.getExperiments();
+  } catch (err) {
+    pushOperationFailure('loadExperiments', err);
+  }
+}
+
+async function toggleExperiment(flag: string): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    await api.toggleExperiment(flag);
+    experiments.value = experiments.value.map((e) =>
+      e.name === flag ? { ...e, enabled: !e.enabled } : e,
+    );
+  } catch (err) {
+    pushOperationFailure('toggleExperiment', err);
+  }
+}
+
+// -------------------------------------------------------------------------
+// Plugin actions
+// -------------------------------------------------------------------------
+
+async function loadPlugins(): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    plugins.value = await api.getPlugins();
+  } catch (err) {
+    pushOperationFailure('loadPlugins', err);
+  }
+}
+
+async function togglePlugin(id: string): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    await api.togglePlugin(id);
+    plugins.value = plugins.value.map((p) =>
+      p.id === id ? { ...p, enabled: !p.enabled } : p,
+    );
+  } catch (err) {
+    pushOperationFailure('togglePlugin', err);
+  }
+}
+
+// -------------------------------------------------------------------------
+// Export actions
+// -------------------------------------------------------------------------
+
+async function exportSession(format: ExportFormat): Promise<void> {
+  const sid = rawState.activeSessionId;
+  if (!sid) return;
+  try {
+    const api = getKimiWebApi();
+    const blob = await api.exportSession(format);
+    // Trigger a download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = format === 'markdown' ? 'session.md' : 'session-debug.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    pushOperationFailure('exportSession', err);
+  }
+}
+
+// -------------------------------------------------------------------------
+// Feedback actions
+// -------------------------------------------------------------------------
+
+async function submitFeedback(text: string, email?: string): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    await api.submitFeedback(text, email);
+  } catch (err) {
+    pushOperationFailure('submitFeedback', err);
+  }
+}
+
+// -------------------------------------------------------------------------
+// Version actions
+// -------------------------------------------------------------------------
+
+async function loadVersion(): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    version.value = await api.getVersion();
+  } catch (err) {
+    pushOperationFailure('loadVersion', err);
+  }
+}
+
+// -------------------------------------------------------------------------
+// Reload actions
+// -------------------------------------------------------------------------
+
+async function reloadSessionAction(): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    await api.reloadSession();
+    // Reload the active session after server-side reload
+    const sid = rawState.activeSessionId;
+    if (sid) {
+      await selectSession(sid);
+    }
+  } catch (err) {
+    pushOperationFailure('reloadSession', err);
+  }
+}
+
+async function reloadTuiConfigAction(): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    await api.reloadTuiConfig();
+    await loadConfig();
+  } catch (err) {
+    pushOperationFailure('reloadTuiConfig', err);
+  }
+}
+
+async function reloadSystemPromptAction(): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    await api.reloadSystemPrompt();
+  } catch (err) {
+    pushOperationFailure('reloadSystemPrompt', err);
+  }
+}
+
+// -------------------------------------------------------------------------
+// Compare actions
+// -------------------------------------------------------------------------
+
+async function startCompare(modelB: string, prompt: string): Promise<void> {
+  try {
+    const api = getKimiWebApi();
+    await api.startCompare(modelB, prompt);
+  } catch (err) {
+    pushOperationFailure('startCompare', err);
+  }
+}
+
+// -------------------------------------------------------------------------
+// Goal management actions
+// -------------------------------------------------------------------------
+
+async function replaceGoal(objective: string): Promise<void> {
+  const sid = rawState.activeSessionId;
+  if (!sid) return;
+  try {
+    const api = getKimiWebApi();
+    await api.replaceGoal(objective);
+  } catch (err) {
+    pushOperationFailure('replaceGoal', err);
+  }
+}
+
+async function queueGoal(objective: string): Promise<void> {
+  const sid = rawState.activeSessionId;
+  if (!sid) return;
+  try {
+    const api = getKimiWebApi();
+    await api.queueGoal(objective);
+  } catch (err) {
+    pushOperationFailure('queueGoal', err);
+  }
+}
+
 /** Start managed Kimi OAuth device flow. Returns flow data or null on error. */
 async function startOAuthLogin(): Promise<{
   flowId: string;
@@ -4321,6 +4599,16 @@ export function useKimiWebClient() {
     starredModelIds,
     providers,
 
+    // Memories, MCP, Experiments, Plugins, Version reactive state
+    memories,
+    mcpServers,
+    experiments,
+    plugins,
+    version,
+
+    // Session-level generation parameter overrides
+    generationKwargs,
+
     // Theme
     theme,
     setTheme,
@@ -4414,6 +4702,42 @@ export function useKimiWebClient() {
     openInApp,
     revealWorkspaceFile,
     resolveImageUrl,
+
+    // Memories actions
+    loadMemories,
+    pinMemory,
+    unpinMemory,
+    deleteMemory,
+    approveMemories,
+    rejectMemories,
+
+    // MCP actions
+    loadMcpServers,
+
+    // Experiment actions
+    loadExperiments,
+    toggleExperiment,
+
+    // Plugin actions
+    loadPlugins,
+    togglePlugin,
+
+    // Export / Feedback / Version actions
+    exportSession,
+    submitFeedback,
+    loadVersion,
+
+    // Reload actions
+    reloadSession: reloadSessionAction,
+    reloadTuiConfig: reloadTuiConfigAction,
+    reloadSystemPrompt: reloadSystemPromptAction,
+
+    // Compare action
+    startCompare,
+
+    // Goal management
+    replaceGoal,
+    queueGoal,
 
     // Model + Provider actions
     refreshOAuthProviderModels,

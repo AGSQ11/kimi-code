@@ -1168,12 +1168,35 @@ export function createAgentProjector(): AgentProjector {
         break;
       }
 
+      case 'mcp.server.status': {
+        const server = p?.server;
+        if (server && typeof server === 'object') {
+          const s = server as Record<string, unknown>;
+          out.push({
+            type: 'mcpServerStatus',
+            server: {
+              id: typeof s.id === 'string' ? s.id : '',
+              name: typeof s.name === 'string' ? s.name : '',
+              status: (typeof s.status === 'string' ? s.status : 'disconnected') as 'connected' | 'disconnected' | 'error',
+              toolCount: typeof s.tool_count === 'number' ? s.tool_count : typeof s.toolCount === 'number' ? s.toolCount : 0,
+              tools: Array.isArray(s.tools) ? s.tools.map((t: unknown) => {
+                const tool = t as Record<string, unknown>;
+                return {
+                  name: typeof tool.name === 'string' ? tool.name : '',
+                  description: typeof tool.description === 'string' ? tool.description : '',
+                };
+              }) : [],
+            },
+          });
+        }
+        break;
+      }
+
       // -----------------------------------------------------------------------
       // Explicitly known but not projected
       case 'compaction.blocked':
       case 'cron.fired':
       case 'hook.result':
-      case 'mcp.server.status':
       case 'skill.activated':
       case 'tool.list.updated':
         break;

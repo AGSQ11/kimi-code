@@ -32,6 +32,12 @@ export default {
   // Thinking selector
   thinkingLabel: 'thinking',
   thinkingTooltip: 'Toggle thinking mode',
+  thinkingOff: 'off',
+  thinkingLow: 'low',
+  thinkingMedium: 'medium',
+  thinkingHigh: 'high',
+  thinkingXhigh: 'xhigh',
+  thinkingMax: 'max',
   starredModels: 'Starred',
   moreModels: 'More models…',
   // Status panel
@@ -48,6 +54,7 @@ export default {
   statusCost: 'Cost',
   statusContextValue: '{used} / {max} ({pct}%)',
   statusNone: '—',
+  statusModelProbe: 'Probe',
   activityRunning: 'Running…',
   activityAwaitingApproval: 'Awaiting approval',
   activityAwaitingQuestion: 'Awaiting answer',

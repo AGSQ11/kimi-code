@@ -5,9 +5,14 @@ import type { KimiApiConfig } from '../config';
 import { buildRestUrl, buildWsUrl } from '../config';
 import type {
   AppConfig,
+  AppCompareResult,
+  AppFeatureFlag,
+  AppMemory,
   AppMessage,
   AppMessageRole,
+  AppMcpServer,
   AppModel,
+  AppPlugin,
   AppProvider,
   ProviderRefreshResult,
   AppSession,
@@ -21,6 +26,7 @@ import type {
   AppTerminal,
   AppWorkspace,
   ApprovalResponse,
+  ExportFormat,
   FsBrowseResult,
   FsEntry,
   KimiEventConnection,
@@ -36,11 +42,16 @@ import { createAgentProjector } from './agentEventProjector';
 import { DaemonHttpClient } from './http';
 import {
   toAppApprovalRequest,
+  toAppCompareResult,
   toAppConfig,
   toAppEvent,
+  toAppFeatureFlag,
   toAppFsEntry,
+  toAppMemory,
+  toAppMcpServer,
   toAppMessage,
   toAppModel,
+  toAppPlugin,
   toAppProvider,
   toAppQuestionRequest,
   toAppSession,
@@ -56,18 +67,23 @@ import {
 import type {
   WireAuthResult,
   WireBackgroundTask,
+  WireCompareResult,
   WireConfig,
   WireEvent,
+  WireFeatureFlag,
   WireFileMeta,
   WireFsBrowseResult,
   WireFsEntry,
   WireFsHomeResult,
+  WireMemory,
   WireMessage,
+  WireMcpServer,
   WireModel,
   WireOAuthCancelResult,
   WireOAuthLoginPollResult,
   WireOAuthLoginStartResult,
   WirePage,
+  WirePlugin,
   WirePromptSubmitResult,
   WirePromptSteerResult,
   WireProvider,
@@ -120,6 +136,43 @@ interface WireQuestionResolveResult {
 
 interface WireCancelResult {
   cancelled: true;
+}
+
+interface WireMemoryListResult {
+  items: WireMemory[];
+}
+
+interface WireMcpServerListResult {
+  items: WireMcpServer[];
+}
+
+interface WireFeatureFlagListResult {
+  items: WireFeatureFlag[];
+}
+
+interface WirePluginListResult {
+  items: WirePlugin[];
+}
+
+interface WireFeedbackResult {
+  submitted: true;
+}
+
+interface WireVersionResult {
+  version: string;
+  git_hash?: string;
+}
+
+interface WireReloadResult {
+  reloaded: true;
+}
+
+interface WireGoalReplaceResult {
+  replaced: true;
+}
+
+interface WireGoalQueueResult {
+  queued: true;
 }
 
 interface WireSkillDescriptor {
@@ -1070,6 +1123,155 @@ export class DaemonKimiWebApi implements KimiWebApi {
       unchanged: data.unchanged,
       failed: data.failed,
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // Memories
+  // -------------------------------------------------------------------------
+
+  async getMemories(): Promise<AppMemory[]> {
+    const data = await this.http.get<WireMemoryListResult>('/memories');
+    return data.items.map(toAppMemory);
+  }
+
+  async pinMemory(id: string): Promise<void> {
+    await this.http.post(
+      `/memories/${encodeURIComponent(id)}:pin`,
+      {},
+    );
+  }
+
+  async unpinMemory(id: string): Promise<void> {
+    await this.http.post(
+      `/memories/${encodeURIComponent(id)}:unpin`,
+      {},
+    );
+  }
+
+  async deleteMemory(id: string): Promise<void> {
+    await this.http.delete(`/memories/${encodeURIComponent(id)}`);
+  }
+
+  async approveMemories(ids: string[]): Promise<void> {
+    await this.http.post('/memories:approve', { ids });
+  }
+
+  async rejectMemories(ids: string[]): Promise<void> {
+    await this.http.post('/memories:reject', { ids });
+  }
+
+  // -------------------------------------------------------------------------
+  // MCP Servers
+  // -------------------------------------------------------------------------
+
+  async getMcpServers(): Promise<AppMcpServer[]> {
+    const data = await this.http.get<WireMcpServerListResult>('/mcp/servers');
+    return data.items.map(toAppMcpServer);
+  }
+
+  // -------------------------------------------------------------------------
+  // Experiments
+  // -------------------------------------------------------------------------
+
+  async getExperiments(): Promise<AppFeatureFlag[]> {
+    const data = await this.http.get<WireFeatureFlagListResult>('/experiments');
+    return data.items.map(toAppFeatureFlag);
+  }
+
+  async toggleExperiment(flag: string): Promise<void> {
+    await this.http.post(
+      `/experiments/${encodeURIComponent(flag)}:toggle`,
+      {},
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Plugins
+  // -------------------------------------------------------------------------
+
+  async getPlugins(): Promise<AppPlugin[]> {
+    const data = await this.http.get<WirePluginListResult>('/plugins');
+    return data.items.map(toAppPlugin);
+  }
+
+  async togglePlugin(id: string): Promise<void> {
+    await this.http.post(
+      `/plugins/${encodeURIComponent(id)}:toggle`,
+      {},
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Export
+  // -------------------------------------------------------------------------
+
+  async exportSession(format: ExportFormat): Promise<Blob> {
+    return this.http.postBlob('/export', { format });
+  }
+
+  // -------------------------------------------------------------------------
+  // Feedback
+  // -------------------------------------------------------------------------
+
+  async submitFeedback(text: string, email?: string): Promise<void> {
+    const body: Record<string, unknown> = { text };
+    if (email !== undefined) body['email'] = email;
+    await this.http.post<WireFeedbackResult>('/feedback', body);
+  }
+
+  // -------------------------------------------------------------------------
+  // Version
+  // -------------------------------------------------------------------------
+
+  async getVersion(): Promise<{ version: string; gitHash?: string }> {
+    const data = await this.http.get<WireVersionResult>('/version');
+    return {
+      version: data.version,
+      gitHash: data.git_hash,
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Reload
+  // -------------------------------------------------------------------------
+
+  async reloadSession(): Promise<void> {
+    await this.http.post<WireReloadResult>('/reload/session', {});
+  }
+
+  async reloadTuiConfig(): Promise<void> {
+    await this.http.post<WireReloadResult>('/reload/tui-config', {});
+  }
+
+  async reloadSystemPrompt(): Promise<void> {
+    await this.http.post<WireReloadResult>('/reload/system-prompt', {});
+  }
+
+  // -------------------------------------------------------------------------
+  // Compare
+  // -------------------------------------------------------------------------
+
+  async startCompare(modelB: string, prompt: string): Promise<void> {
+    await this.http.post<WireCompareResult>('/compare', {
+      model_b: modelB,
+      prompt,
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Goal management
+  // -------------------------------------------------------------------------
+
+  async replaceGoal(objective: string): Promise<void> {
+    await this.http.post<WireGoalReplaceResult>('/goals:replace', {
+      objective,
+    });
+  }
+
+  async queueGoal(objective: string): Promise<void> {
+    await this.http.post<WireGoalQueueResult>('/goals:queue', {
+      objective,
+    });
   }
 
   // -------------------------------------------------------------------------

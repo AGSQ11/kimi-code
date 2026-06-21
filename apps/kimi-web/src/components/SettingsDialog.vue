@@ -7,10 +7,11 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useDialogFocus } from '../composables/useDialogFocus';
 import LanguageSwitcher from './LanguageSwitcher.vue';
+import ThinkingLevelPicker from './ThinkingLevelPicker.vue';
 import { serverEndpointLabel } from '../api/config';
 import { downloadTraceLog, isTraceEnabled } from '../debug/trace';
 import type { ColorScheme, Theme } from '../composables/useKimiWebClient';
-import type { AppConfig, AppConfigProvider, AppModel } from '../api/types';
+import type { AppConfig, AppConfigProvider, AppModel, ThinkingLevel } from '../api/types';
 
 const { t } = useI18n();
 
@@ -34,6 +35,10 @@ const props = defineProps<{
   configSaving?: boolean;
   /** Server version reported by GET /api/v1/meta. */
   serverVersion?: string;
+  /** Current default thinking level. */
+  thinkingLevel?: ThinkingLevel;
+  /** External editor command. */
+  externalEditor?: string;
 }>();
 
 const emit = defineEmits<{
@@ -42,6 +47,8 @@ const emit = defineEmits<{
   setUiFontSize: [size: number];
   setNotify: [on: boolean];
   setBetaToc: [on: boolean];
+  setThinkingLevel: [level: ThinkingLevel];
+  setExternalEditor: [cmd: string];
   login: [];
   logout: [];
   openOnboarding: [];
@@ -351,6 +358,18 @@ function setTab(tab: SettingsTab): void {
 
                 <div class="row">
                   <span class="rlabel">
+                    {{ t('settings.thinkingLevel') }}
+                    <span class="hint">{{ t('settings.thinkingLevelHint') }}</span>
+                  </span>
+                  <ThinkingLevelPicker
+                    :model-value="thinkingLevel ?? 'high'"
+                    :disabled="configSaving"
+                    @update:model-value="emit('setThinkingLevel', $event)"
+                  />
+                </div>
+
+                <div class="row">
+                  <span class="rlabel">
                     {{ t('settings.defaultThinking') }}
                     <span class="hint">{{ t('settings.defaultThinkingHint') }}</span>
                   </span>
@@ -453,6 +472,20 @@ function setTab(tab: SettingsTab): void {
               <div class="row">
                 <span class="rlabel">{{ t('sidebar.daemon') }}</span>
                 <span class="rvalue mono">{{ daemonEndpoint }}</span>
+              </div>
+              <div class="row">
+                <span class="rlabel">
+                  {{ t('settings.externalEditor') }}
+                  <span class="hint">{{ t('settings.externalEditorHint') }}</span>
+                </span>
+                <input
+                  class="text-input"
+                  type="text"
+                  :value="externalEditor ?? ''"
+                  :placeholder="t('settings.externalEditorPlaceholder')"
+                  :aria-label="t('settings.externalEditor')"
+                  @change="emit('setExternalEditor', ($event.target as HTMLInputElement).value)"
+                />
               </div>
               <div class="row">
                 <span class="rlabel">
@@ -672,6 +705,23 @@ function setTab(tab: SettingsTab): void {
   padding: 0 8px;
 }
 .select-field:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.text-input {
+  min-width: 200px;
+  max-width: min(320px, 50vw);
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: var(--ui-font-size-xs);
+  padding: 0 8px;
+}
+.text-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
 
 .empty-config {
   font-family: var(--sans);

@@ -546,6 +546,13 @@ export function reduceAppEvent(
     }
 
     // -------------------------------------------------------------------------
+    case 'mcpServerStatus': {
+      // MCP server status updates are global, not session-scoped.
+      // The reducer doesn't track MCP servers; the composable handles them.
+      break;
+    }
+
+    // -------------------------------------------------------------------------
     // Agent-scoped side-channel events (e.g. BTW side chat) are consumed by the
     // web layer, not the session reducer. Advance seq silently.
     case 'agentDelta':

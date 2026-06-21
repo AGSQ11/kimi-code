@@ -98,6 +98,13 @@ export const ErrorCode = {
   /** fs.mkdir 目标路径已存在（文件或目录） */
   FS_ALREADY_EXISTS: 40919,
 
+  /** memory_id 不存在 */
+  MEMORY_NOT_FOUND: 40420,
+  /** experiment flag 不存在 */
+  EXPERIMENT_NOT_FOUND: 40421,
+  /** plugin_id 不存在 */
+  PLUGIN_NOT_FOUND: 40422,
+
   /** approval 60s 超时 */
   APPROVAL_EXPIRED: 41001,
   /** question 60s 超时 */
@@ -191,6 +198,10 @@ export const ErrorCodeReason: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.GOAL_OBJECTIVE_EMPTY]: 'goal.objective_empty',
   [ErrorCode.GOAL_OBJECTIVE_TOO_LONG]: 'goal.objective_too_long',
   [ErrorCode.FS_ALREADY_EXISTS]: 'fs.already_exists',
+
+  [ErrorCode.MEMORY_NOT_FOUND]: 'memory.not_found',
+  [ErrorCode.EXPERIMENT_NOT_FOUND]: 'experiment.not_found',
+  [ErrorCode.PLUGIN_NOT_FOUND]: 'plugin.not_found',
 
   [ErrorCode.APPROVAL_EXPIRED]: 'approval.expired',
   [ErrorCode.QUESTION_EXPIRED]: 'question.expired',

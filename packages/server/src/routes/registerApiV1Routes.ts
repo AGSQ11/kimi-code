@@ -25,6 +25,17 @@ import { registerToolsRoutes } from './tools';
 import { registerWorkspaceFsRoutes } from './workspaceFs';
 import { registerWorkspacesRoutes } from './workspaces';
 
+// New parity routes for WebUI
+import { registerMemoriesRoutes } from './memories';
+import { registerExperimentsRoutes } from './experiments';
+import { registerPluginsRoutes } from './plugins';
+import { registerFeedbackRoute } from './feedback';
+import { registerVersionRoute } from './version';
+import { registerReloadRoutes } from './reload';
+import { registerExportRoute } from './export';
+import { registerCompareRoute } from './compare';
+import { registerGoalsRoutes } from './goals';
+
 interface ApiV1AppHost {
   register(
     plugin: (apiV1: ApiV1RouteHost) => Promise<void> | void,
@@ -108,6 +119,17 @@ export async function registerApiV1Routes(
       apiV1 as unknown as Parameters<typeof registerWorkspaceFsRoutes>[0],
       ix,
     );
+
+    // New parity routes for WebUI
+    registerVersionRoute(apiV1 as unknown as Parameters<typeof registerVersionRoute>[0]);
+    registerMemoriesRoutes(apiV1 as unknown as Parameters<typeof registerMemoriesRoutes>[0], ix);
+    registerExperimentsRoutes(apiV1 as unknown as Parameters<typeof registerExperimentsRoutes>[0], ix);
+    registerPluginsRoutes(apiV1 as unknown as Parameters<typeof registerPluginsRoutes>[0], ix);
+    registerFeedbackRoute(apiV1 as unknown as Parameters<typeof registerFeedbackRoute>[0], ix);
+    registerReloadRoutes(apiV1 as unknown as Parameters<typeof registerReloadRoutes>[0], ix);
+    registerExportRoute(apiV1 as unknown as Parameters<typeof registerExportRoute>[0], ix);
+    registerCompareRoute(apiV1 as unknown as Parameters<typeof registerCompareRoute>[0], ix);
+    registerGoalsRoutes(apiV1 as unknown as Parameters<typeof registerGoalsRoutes>[0], ix);
 
     if (opts.debugEndpoints === true) {
       registerDebugRoutes(

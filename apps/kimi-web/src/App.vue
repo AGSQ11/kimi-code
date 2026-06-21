@@ -27,6 +27,16 @@ import Onboarding from './components/Onboarding.vue';
 import GlobalLoading from './components/GlobalLoading.vue';
 import DebugPanel from './debug/DebugPanel.vue';
 import { isTraceEnabled } from './debug/trace';
+import MemoryDialog from './components/MemoryDialog.vue';
+import CriticizeDialog from './components/CriticizeDialog.vue';
+import SpiceupDialog from './components/SpiceupDialog.vue';
+import McpStatusPanel from './components/McpStatusPanel.vue';
+import ExperimentsDialog from './components/ExperimentsDialog.vue';
+import PluginsDialog from './components/PluginsDialog.vue';
+import CompareDialog from './components/CompareDialog.vue';
+import ExportDialog from './components/ExportDialog.vue';
+import GoalQueueManager from './components/GoalQueueManager.vue';
+import FeedbackDialog from './components/FeedbackDialog.vue';
 import { useKimiWebClient } from './composables/useKimiWebClient';
 import { useIsMobile } from './composables/useIsMobile';
 import type { AppConfig, ThinkingLevel } from './api/types';
@@ -606,6 +616,16 @@ const showSessions = ref(false);
 const showAddWorkspace = ref(false);
 const showStatusPanel = ref(false);
 const showSettings = ref(false);
+const showMemoryDialog = ref(false);
+const showCriticizeDialog = ref(false);
+const showSpiceupDialog = ref(false);
+const showMcpPanel = ref(false);
+const showExperimentsDialog = ref(false);
+const showPluginsDialog = ref(false);
+const showCompareDialog = ref(false);
+const showExportDialog = ref(false);
+const showGoalQueue = ref(false);
+const showFeedbackDialog = ref(false);
 
 type SubmitPayload = {
   text: string;
@@ -628,7 +648,17 @@ const anyOverlayOpen = computed<boolean>(() =>
   showSettings.value ||
   showOnboarding.value ||
   showMobileSwitcher.value ||
-  showMobileSettings.value,
+  showMobileSettings.value ||
+  showMemoryDialog.value ||
+  showCriticizeDialog.value ||
+  showSpiceupDialog.value ||
+  showMcpPanel.value ||
+  showExperimentsDialog.value ||
+  showPluginsDialog.value ||
+  showCompareDialog.value ||
+  showExportDialog.value ||
+  showGoalQueue.value ||
+  showFeedbackDialog.value,
 );
 
 // Loading state for model/provider fetches
@@ -637,6 +667,65 @@ const modelsUnavailable = ref(false);
 const providersLoading = ref(false);
 const providersUnavailable = ref(false);
 const configSaving = ref(false);
+const externalEditor = ref('');
+
+// Loading refs for new dialogs
+const memoriesLoading = ref(false);
+const mcpLoading = ref(false);
+const experimentsLoading = ref(false);
+const pluginsLoading = ref(false);
+const exportLoading = ref(false);
+const feedbackSending = ref(false);
+
+async function openMemoryDialog(): Promise<void> {
+  showMemoryDialog.value = true;
+  memoriesLoading.value = true;
+  try { await client.loadMemories(); } finally { memoriesLoading.value = false; }
+}
+
+async function openMcpPanel(): Promise<void> {
+  showMcpPanel.value = true;
+  mcpLoading.value = true;
+  try { await client.loadMcpServers(); } finally { mcpLoading.value = false; }
+}
+
+async function openExperimentsDialog(): Promise<void> {
+  showExperimentsDialog.value = true;
+  experimentsLoading.value = true;
+  try { await client.loadExperiments(); } finally { experimentsLoading.value = false; }
+}
+
+async function openPluginsDialog(): Promise<void> {
+  showPluginsDialog.value = true;
+  pluginsLoading.value = true;
+  try { await client.loadPlugins(); } finally { pluginsLoading.value = false; }
+}
+
+async function openCompareDialog(): Promise<void> {
+  showCompareDialog.value = true;
+  await client.loadModels();
+}
+
+async function openExportDialog(): Promise<void> {
+  showExportDialog.value = true;
+}
+
+async function openGoalQueue(): Promise<void> {
+  showGoalQueue.value = true;
+}
+
+async function openFeedbackDialog(): Promise<void> {
+  showFeedbackDialog.value = true;
+}
+
+function openSpiceupDialog(): void {
+  showSpiceupDialog.value = true;
+}
+
+async function openCriticizeDialog(): Promise<void> {
+  showCriticizeDialog.value = true;
+  await client.loadModels();
+}
 
 async function openModelPicker(): Promise<void> {
   modelsLoading.value = true;
@@ -716,6 +805,75 @@ async function handleLoginSuccess(): Promise<void> {
   // Re-check auth state and reload sessions now that we're authenticated
   await client.checkAuth();
   await client.load();
+}
+
+// Memory dialog handlers
+function handlePinMemory(id: string, pinned: boolean): void {
+  if (pinned) client.pinMemory(id);
+  else client.unpinMemory(id);
+}
+function handleDeleteMemory(id: string): void {
+  client.deleteMemory(id);
+}
+function handleRefreshMemories(): void {
+  void client.loadMemories();
+}
+
+// Criticize handler
+function handleRunCriticize(modelId: string, instructions: string): void {
+  showCriticizeDialog.value = false;
+  void client.activateSkill('criticize', instructions || modelId);
+}
+
+// Spiceup handler
+function handleApplySpiceup(values: Record<string, number | undefined>): void {
+  showSpiceupDialog.value = false;
+  // Apply via config update
+  void client.updateConfig({ generationKwargs: values });
+}
+
+// MCP handlers
+function handleRefreshMcp(): void {
+  void client.loadMcpServers();
+}
+
+// Experiments handlers
+function handleToggleExperiment(flag: string, enabled: boolean): void {
+  void client.toggleExperiment(flag);
+}
+
+// Plugins handlers
+function handleTogglePlugin(id: string, enabled: boolean): void {
+  void client.togglePlugin(id);
+}
+function handleRefreshPlugins(): void {
+  void client.loadPlugins();
+}
+
+// Compare handlers
+function handleStartCompare(modelIds: string[]): void {
+  // Send the same prompt to each model
+  if (modelIds.length >= 2) {
+    void client.startCompare(modelIds[1], '');
+  }
+}
+
+// Export handlers
+function handleExport(format: string): void {
+  void client.exportSession(format as 'markdown' | 'debug-zip');
+}
+
+// Goal queue handlers
+function handleGoalPause(): void { void client.controlGoal('pause'); }
+function handleGoalResume(): void { void client.controlGoal('resume'); }
+function handleGoalCancel(): void { void client.controlGoal('cancel'); }
+function handleGoalReplace(objective: string): void { void client.replaceGoal(objective); }
+function handleGoalQueue(objective: string): void { void client.queueGoal(objective); }
+
+// Feedback handlers
+function handleSendFeedback(text: string, email: string): void {
+  void client.submitFeedback(text, email);
+  showFeedbackDialog.value = false;
 }
 
 // Edit + resend the last user message: undo the latest exchange on the daemon,
@@ -812,6 +970,76 @@ function handleCommand(cmd: string): void {
       break;
     case '/login':
       openLogin();
+      break;
+    case '/logout':
+    case '/disconnect':
+      void client.logout();
+      break;
+    case '/memory':
+      void openMemoryDialog();
+      break;
+    case '/criticize':
+    case '/critique':
+      void openCriticizeDialog();
+      break;
+    case '/compare':
+    case '/ab':
+      void openCompareDialog();
+      break;
+    case '/spiceup':
+      openSpiceupDialog();
+      break;
+    case '/mcp':
+      void openMcpPanel();
+      break;
+    case '/forcemcp':
+      client.setPermission('yolo');
+      break;
+    case '/plugins':
+      void openPluginsDialog();
+      break;
+    case '/experiments':
+      void openExperimentsDialog();
+      break;
+    case '/init':
+      void client.activateSkill('init', cmd.slice('/init'.length).trim() || undefined);
+      break;
+    case '/export':
+    case '/export-md':
+      void openExportDialog();
+      break;
+    case '/export-debug-zip':
+      void openExportDialog();
+      break;
+    case '/feedback':
+      openFeedbackDialog();
+      break;
+    case '/version':
+      showStatusPanel.value = true;
+      break;
+    case '/reload':
+      void client.load();
+      break;
+    case '/reload-tui':
+      // Re-read UI preferences by reloading session data
+      void client.load();
+      break;
+    case '/reloadsysprompt':
+      void client.activateSkill('reloadsysprompt', cmd.slice('/reloadsysprompt'.length).trim() || undefined);
+      break;
+    case '/steer':
+      // Delegate to the running agent via steer prompt
+      if (client.activeSessionId.value) {
+        const arg = cmd.slice('/steer'.length).trim();
+        if (arg) client.steerPrompt(arg, []);
+      }
+      break;
+    case '/tasks':
+      showStatusPanel.value = true;
+      break;
+    case '/editor':
+      // Open settings to let the user configure external editor
+      showSettings.value = true;
       break;
     default: {
       // Not a built-in command → treat it as a session skill activation
@@ -1182,11 +1410,15 @@ function openPr(url: string): void {
       :models="client.models.value"
       :config-saving="configSaving"
       :server-version="client.serverVersion.value"
+      :thinking-level="client.thinking.value"
+      :external-editor="externalEditor"
       @set-theme="client.setTheme($event)"
       @set-color-scheme="client.setColorScheme($event)"
       @set-ui-font-size="client.setUiFontSize($event)"
       @set-notify="client.setNotifyOnComplete($event)"
       @set-beta-toc="client.setBetaToc($event)"
+      @set-thinking-level="client.setThinking($event)"
+      @set-external-editor="externalEditor = $event"
       @update-config="handleUpdateConfig($event)"
       @login="() => { showSettings = false; openLogin(); }"
       @logout="client.logout"
@@ -1234,7 +1466,91 @@ function openPr(url: string): void {
       :plan-mode="client.planMode.value"
       :swarm-mode="client.swarmMode.value"
       :cost-usd="client.sessionCost.value"
+      :server-version="client.serverVersion.value"
       @close="showStatusPanel = false"
+    />
+
+    <!-- New parity dialogs -->
+    <MemoryDialog
+      v-if="showMemoryDialog"
+      :memories="client.memories.value"
+      :loading="memoriesLoading"
+      @pin="handlePinMemory"
+      @delete="handleDeleteMemory"
+      @close="showMemoryDialog = false"
+      @refresh="handleRefreshMemories"
+    />
+
+    <CriticizeDialog
+      v-if="showCriticizeDialog"
+      :models="client.models.value"
+      :current-model="client.model.value"
+      @run="handleRunCriticize"
+      @close="showCriticizeDialog = false"
+    />
+
+    <SpiceupDialog
+      v-if="showSpiceupDialog"
+      :current="client.generationKwargs.value"
+      @apply="handleApplySpiceup"
+      @close="showSpiceupDialog = false"
+    />
+
+    <McpStatusPanel
+      v-if="showMcpPanel"
+      :servers="client.mcpServers.value"
+      :loading="mcpLoading"
+      @refresh="handleRefreshMcp"
+      @close="showMcpPanel = false"
+    />
+
+    <ExperimentsDialog
+      v-if="showExperimentsDialog"
+      :flags="client.experiments.value"
+      :loading="experimentsLoading"
+      @toggle="handleToggleExperiment"
+      @close="showExperimentsDialog = false"
+    />
+
+    <PluginsDialog
+      v-if="showPluginsDialog"
+      :plugins="client.plugins.value"
+      :loading="pluginsLoading"
+      @toggle="handleTogglePlugin"
+      @refresh="handleRefreshPlugins"
+      @close="showPluginsDialog = false"
+    />
+
+    <CompareDialog
+      v-if="showCompareDialog"
+      :models="client.models.value"
+      @start="handleStartCompare"
+      @close="showCompareDialog = false"
+    />
+
+    <ExportDialog
+      v-if="showExportDialog"
+      :exporting="exportLoading"
+      @export="handleExport"
+      @close="showExportDialog = false"
+    />
+
+    <GoalQueueManager
+      v-if="showGoalQueue"
+      :current-goal="client.goal.value ? { goalId: client.goal.value.goalId, objective: client.goal.value.objective, status: client.goal.value.status } : null"
+      @pause="handleGoalPause"
+      @resume="handleGoalResume"
+      @cancel="handleGoalCancel"
+      @replace="handleGoalReplace"
+      @queue="handleGoalQueue"
+      @close="showGoalQueue = false"
+    />
+
+    <FeedbackDialog
+      v-if="showFeedbackDialog"
+      :sending="feedbackSending"
+      @send="handleSendFeedback"
+      @close="showFeedbackDialog = false"
     />
 
     <!-- Add Workspace overlay (daemon folder browser + paste-path fallback) -->
