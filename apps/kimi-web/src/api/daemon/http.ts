@@ -174,6 +174,66 @@ export class DaemonHttpClient {
     return this.request<T>('DELETE', path);
   }
 
+  /** POST and return the raw response as a Blob (for binary downloads like export). */
+  async postBlob(path: string, body?: unknown): Promise<Blob> {
+    let url = buildRestUrl(this.origin, path);
+    const requestId = createRequestId();
+    const headers: Record<string, string> = {
+      'X-Request-Id': requestId,
+    };
+    this.addClientHeaders(headers);
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json; charset=utf-8';
+    }
+    const startedAt = Date.now();
+    traceRestRequest({ method: 'POST', path, url, requestId, body });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal: timeoutSignal(),
+      });
+    } catch (err) {
+      traceRestFailure({ method: 'POST', path, requestId, phase: 'fetch', durationMs: Date.now() - startedAt, error: err });
+      throw new DaemonNetworkError({
+        message: `Network error calling POST ${path}`,
+        cause: err,
+        method: 'POST',
+        path,
+        url,
+        requestId,
+        phase: 'fetch',
+        timeoutMs: REQUEST_TIMEOUT_MS,
+      });
+    }
+    if (!response.ok) {
+      throw new DaemonNetworkError({
+        message: `HTTP ${response.status} from POST ${path}`,
+        method: 'POST',
+        path,
+        url,
+        requestId,
+        phase: 'response',
+        timeoutMs: REQUEST_TIMEOUT_MS,
+        status: response.status,
+        statusText: response.statusText,
+      });
+    }
+    const blob = await response.blob();
+    traceRestResponse({
+      method: 'POST',
+      path,
+      requestId,
+      status: response.status,
+      durationMs: Date.now() - startedAt,
+      code: 0,
+      msg: 'ok',
+    });
+    return blob;
+  }
+
   private async request<T>(
     method: string,
     path: string,

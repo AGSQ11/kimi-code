@@ -5,9 +5,14 @@
 import type {
   AppApprovalRequest,
   AppConfig,
+  AppCompareResult,
   AppEvent,
+  AppFeatureFlag,
   AppGoal,
+  AppMemory,
+  AppMcpServer,
   AppModel,
+  AppPlugin,
   AppProvider,
   FsEntry,
   AppMessage,
@@ -33,11 +38,16 @@ import type {
   WireApprovalRequest,
   WireApprovalResponse,
   WireBackgroundTask,
+  WireCompareResult,
+  WireFeatureFlag,
   WireFsEntry,
   WireImageSource,
+  WireMemory,
+  WireMcpServer,
   WireMessage,
   WireMessageContent,
   WireModel,
+  WirePlugin,
   WirePromptSubmission,
   WireProvider,
   WireQuestionAnswer,
@@ -755,7 +765,77 @@ export function toAppConfig(wire: WireConfig): AppConfig {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Memory mappers
+// ---------------------------------------------------------------------------
+
+export function toAppMemory(wire: WireMemory): AppMemory {
+  return {
+    id: wire.id,
+    content: wire.content,
+    category: wire.category,
+    tags: wire.tags,
+    pinned: wire.pinned,
+    createdAt: wire.created_at,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// MCP Server mappers
+// ---------------------------------------------------------------------------
+
+export function toAppMcpServer(wire: WireMcpServer): AppMcpServer {
+  return {
+    id: wire.id,
+    name: wire.name,
+    status: (wire.status as AppMcpServer['status']) ?? 'disconnected',
+    toolCount: wire.tool_count,
+    tools: wire.tools.map((t) => ({ name: t.name, description: t.description })),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Feature Flag mappers
+// ---------------------------------------------------------------------------
+
+export function toAppFeatureFlag(wire: WireFeatureFlag): AppFeatureFlag {
+  return {
+    name: wire.name,
+    description: wire.description,
+    enabled: wire.enabled,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Plugin mappers
+// ---------------------------------------------------------------------------
+
+export function toAppPlugin(wire: WirePlugin): AppPlugin {
+  return {
+    id: wire.id,
+    name: wire.name,
+    version: wire.version,
+    enabled: wire.enabled,
+    description: wire.description,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Compare mappers
+// ---------------------------------------------------------------------------
+
+export function toAppCompareResult(wire: WireCompareResult): AppCompareResult {
+  return {
+    modelA: wire.model_a,
+    modelB: wire.model_b,
+    resultA: wire.result_a,
+    resultB: wire.result_b,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Helper to extract sessionId from a WireEvent (needed by reducer for lastSeq update)
+// ---------------------------------------------------------------------------
 export function wireEventSessionId(wire: WireEvent): string {
   return wire.session_id;
 }

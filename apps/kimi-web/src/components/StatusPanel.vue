@@ -16,6 +16,10 @@ const props = defineProps<{
   swarmMode?: boolean;
   /** Cumulative session cost in USD, when known (>= 0). */
   costUsd?: number;
+  /** Server version string. */
+  serverVersion?: string;
+  /** Model probe status message, if available. */
+  modelProbeStatus?: string;
 }>();
 
 const emit = defineEmits<{
@@ -57,6 +61,16 @@ const costText = computed(() =>
   showCost.value ? `$${(props.costUsd as number).toFixed(4)}` : t('status.statusNone'),
 );
 
+const thinkingLabels: Record<string, string> = {
+  off: t('status.thinkingOff'),
+  low: t('status.thinkingLow'),
+  medium: t('status.thinkingMedium'),
+  high: t('status.thinkingHigh'),
+  xhigh: t('status.thinkingXhigh'),
+  max: t('status.thinkingMax'),
+};
+const thinkingLabel = computed(() => thinkingLabels[props.thinking] ?? props.thinking);
+
 function onKeydown(e: KeyboardEvent): void {
   if (e.key === 'Escape') emit('close');
 }
@@ -80,7 +94,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
         </div>
         <div class="row">
           <dt>{{ t('status.statusThinking') }}</dt>
-          <dd>{{ thinking }}</dd>
+          <dd>{{ thinkingLabel }}</dd>
         </div>
         <div class="row">
           <dt>{{ t('status.statusPermission') }}</dt>
@@ -104,6 +118,14 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
         <div class="row">
           <dt>{{ t('status.statusCost') }}</dt>
           <dd>{{ costText }}</dd>
+        </div>
+        <div v-if="serverVersion" class="row">
+          <dt>{{ t('settings.serverVersion') }}</dt>
+          <dd class="mono">{{ serverVersion }}</dd>
+        </div>
+        <div v-if="modelProbeStatus" class="row">
+          <dt>{{ t('status.statusModelProbe') }}</dt>
+          <dd class="mono-dim">{{ modelProbeStatus }}</dd>
         </div>
       </dl>
     </div>
@@ -166,6 +188,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
   margin: 0;
   padding: 6px 0;
   flex: 1;
+  overflow-y: auto;
 }
 .row {
   display: flex;
@@ -193,6 +216,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
 }
 .row dd.plan-on { color: var(--blue); }
 .row dd.swarm-on { color: var(--blue); }
+.row dd.mono { font-family: var(--mono); font-size: var(--ui-font-size-xs); color: var(--muted); }
+.row dd.mono-dim { font-family: var(--mono); font-size: var(--ui-font-size-xs); color: var(--faint); }
 
 .ctx-text { flex: none; }
 .bar {

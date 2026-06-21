@@ -443,6 +443,116 @@ export interface WireFileMeta {
 }
 
 // ---------------------------------------------------------------------------
+// Memory wire DTOs
+// ---------------------------------------------------------------------------
+
+export interface WireMemory {
+  id: string;
+  content: string;
+  category: string;
+  tags: string[];
+  pinned: boolean;
+  created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// MCP Server wire DTOs
+// ---------------------------------------------------------------------------
+
+export interface WireMcpServerTool {
+  name: string;
+  description: string;
+}
+
+export interface WireMcpServer {
+  id: string;
+  name: string;
+  status: string;
+  tool_count: number;
+  tools: WireMcpServerTool[];
+}
+
+// ---------------------------------------------------------------------------
+// Feature Flag / Experiment wire DTOs
+// ---------------------------------------------------------------------------
+
+export interface WireFeatureFlag {
+  name: string;
+  description: string;
+  enabled: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Plugin wire DTOs
+// ---------------------------------------------------------------------------
+
+export interface WirePlugin {
+  id: string;
+  name: string;
+  version: string;
+  enabled: boolean;
+  description: string;
+}
+
+// ---------------------------------------------------------------------------
+// Export wire DTOs
+// ---------------------------------------------------------------------------
+
+export interface WireExportResult {
+  content: string;
+  filename?: string;
+  mime_type?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Feedback wire DTOs
+// ---------------------------------------------------------------------------
+
+export interface WireFeedbackResult {
+  submitted: true;
+}
+
+// ---------------------------------------------------------------------------
+// Version wire DTOs
+// ---------------------------------------------------------------------------
+
+export interface WireVersionResult {
+  version: string;
+  git_hash?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Reload wire DTOs
+// ---------------------------------------------------------------------------
+
+export interface WireReloadResult {
+  reloaded: true;
+}
+
+// ---------------------------------------------------------------------------
+// Compare wire DTOs
+// ---------------------------------------------------------------------------
+
+export interface WireCompareResult {
+  model_a: string;
+  model_b: string;
+  result_a: string;
+  result_b: string;
+}
+
+// ---------------------------------------------------------------------------
+// Goal management wire DTOs
+// ---------------------------------------------------------------------------
+
+export interface WireGoalReplaceResult {
+  replaced: true;
+}
+
+export interface WireGoalQueueResult {
+  queued: true;
+}
+
+// ---------------------------------------------------------------------------
 // WS Server frames (S→C)
 // ---------------------------------------------------------------------------
 

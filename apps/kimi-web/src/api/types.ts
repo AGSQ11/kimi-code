@@ -421,6 +421,7 @@ export type AppEvent =
   | { type: 'taskCompleted'; sessionId: string; taskId: string; status: AppTaskStatus; outputPreview?: string; outputBytes?: number }
   | { type: 'goalUpdated'; sessionId: string; goal: AppGoal | null }
   | { type: 'configChanged'; changedFields: string[]; config: AppConfig }
+  | { type: 'mcpServerStatus'; server: AppMcpServer }
   | { type: 'unknown'; raw: unknown };
 
 // ---------------------------------------------------------------------------
@@ -584,6 +585,7 @@ export interface AppConfig {
   experimental?: Record<string, boolean>;
   telemetry?: boolean;
   raw?: Record<string, unknown>;
+  generationKwargs?: Record<string, number | undefined>;
 }
 
 /** A session-scoped skill the user can invoke from the slash menu. */
@@ -592,6 +594,70 @@ export interface AppSkill {
   description: string;
   /** Skill source (e.g. 'builtin' | 'project' | 'plugin') for grouping/labels. */
   source: string;
+}
+
+// ---------------------------------------------------------------------------
+// Memory
+// ---------------------------------------------------------------------------
+
+export interface AppMemory {
+  id: string;
+  content: string;
+  category: string;
+  tags: string[];
+  pinned: boolean;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// MCP Server
+// ---------------------------------------------------------------------------
+
+export interface AppMcpServer {
+  id: string;
+  name: string;
+  status: 'connected' | 'disconnected' | 'error';
+  toolCount: number;
+  tools: Array<{ name: string; description: string }>;
+}
+
+// ---------------------------------------------------------------------------
+// Feature Flag / Experiment
+// ---------------------------------------------------------------------------
+
+export interface AppFeatureFlag {
+  name: string;
+  description: string;
+  enabled: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Plugin
+// ---------------------------------------------------------------------------
+
+export interface AppPlugin {
+  id: string;
+  name: string;
+  version: string;
+  enabled: boolean;
+  description: string;
+}
+
+// ---------------------------------------------------------------------------
+// Export
+// ---------------------------------------------------------------------------
+
+export type ExportFormat = 'markdown' | 'debug-zip';
+
+// ---------------------------------------------------------------------------
+// Compare
+// ---------------------------------------------------------------------------
+
+export interface AppCompareResult {
+  modelA: string;
+  modelB: string;
+  resultA: string;
+  resultB: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -674,6 +740,46 @@ export interface KimiWebApi {
   // Config — REAL endpoints
   getConfig(): Promise<AppConfig>;
   setConfig(patch: Partial<AppConfig>): Promise<AppConfig>;
+
+  // Memories
+  getMemories(): Promise<AppMemory[]>;
+  pinMemory(id: string): Promise<void>;
+  unpinMemory(id: string): Promise<void>;
+  deleteMemory(id: string): Promise<void>;
+  approveMemories(ids: string[]): Promise<void>;
+  rejectMemories(ids: string[]): Promise<void>;
+
+  // MCP Servers
+  getMcpServers(): Promise<AppMcpServer[]>;
+
+  // Experiments
+  getExperiments(): Promise<AppFeatureFlag[]>;
+  toggleExperiment(flag: string): Promise<void>;
+
+  // Plugins
+  getPlugins(): Promise<AppPlugin[]>;
+  togglePlugin(id: string): Promise<void>;
+
+  // Export
+  exportSession(format: ExportFormat): Promise<Blob>;
+
+  // Feedback
+  submitFeedback(text: string, email?: string): Promise<void>;
+
+  // Version
+  getVersion(): Promise<{ version: string; gitHash?: string }>;
+
+  // Reload
+  reloadSession(): Promise<void>;
+  reloadTuiConfig(): Promise<void>;
+  reloadSystemPrompt(): Promise<void>;
+
+  // Compare
+  startCompare(modelB: string, prompt: string): Promise<void>;
+
+  // Goal management
+  replaceGoal(objective: string): Promise<void>;
+  queueGoal(objective: string): Promise<void>;
 
   // Auth — REAL endpoints
   getAuth(): Promise<{

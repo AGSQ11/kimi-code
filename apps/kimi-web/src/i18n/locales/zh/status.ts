@@ -32,6 +32,12 @@ export default {
   // 思考强度选择
   thinkingLabel: '思考',
   thinkingTooltip: '切换思考模式',
+  thinkingOff: '关闭',
+  thinkingLow: '低',
+  thinkingMedium: '中',
+  thinkingHigh: '高',
+  thinkingXhigh: '极高',
+  thinkingMax: '最大',
   starredModels: '收藏',
   moreModels: '更多模型…',
   // 状态面板
@@ -48,6 +54,7 @@ export default {
   statusCost: '花费',
   statusContextValue: '{used} / {max} ({pct}%)',
   statusNone: '—',
+  statusModelProbe: '模型探测',
   activityRunning: '运行中…',
   activityAwaitingApproval: '等待批准',
   activityAwaitingQuestion: '等待回答',

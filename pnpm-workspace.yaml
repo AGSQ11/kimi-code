@@ -4,6 +4,8 @@ packages:
   - apps/vis/server
   - apps/vis/web
   - docs
+allowBuilds:
+  node-pty: true
 
 catalog:
   zod: 4.3.6
