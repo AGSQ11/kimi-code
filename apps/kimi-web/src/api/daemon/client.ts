@@ -1136,14 +1136,14 @@ export class DaemonKimiWebApi implements KimiWebApi {
 
   async pinMemory(id: string): Promise<void> {
     await this.http.post(
-      `/memories/${encodeURIComponent(id)}:pin`,
+      `/memories/${encodeURIComponent(id)}/pin`,
       {},
     );
   }
 
   async unpinMemory(id: string): Promise<void> {
     await this.http.post(
-      `/memories/${encodeURIComponent(id)}:unpin`,
+      `/memories/${encodeURIComponent(id)}/unpin`,
       {},
     );
   }
@@ -1153,11 +1153,11 @@ export class DaemonKimiWebApi implements KimiWebApi {
   }
 
   async approveMemories(ids: string[]): Promise<void> {
-    await this.http.post('/memories:approve', { ids });
+    await this.http.post('/memories/approve', { ids });
   }
 
   async rejectMemories(ids: string[]): Promise<void> {
-    await this.http.post('/memories:reject', { ids });
+    await this.http.post('/memories/reject', { ids });
   }
 
   // -------------------------------------------------------------------------
@@ -1180,7 +1180,7 @@ export class DaemonKimiWebApi implements KimiWebApi {
 
   async toggleExperiment(flag: string): Promise<void> {
     await this.http.post(
-      `/experiments/${encodeURIComponent(flag)}:toggle`,
+      `/experiments/${encodeURIComponent(flag)}`,
       {},
     );
   }
@@ -1196,7 +1196,7 @@ export class DaemonKimiWebApi implements KimiWebApi {
 
   async togglePlugin(id: string): Promise<void> {
     await this.http.post(
-      `/plugins/${encodeURIComponent(id)}:toggle`,
+      `/plugins/${encodeURIComponent(id)}/toggle`,
       {},
     );
   }
@@ -1263,13 +1263,13 @@ export class DaemonKimiWebApi implements KimiWebApi {
   // -------------------------------------------------------------------------
 
   async replaceGoal(objective: string): Promise<void> {
-    await this.http.post<WireGoalReplaceResult>('/goals:replace', {
+    await this.http.post<WireGoalReplaceResult>('/goals/replace', {
       objective,
     });
   }
 
   async queueGoal(objective: string): Promise<void> {
-    await this.http.post<WireGoalQueueResult>('/goals:queue', {
+    await this.http.post<WireGoalQueueResult>('/goals/queue', {
       objective,
     });
   }

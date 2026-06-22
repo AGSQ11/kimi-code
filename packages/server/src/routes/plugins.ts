@@ -2,7 +2,7 @@
  * `/plugins` REST routes.
  *
  *   GET  /plugins                    data: { items: PluginItem[] }
- *   POST /plugins/{plugin_id}:toggle data: { enabled: boolean }
+ *   POST /plugins/{plugin_id}/toggle data: { enabled: boolean }
  *
  * The PluginManager lives in agent-core but is not registered as a DI service.
  * Rather than wiring it through the full DI pipeline at this stage, the route
@@ -73,11 +73,11 @@ export function registerPluginsRoutes(
     listRoute.handler as Parameters<PluginsRouteHost['get']>[2],
   );
 
-  // POST /plugins/{plugin_id}:toggle -----------------------------------
+  // POST /plugins/{plugin_id}/toggle ----------------------------------
   const toggleRoute = defineRoute(
     {
       method: 'POST',
-      path: '/plugins/{plugin_id}:toggle',
+      path: '/plugins/{plugin_id}/toggle',
       params: pluginIdParamSchema,
       success: { data: togglePluginResultSchema },
       errors: {

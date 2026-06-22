@@ -1,8 +1,8 @@
 /**
  * `/goals*` REST routes.
  *
- *   POST /goals:replace  body: { objective }  → { goal_id, status }
- *   POST /goals:queue    body: { objective }  → { goal_id, status }
+ *   POST /goals/replace  body: { objective }  → { goal_id, status }
+ *   POST /goals/queue    body: { objective }  → { goal_id, status }
  *
  * Goal management endpoints. These submit goal commands through the prompt
  * service, which dispatches the appropriate RPC calls to agent-core.
@@ -40,11 +40,11 @@ export function registerGoalsRoutes(
   ix: IInstantiationService,
 ): void {
 
-  // POST /goals:replace ------------------------------------------------
+  // POST /goals/replace -----------------------------------------------
   const replaceRoute = defineRoute(
     {
       method: 'POST',
-      path: '/goals:replace',
+      path: '/goals/replace',
       body: goalBodySchema,
       success: { data: goalResultSchema },
       errors: {
@@ -111,11 +111,11 @@ export function registerGoalsRoutes(
     replaceRoute.handler as Parameters<GoalsRouteHost['post']>[2],
   );
 
-  // POST /goals:queue --------------------------------------------------
+  // POST /goals/queue -------------------------------------------------
   const queueRoute = defineRoute(
     {
       method: 'POST',
-      path: '/goals:queue',
+      path: '/goals/queue',
       body: goalBodySchema,
       success: { data: goalResultSchema },
       errors: {
