@@ -103,6 +103,7 @@ export interface CreateSessionOptions {
   readonly metadata?: JsonObject | undefined;
   readonly kaos?: Kaos | undefined;
   readonly persistenceKaos?: Kaos | undefined;
+  readonly additionalDirs?: readonly string[];
   readonly sessionStartedProperties?: TelemetryProperties;
 }
 
@@ -116,6 +117,17 @@ export interface ResumeSessionInput {
   readonly kaos?: Kaos | undefined;
   readonly persistenceKaos?: Kaos | undefined;
   readonly sessionStartedProperties?: TelemetryProperties;
+  readonly additionalDirs?: readonly string[];
+}
+
+export interface AddAdditionalDirInput {
+  readonly id: string;
+  readonly path: string;
+  readonly persist: boolean;
+}
+
+export interface AddAdditionalDirOptions {
+  readonly persist: boolean;
 }
 
 export interface ForkSessionInput {
@@ -199,6 +211,14 @@ export interface SessionSummary {
   readonly updatedAt: number;
   readonly archived?: boolean | undefined;
   readonly metadata?: JsonObject | undefined;
+  readonly additionalDirs?: readonly string[];
+}
+
+export interface AddAdditionalDirResult {
+  readonly additionalDirs: readonly string[];
+  readonly projectRoot: string;
+  readonly configPath: string;
+  readonly persisted: boolean;
 }
 
 export type ResumedSessionState = Pick<ResumeSessionResult, 'sessionMetadata' | 'agents' | 'warning'>;

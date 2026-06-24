@@ -3,7 +3,7 @@
 //
 // Drives the App.vue desktop/mobile branch. SSR/jsdom-safe: when
 // window.matchMedia is unavailable (e.g. the test environment), it defaults to
-// FALSE (desktop) so existing component tests keep mounting the desktop layout.
+// FALSE (desktop) so existing desktop layouts and tests render consistently.
 
 import { onUnmounted, ref, type Ref } from 'vue';
 
@@ -18,7 +18,7 @@ const MOBILE_QUERY = `(max-width: ${MOBILE_MAX_WIDTH}px)`;
 export function useIsMobile(): Ref<boolean> {
   const isMobile = ref(false);
 
-  // jsdom/SSR guard: no matchMedia → stay desktop (false).
+  // SSR / no-matchMedia guard: stay desktop (false).
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return isMobile;
   }

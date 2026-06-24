@@ -7,8 +7,17 @@ import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { Session, WorkspaceGroup, WorkspaceView } from '../types';
 import SessionRow from './SessionRow.vue';
+import { serverEndpointLabel } from '../api/config';
+import { copyTextToClipboard } from '../lib/clipboard';
+import { loadCollapsedWorkspaces, saveCollapsedWorkspaces } from '../lib/storage';
 
 const { t } = useI18n();
+
+// Dev-only affordance: when the page is served by the Vite dev server, the
+// logo turns yellow and the backend host:port is appended to the title —
+// handy for telling several dev tabs apart. In production this is all inert.
+const isDev = import.meta.env.DEV;
+const endpoint = isDev ? serverEndpointLabel() : '';
 
 const props = withDefaults(
   defineProps<{
@@ -46,6 +55,7 @@ const emit = defineEmits<{
   fork: [id: string];
   renameWorkspace: [id: string, name: string];
   deleteWorkspace: [id: string];
+  reorderWorkspaces: [ids: string[]];
   openSettings: [];
   collapse: [];
 }>();
@@ -80,7 +90,7 @@ function onSelectResult(sessionId: string): void {
 // ---------------------------------------------------------------------------
 // Collapse groups
 // ---------------------------------------------------------------------------
-const collapsedIds = ref<Set<string>>(new Set());
+const collapsedIds = ref<Set<string>>(new Set(loadCollapsedWorkspaces()));
 
 function isCollapsed(id: string): boolean {
   return collapsedIds.value.has(id);
@@ -98,6 +108,7 @@ function toggleCollapse(id: string): void {
     next.add(id);
   }
   collapsedIds.value = next;
+  saveCollapsedWorkspaces(next);
 }
 
 // ---------------------------------------------------------------------------
@@ -229,7 +240,7 @@ function closeGhMenu(): void {
 
 function copyPathFromMenu(): void {
   if (ghMenuTarget.value) {
-    void navigator.clipboard.writeText(ghMenuTarget.value.root);
+    void copyTextToClipboard(ghMenuTarget.value.root);
   }
   closeGhMenu();
 }
@@ -332,7 +343,7 @@ function closeWsMenu(): void {
 }
 
 function copyWsPath(ws: WorkspaceView): void {
-  void navigator.clipboard.writeText(ws.root);
+  void copyTextToClipboard(ws.root);
   closeWsMenu();
 }
 
@@ -382,7 +393,7 @@ function blinkOnce(): void {
       <!-- Header: logo + settings (no hard border — flows into workspace list) -->
       <div class="ch">
         <div class="ch-brand">
-          <svg ref="logoRef" class="ch-logo" viewBox="0 0 32 22" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kimi Code" @click="blinkOnce">
+          <svg ref="logoRef" class="ch-logo" :class="{ 'is-dev': isDev }" viewBox="0 0 32 22" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kimi Code" @click="blinkOnce">
             <defs>
               <mask id="kimiEyes" maskUnits="userSpaceOnUse">
                 <rect x="0" y="0" width="32" height="22" fill="#fff" />
@@ -394,7 +405,7 @@ function blinkOnce(): void {
             </defs>
             <rect x="1" y="1" width="30" height="20" rx="6" fill="var(--logo)" mask="url(#kimiEyes)" />
           </svg>
-          <span class="ch-name">Kimi Code</span>
+          <span class="ch-name">Kimi Code<span v-if="isDev" class="ch-endpoint"> · {{ endpoint }}</span></span>
         </div>
         <button
           type="button"
@@ -705,6 +716,12 @@ function blinkOnce(): void {
 .ch-logo:hover {
   transform: scale(1.08);
 }
+/* Dev-only: tint the mark yellow so a `pnpm dev:web` tab is obvious at a
+   glance. `--logo` is read by the mark's `fill`; overriding it on the svg
+   recolors just this instance. */
+.ch-logo.is-dev {
+  --logo: #f5b301;
+}
 .ch-brand {
   display: flex;
   align-items: center;
@@ -721,6 +738,14 @@ function blinkOnce(): void {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* Dev-only: backend host:port appended to the title. Kept secondary so the
+   product name still leads. */
+.ch-endpoint {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: calc(var(--ui-font-size) - 1px);
 }
 
 /* In narrow sidebars the product name drops out so the logo keeps its fixed

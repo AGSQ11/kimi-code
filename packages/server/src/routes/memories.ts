@@ -2,15 +2,15 @@
  * `/memories` REST routes.
  *
  *   GET    /memories                         data: { items: MemoryItem[] }
- *   POST   /memories/{memory_id}:pin         data: { pinned: true }
- *   POST   /memories/{memory_id}:unpin       data: { pinned: false }
+ *   POST   /memories/{memory_id}/pin         data: { pinned: true }
+ *   POST   /memories/{memory_id}/unpin       data: { pinned: false }
  *   DELETE /memories/{memory_id}             data: { deleted: true }
- *   POST   /memories:approve                 data: { approved: number }
- *   POST   /memories:reject                  data: { rejected: number }
+ *   POST   /memories/approve                 data: { approved: number }
+ *   POST   /memories/reject                  data: { rejected: number }
  *
- * Approve/reject use `::action` static paths (double-colon) to avoid
- * colliding with the dynamic `{memory_id}:action` pattern — same convention
- * as prompts::steer.
+ * Pin/unpin use `/pin` `/unpin` path segments (not `:pin` `:unpin`) because
+ * find-my-way interprets `{param}:suffix` as two consecutive parameters,
+ * causing a "Method already declared" collision.
  *
  * The MemoryStore lives in agent-core but is NOT currently registered as a
  * DI service. Rather than creating a full service wrapper at this stage, the
@@ -98,11 +98,11 @@ export function registerMemoriesRoutes(
     listRoute.handler as Parameters<MemoriesRouteHost['get']>[2],
   );
 
-  // POST /memories/{memory_id}:pin --------------------------------------
+  // POST /memories/{memory_id}/pin -------------------------------------
   const pinRoute = defineRoute(
     {
       method: 'POST',
-      path: '/memories/{memory_id}:pin',
+      path: '/memories/{memory_id}/pin',
       params: memoryIdParamSchema,
       success: { data: z.object({ pinned: z.literal(true) }) },
       errors: {
@@ -131,11 +131,11 @@ export function registerMemoriesRoutes(
     pinRoute.handler as Parameters<MemoriesRouteHost['post']>[2],
   );
 
-  // POST /memories/{memory_id}:unpin ------------------------------------
+  // POST /memories/{memory_id}/unpin -----------------------------------
   const unpinRoute = defineRoute(
     {
       method: 'POST',
-      path: '/memories/{memory_id}:unpin',
+      path: '/memories/{memory_id}/unpin',
       params: memoryIdParamSchema,
       success: { data: z.object({ pinned: z.literal(false) }) },
       errors: {
@@ -195,11 +195,11 @@ export function registerMemoriesRoutes(
     deleteRoute.handler as Parameters<MemoriesRouteHost['delete']>[2],
   );
 
-  // POST /memories:approve --------------------------------------------
+  // POST /memories/approve -------------------------------------------
   const approveRoute = defineRoute(
     {
       method: 'POST',
-      path: '/memories:approve',
+      path: '/memories/approve',
       body: approveRejectBodySchema,
       success: { data: z.object({ approved: z.number().int().nonnegative() }) },
       description: 'Approve proposed memories (pin them)',
@@ -217,11 +217,11 @@ export function registerMemoriesRoutes(
     approveRoute.handler as Parameters<MemoriesRouteHost['post']>[2],
   );
 
-  // POST /memories:reject ---------------------------------------------
+  // POST /memories/reject --------------------------------------------
   const rejectRoute = defineRoute(
     {
       method: 'POST',
-      path: '/memories:reject',
+      path: '/memories/reject',
       body: approveRejectBodySchema,
       success: { data: z.object({ rejected: z.number().int().nonnegative() }) },
       description: 'Reject proposed memories (delete them)',

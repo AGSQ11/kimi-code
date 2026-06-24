@@ -10,68 +10,88 @@ Kimi Code CLI 是一个运行在终端中的 AI Agent，帮助你完成软件开
 - **理解项目**：探索陌生的代码库，解答架构和实现层面的问题
 - **自动化任务**：批量处理文件、运行构建与测试、串联多个脚本
 
-整套 CLI 以 TypeScript 编写，从源码检出运行在 Node.js 之上。
+整套 CLI 以 TypeScript 编写，通过 npm 分发，运行在 Node.js 之上。
 
 ## 安装
 
-本 fork 需要从源码安装。要求 **Node.js ≥ 24.15.0** 和 **pnpm 10.33.0**。
+提供两种安装方式：官方安装脚本（推荐，无需预装 Node.js）和 npm 全局安装。
 
 ::: tip 安装之前
 Kimi Code CLI 为全交互式 TUI 应用，推荐在支持真彩色与连字的现代终端中运行以获得最佳体验，例如 [Kitty](https://sw.kovidgoyal.net/kitty/) 或 [Ghostty](https://ghostty.org/)。
 :::
 
+### 脚本安装（推荐）
+
+- **macOS / Linux**：
+
 ```sh
-git clone https://github.com/AGSQ11/kimi-code.git
-cd kimi-code
-pnpm install
-pnpm --filter @moonshot-ai/kimi-code build
+curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash
+```
+
+- **Windows（PowerShell）**：
+
+```powershell
+irm https://code.kimi.com/kimi-code/install.ps1 | iex
 ```
 
 > Windows 用户首次启动前还需要安装 [Git for Windows](https://gitforwindows.org/)，Kimi Code CLI 会使用其中的 Git Bash 作为 Shell 环境。如果 Git Bash 安装在非标准路径，请把 `KIMI_SHELL_PATH` 设为 `bash.exe` 的绝对路径。
 
-从仓库根目录运行 CLI：
+脚本会自动下载最新版本、校验 checksum，并把 `kimi` 可执行文件放到你的 `PATH` 中。
+
+### npm 安装
+
+需要 Node.js 22.19.0 或更高版本：
 
 ```sh
-pnpm --filter @moonshot-ai/kimi-code run dev:prod -- --version
+node --version
+npm install -g @moonshot-ai/kimi-code
 ```
 
-可以给 shell 加一个别名（以 `.bashrc` / `.zshrc` 为例）：
+或用 pnpm：
 
 ```sh
-alias kimi='pnpm --filter @moonshot-ai/kimi-code run dev:prod --'
+pnpm add -g @moonshot-ai/kimi-code
 ```
 
 ## 升级与卸载
 
-**升级**：拉取 fork 最新代码，重新安装依赖并构建：
+安装完成后，验证可执行文件是否就绪：
 
 ```sh
-git pull
-pnpm install
-pnpm --filter @moonshot-ai/kimi-code build
+kimi --version
 ```
 
-**卸载**：删除本地仓库克隆即可。
+**升级**：运行 `kimi upgrade`，CLI 会检查最新版本并展示更新选项。选择 `Install update now` 后根据当前安装来源执行升级；也可以直接用包管理器：
+
+```sh
+npm install -g @moonshot-ai/kimi-code@latest
+```
+
+**卸载**：脚本安装的用户删除 `kimi` 可执行文件即可；npm 安装的用户：
+
+```sh
+npm uninstall -g @moonshot-ai/kimi-code
+```
 
 ## 第一次启动
 
-进入项目目录后运行 CLI 启动交互界面：
+进入项目目录后直接运行 `kimi` 启动交互界面：
 
 ```sh
 cd your-project
-pnpm --filter @moonshot-ai/kimi-code run dev:prod
+kimi
 ```
 
 只想执行一条指令而不进入交互界面时，使用 `-p`：
 
 ```sh
-pnpm --filter @moonshot-ai/kimi-code run dev:prod -- -p "帮我看一下这个项目的目录结构"
+kimi -p "帮我看一下这个项目的目录结构"
 ```
 
-继续上一次会话加 `-C`：
+继续上一次会话加 `-c`：
 
 ```sh
-pnpm --filter @moonshot-ai/kimi-code run dev:prod -- -C
+kimi -c
 ```
 
 首次启动时需要配置 API 来源。在交互界面中输入 `/login` 进入登录流程：

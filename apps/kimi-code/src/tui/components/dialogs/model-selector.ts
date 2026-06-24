@@ -67,6 +67,9 @@ export interface ModelSelectorOptions {
   /** Optional per-alias health probe results shown next to each choice. */
   readonly probeStatus?: Readonly<Record<string, ModelProbeResult>>;
   readonly onSelect: (selection: ModelSelection) => void;
+  /** When provided, Alt+S invokes this instead of onSelect — used to apply the
+   * choice to the current session only, without persisting it as the default. */
+  readonly onSessionOnlySelect?: (selection: ModelSelection) => void;
   readonly onCancel: () => void;
 }
 
@@ -162,6 +165,16 @@ export class ModelSelectorComponent extends Container implements Focusable {
         alias: selected.alias,
         thinking: effectiveThinking(selected.model, this.draftFor(selected)),
       });
+      return;
+    }
+
+    if (matchesKey(data, Key.alt('s')) && this.opts.onSessionOnlySelect !== undefined) {
+      const selected = this.selectedChoice();
+      if (selected === undefined) return;
+      this.opts.onSessionOnlySelect({
+        alias: selected.alias,
+        thinking: effectiveThinking(selected.model, this.draftFor(selected)),
+      });
     }
   }
 
@@ -181,7 +194,9 @@ export class ModelSelectorComponent extends Container implements Focusable {
     if (this.opts.providerSwitchHint) hintParts.push('Tab toggle provider');
     hintParts.push('↑↓ navigate');
     if (searchable && view.query.length > 0) hintParts.push('Backspace clear');
-    hintParts.push('Enter select', 'Esc cancel');
+    hintParts.push('Enter select');
+    if (this.opts.onSessionOnlySelect !== undefined) hintParts.push('Alt+S session-only');
+    hintParts.push('Esc cancel');
 
     const lines: string[] = [
       currentTheme.fg('primary', '─'.repeat(width)),

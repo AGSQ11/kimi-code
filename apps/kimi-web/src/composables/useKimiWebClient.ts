@@ -6,6 +6,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { i18n } from '../i18n';
 import { getKimiWebApi } from '../api';
 import { isDaemonApiError, isDaemonNetworkError } from '../api/errors';
+import { safeGetString, safeRemove, safeSetString } from '../lib/storage';
 import type {
   AppApprovalRequest,
   AppConfig,
@@ -100,7 +101,7 @@ export type ColorScheme = 'light' | 'dark' | 'system';
 // The code-font setting was removed with its UI (b8a9e83). Clear the old
 // persisted key so users who once picked a font aren't frozen on it forever.
 try {
-  localStorage.removeItem('kimi-web.code-font');
+  safeRemove('kimi-web.code-font');
 } catch {
   // ignore
 }
@@ -113,7 +114,7 @@ const ACCENT_STORAGE_KEY = 'kimi-web.accent';
 const ACCENT_VALUES: readonly string[] = ['blue', 'mono'];
 function loadAccentFromStorage(): Accent {
   try {
-    const v = localStorage.getItem(ACCENT_STORAGE_KEY);
+    const v = safeGetString(ACCENT_STORAGE_KEY);
     if (v && ACCENT_VALUES.includes(v)) return v as Accent;
   } catch {
     // ignore
@@ -130,7 +131,7 @@ const COLOR_SCHEME_VALUES: readonly string[] = ['light', 'dark', 'system'];
 
 function loadColorSchemeFromStorage(): ColorScheme {
   try {
-    const v = localStorage.getItem(COLOR_SCHEME_STORAGE_KEY);
+    const v = safeGetString(COLOR_SCHEME_STORAGE_KEY);
     if (v && COLOR_SCHEME_VALUES.includes(v)) return v as ColorScheme;
   } catch {
     // ignore
@@ -140,7 +141,7 @@ function loadColorSchemeFromStorage(): ColorScheme {
 
 function saveColorSchemeToStorage(v: ColorScheme): void {
   try {
-    localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, v);
+    safeSetString(COLOR_SCHEME_STORAGE_KEY, v);
   } catch {
     // ignore
   }
@@ -167,7 +168,7 @@ function applyColorSchemeToDocument(c: ColorScheme): void {
 
 function loadPermissionFromStorage(): PermissionMode {
   try {
-    const v = localStorage.getItem(PERMISSION_STORAGE_KEY);
+    const v = safeGetString(PERMISSION_STORAGE_KEY);
     if (v === 'auto' || v === 'yolo' || v === 'manual') return v;
   } catch {
     // localStorage not available (e.g. jsdom without config)
@@ -177,7 +178,7 @@ function loadPermissionFromStorage(): PermissionMode {
 
 function savePermissionToStorage(mode: PermissionMode): void {
   try {
-    localStorage.setItem(PERMISSION_STORAGE_KEY, mode);
+    safeSetString(PERMISSION_STORAGE_KEY, mode);
   } catch {
     // ignore
   }
@@ -185,7 +186,7 @@ function savePermissionToStorage(mode: PermissionMode): void {
 
 function loadThinkingFromStorage(): ThinkingLevel {
   try {
-    const v = localStorage.getItem(THINKING_STORAGE_KEY);
+    const v = safeGetString(THINKING_STORAGE_KEY);
     if (v && (THINKING_LEVELS as readonly string[]).includes(v)) return v as ThinkingLevel;
   } catch {
     // ignore
@@ -195,7 +196,7 @@ function loadThinkingFromStorage(): ThinkingLevel {
 
 function saveThinkingToStorage(v: ThinkingLevel): void {
   try {
-    localStorage.setItem(THINKING_STORAGE_KEY, v);
+    safeSetString(THINKING_STORAGE_KEY, v);
   } catch {
     // ignore
   }
@@ -203,7 +204,7 @@ function saveThinkingToStorage(v: ThinkingLevel): void {
 
 function loadPlanModeFromStorage(): boolean {
   try {
-    return localStorage.getItem(PLAN_MODE_STORAGE_KEY) === 'true';
+    return safeGetString(PLAN_MODE_STORAGE_KEY) === 'true';
   } catch {
     return false;
   }
@@ -211,7 +212,7 @@ function loadPlanModeFromStorage(): boolean {
 
 function savePlanModeToStorage(v: boolean): void {
   try {
-    localStorage.setItem(PLAN_MODE_STORAGE_KEY, v ? 'true' : 'false');
+    safeSetString(PLAN_MODE_STORAGE_KEY, v ? 'true' : 'false');
   } catch {
     // ignore
   }
@@ -219,7 +220,7 @@ function savePlanModeToStorage(v: boolean): void {
 
 function loadSwarmModeFromStorage(): boolean {
   try {
-    return localStorage.getItem(SWARM_MODE_STORAGE_KEY) === 'true';
+    return safeGetString(SWARM_MODE_STORAGE_KEY) === 'true';
   } catch {
     return false;
   }
@@ -227,7 +228,7 @@ function loadSwarmModeFromStorage(): boolean {
 
 function saveSwarmModeToStorage(v: boolean): void {
   try {
-    localStorage.setItem(SWARM_MODE_STORAGE_KEY, v ? 'true' : 'false');
+    safeSetString(SWARM_MODE_STORAGE_KEY, v ? 'true' : 'false');
   } catch {
     // ignore
   }
@@ -235,7 +236,7 @@ function saveSwarmModeToStorage(v: boolean): void {
 
 function loadGoalModeFromStorage(): boolean {
   try {
-    return localStorage.getItem(GOAL_MODE_STORAGE_KEY) === 'true';
+    return safeGetString(GOAL_MODE_STORAGE_KEY) === 'true';
   } catch {
     return false;
   }
@@ -243,7 +244,7 @@ function loadGoalModeFromStorage(): boolean {
 
 function saveGoalModeToStorage(v: boolean): void {
   try {
-    localStorage.setItem(GOAL_MODE_STORAGE_KEY, v ? 'true' : 'false');
+    safeSetString(GOAL_MODE_STORAGE_KEY, v ? 'true' : 'false');
   } catch {
     // ignore
   }
@@ -255,7 +256,7 @@ function saveGoalModeToStorage(v: boolean): void {
 // the in-memory map starts empty and there is no server-side read cursor.
 function loadUnreadFromStorage(): Record<string, boolean> {
   try {
-    const raw = localStorage.getItem(UNREAD_STORAGE_KEY);
+    const raw = safeGetString(UNREAD_STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== 'object') return {};
@@ -277,7 +278,7 @@ function saveUnreadToStorage(map: Record<string, boolean>): void {
     for (const [id, value] of Object.entries(map)) {
       if (value) out[id] = true;
     }
-    localStorage.setItem(UNREAD_STORAGE_KEY, JSON.stringify(out));
+    safeSetString(UNREAD_STORAGE_KEY, JSON.stringify(out));
   } catch {
     // ignore
   }
@@ -285,7 +286,7 @@ function saveUnreadToStorage(map: Record<string, boolean>): void {
 
 function loadStarredModelsFromStorage(): string[] {
   try {
-    const raw = localStorage.getItem(STARRED_MODELS_STORAGE_KEY);
+    const raw = safeGetString(STARRED_MODELS_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')) {
@@ -299,7 +300,7 @@ function loadStarredModelsFromStorage(): string[] {
 
 function saveStarredModelsToStorage(v: string[]): void {
   try {
-    localStorage.setItem(STARRED_MODELS_STORAGE_KEY, JSON.stringify(v));
+    safeSetString(STARRED_MODELS_STORAGE_KEY, JSON.stringify(v));
   } catch {
     // ignore
   }
@@ -307,7 +308,7 @@ function saveStarredModelsToStorage(v: string[]): void {
 
 function loadThemeFromStorage(): Theme {
   try {
-    const v = localStorage.getItem(THEME_STORAGE_KEY);
+    const v = safeGetString(THEME_STORAGE_KEY);
     if (v === 'terminal' || v === 'modern' || v === 'kimi') return v;
   } catch {
     // ignore
@@ -319,7 +320,7 @@ function loadThemeFromStorage(): Theme {
 
 function saveThemeToStorage(v: Theme): void {
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, v);
+    safeSetString(THEME_STORAGE_KEY, v);
   } catch {
     // ignore
   }
@@ -332,7 +333,7 @@ function clampUiFontSize(value: number): number {
 
 function loadUiFontSizeFromStorage(): number {
   try {
-    const v = localStorage.getItem(UI_FONT_SIZE_STORAGE_KEY);
+    const v = safeGetString(UI_FONT_SIZE_STORAGE_KEY);
     return v === null ? UI_FONT_SIZE_DEFAULT : clampUiFontSize(Number(v));
   } catch {
     return UI_FONT_SIZE_DEFAULT;
@@ -341,7 +342,7 @@ function loadUiFontSizeFromStorage(): number {
 
 function saveUiFontSizeToStorage(value: number): void {
   try {
-    localStorage.setItem(UI_FONT_SIZE_STORAGE_KEY, String(clampUiFontSize(value)));
+    safeSetString(UI_FONT_SIZE_STORAGE_KEY, String(clampUiFontSize(value)));
   } catch {
     // ignore
   }
@@ -354,7 +355,7 @@ function applyUiFontSizeToDocument(value: number): void {
 
 function loadActiveWorkspaceFromStorage(): string | null {
   try {
-    return localStorage.getItem(ACTIVE_WORKSPACE_KEY);
+    return safeGetString(ACTIVE_WORKSPACE_KEY);
   } catch {
     return null;
   }
@@ -369,7 +370,7 @@ const HIDDEN_WORKSPACES_KEY = 'kimi-web.hidden-workspaces';
 
 function loadHiddenWorkspacesFromStorage(): string[] {
   try {
-    const v = localStorage.getItem(HIDDEN_WORKSPACES_KEY);
+    const v = safeGetString(HIDDEN_WORKSPACES_KEY);
     if (!v) return [];
     const parsed = JSON.parse(v);
     return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
@@ -380,7 +381,7 @@ function loadHiddenWorkspacesFromStorage(): string[] {
 
 function saveHiddenWorkspacesToStorage(roots: string[]): void {
   try {
-    localStorage.setItem(HIDDEN_WORKSPACES_KEY, JSON.stringify(roots));
+    safeSetString(HIDDEN_WORKSPACES_KEY, JSON.stringify(roots));
   } catch {
     // ignore
   }
@@ -388,7 +389,7 @@ function saveHiddenWorkspacesToStorage(roots: string[]): void {
 
 function saveActiveWorkspaceToStorage(id: string): void {
   try {
-    localStorage.setItem(ACTIVE_WORKSPACE_KEY, id);
+    safeSetString(ACTIVE_WORKSPACE_KEY, id);
   } catch {
     // ignore
   }
@@ -711,14 +712,14 @@ function setUiFontSize(value: number): void {
 const BETA_TOC_STORAGE_KEY = 'kimi-web.beta-toc';
 function loadBetaTocFromStorage(): boolean {
   try {
-    return localStorage.getItem(BETA_TOC_STORAGE_KEY) === 'true';
+    return safeGetString(BETA_TOC_STORAGE_KEY) === 'true';
   } catch {
     return false;
   }
 }
 function saveBetaTocToStorage(v: boolean): void {
   try {
-    localStorage.setItem(BETA_TOC_STORAGE_KEY, v ? 'true' : 'false');
+    safeSetString(BETA_TOC_STORAGE_KEY, v ? 'true' : 'false');
   } catch {
     // ignore
   }
@@ -749,7 +750,7 @@ function setAccent(a: Accent): void {
   if (!ACCENT_VALUES.includes(a)) return;
   accent.value = a;
   try {
-    localStorage.setItem(ACCENT_STORAGE_KEY, a);
+    safeSetString(ACCENT_STORAGE_KEY, a);
   } catch {
     // ignore
   }
@@ -762,7 +763,7 @@ function setAccent(a: Accent): void {
 const NOTIFY_STORAGE_KEY = 'kimi-web.notify-on-complete';
 function loadNotifyFromStorage(): boolean {
   try {
-    const v = localStorage.getItem(NOTIFY_STORAGE_KEY);
+    const v = safeGetString(NOTIFY_STORAGE_KEY);
     return v === null ? true : v === '1';
   } catch {
     return true;
@@ -778,7 +779,7 @@ const notifyPermission = ref<string>(
 async function setNotifyOnComplete(on: boolean): Promise<void> {
   if (!on) {
     notifyOnComplete.value = false;
-    try { localStorage.setItem(NOTIFY_STORAGE_KEY, '0'); } catch { /* ignore */ }
+    try { safeSetString(NOTIFY_STORAGE_KEY, '0'); } catch { /* ignore */ }
     return;
   }
   if (typeof Notification === 'undefined') return;
@@ -789,7 +790,7 @@ async function setNotifyOnComplete(on: boolean): Promise<void> {
   notifyPermission.value = perm;
   if (perm !== 'granted') return; // blocked — leave the toggle off
   notifyOnComplete.value = true;
-  try { localStorage.setItem(NOTIFY_STORAGE_KEY, '1'); } catch { /* ignore */ }
+  try { safeSetString(NOTIFY_STORAGE_KEY, '1'); } catch { /* ignore */ }
 }
 
 /** Fire a completion notification for a finished session, but only when the
@@ -840,7 +841,7 @@ function fireCompletionNotification(sid: string): void {
 // ---------------------------------------------------------------------------
 function loadStringFromStorage(key: string): string {
   try {
-    return localStorage.getItem(key) ?? '';
+    return safeGetString(key) ?? '';
   } catch {
     return '';
   }
@@ -849,7 +850,7 @@ const onboarded = ref<boolean>(loadStringFromStorage(ONBOARDED_STORAGE_KEY) === 
 function setOnboarded(done: boolean): void {
   onboarded.value = done;
   try {
-    localStorage.setItem(ONBOARDED_STORAGE_KEY, done ? '1' : '0');
+    safeSetString(ONBOARDED_STORAGE_KEY, done ? '1' : '0');
   } catch {
     /* ignore */
   }
@@ -2876,7 +2877,7 @@ function applyWorkspaceEvent(event: WorkspaceLifecycleEvent): void {
     if (nextWorkspace) saveActiveWorkspaceToStorage(nextWorkspace);
     else {
       try {
-        localStorage.removeItem(ACTIVE_WORKSPACE_KEY);
+        safeRemove(ACTIVE_WORKSPACE_KEY);
       } catch {
         // ignore
       }
@@ -3759,7 +3760,7 @@ async function deleteWorkspace(id: string): Promise<void> {
     rawState.activeWorkspaceId = nextWorkspace;
     if (nextWorkspace) saveActiveWorkspaceToStorage(nextWorkspace);
     else {
-      try { localStorage.removeItem(ACTIVE_WORKSPACE_KEY); } catch { /* ignore */ }
+      try { safeRemove(ACTIVE_WORKSPACE_KEY); } catch { /* ignore */ }
     }
   }
   if (removingActiveWorkspace || activeSessionInRemovedWorkspace) {
