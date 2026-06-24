@@ -26,6 +26,8 @@ import type { Kaos } from '@moonshot-ai/kaos';
 
 import type { ApprovalHandler, MemoryApprovalHandler, QuestionHandler } from '#/events';
 import type {
+  AddAdditionalDirInput,
+  AddAdditionalDirResult,
   BackgroundTaskInfo,
   ConfigDiagnostics,
   CreateSessionOptions,
@@ -264,6 +266,16 @@ export abstract class SDKRpcClientBase {
   async reloadSystemPrompt(input: SessionIdRpcInput): Promise<void> {
     const rpc = await this.getRpc();
     return rpc.reloadSystemPrompt({ sessionId: input.sessionId });
+  }
+
+  async getSessionWarnings(input: SessionIdRpcInput) {
+    const rpc = await this.getRpc();
+    return rpc.getSessionWarnings({ sessionId: input.sessionId });
+  }
+
+  async addAdditionalDir(input: AddAdditionalDirInput): Promise<AddAdditionalDirResult> {
+    const rpc = await this.getRpc();
+    return rpc.addAdditionalDir({ sessionId: input.id, path: input.path, persist: input.persist });
   }
 
   async startBtw(input: SessionIdRpcInput): Promise<string> {
@@ -630,6 +642,17 @@ export abstract class SDKRpcClientBase {
       agentId: this.interactiveAgentId,
       taskId: input.taskId,
       reason: input.reason,
+    });
+  }
+
+  async detachBackgroundTask(
+    input: SessionIdRpcInput & { taskId: string },
+  ): Promise<BackgroundTaskInfo | undefined> {
+    const rpc = await this.getRpc();
+    return rpc.detachBackground({
+      sessionId: input.sessionId,
+      agentId: this.interactiveAgentId,
+      taskId: input.taskId,
     });
   }
 

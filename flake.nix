@@ -150,7 +150,7 @@
               inherit (finalAttrs) pname version src pnpmWorkspaces;
               inherit pnpm;
               fetcherVersion = 3;
-              hash = "sha256-P2g+vBKs2R/TSFZHguszrZVNp86LKZsl5vY9aqjHv2c=";
+              hash = "sha256-l8RvHgEGwS1XX0VGWCNtF1EmE1SRQFyCCYGPCoPL3JY=";
             };
 
             nativeBuildInputs = [
@@ -213,7 +213,7 @@
 
             meta = {
               description = "Kimi Code CLI";
-              homepage = "https://github.com/AGSQ11/kimi-code";
+              homepage = "https://github.com/MoonshotAI/kimi-code";
               license = lib.licenses.mit;
               mainProgram = "kimi";
               platforms = systems;

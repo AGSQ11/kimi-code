@@ -13,10 +13,10 @@ All flags are optional — run `kimi` directly to enter an interactive session:
 
 | Option | Short | Description |
 | --- | --- | --- |
-| `--version` | `-V` | Print the version string (e.g. `v0.14-feature`) and exit |
+| `--version` | `-V` | Print the version number and exit |
 | `--help` | `-h` | Show help information and exit |
 | `--session [id]` | `-S` | Resume a session. With an ID, opens that session directly; without an ID, enters an interactive selector |
-| `--continue` | `-C` | Continue the most recent session in the current working directory, without specifying an ID manually |
+| `--continue` | `-c` | Continue the most recent session in the current working directory, without specifying an ID manually |
 | `--model <model>` | `-m` | Specify a model alias for this launch. When omitted, new sessions use `default_model` from the config file |
 | `--prompt <prompt>` | `-p` | Run a single prompt non-interactively and stream the Assistant output to stdout. This mode does not open the TUI |
 | `--output-format <format>` | | Set the non-interactive output format; supports `text` and `stream-json`. Can only be used with `--prompt`; defaults to `text` |
@@ -24,6 +24,7 @@ All flags are optional — run `kimi` directly to enter an interactive session:
 | `--auto` | | Start with auto permission mode; tool approvals are handled automatically and the Agent will not ask the user questions |
 | `--plan` | | Start a new session in Plan mode — the AI will prioritize read-only tools for exploration and planning |
 | `--skills-dir <dir>` | | Load Skills from the specified directory, replacing the automatically discovered user and project directories. Can be repeated |
+| `--add-dir <dir>` | | Add an extra workspace directory for this session. Relative paths resolve against the current working directory. Can be repeated |
 
 `-r` / `--resume` is a hidden alias for `--session`; `--yes` and `--auto-approve` are hidden aliases for `--yolo` and are not shown in help output.
 
@@ -119,7 +120,7 @@ In `stream-json` mode, regular replies produce an Assistant message; when the mo
 
 ## Subcommands
 
-`kimi` provides the following subcommands: `login` (non-interactive login), `acp` (ACP IDE mode), `server` (run and manage the local REST/WebSocket/web service), `web` (alias for `kimi server run --open`), `doctor` (validate configuration files), `eval` (run prompt/model/variation benchmarks), `vis` (visualize a session in the browser), `export` (export a session), `migrate` (migrate legacy data), `upgrade` (check for updates), and `provider` (manage providers).
+`kimi` provides the following subcommands: `login` (non-interactive login), `acp` (ACP IDE mode), `server` (run and manage the local REST/WebSocket/web service), `web` (alias for `kimi server run --open`), `doctor` (validate configuration files), `export` (export a session), `migrate` (migrate legacy data), `upgrade` (check for updates), and `provider` (manage providers).
 
 ### `kimi login`
 
@@ -280,52 +281,6 @@ kimi upgrade
 ```
 
 For global npm, pnpm, yarn, bun, and macOS / Linux native installations, `kimi upgrade` shows update options; selecting `Install update now` runs the corresponding foreground install command. When the current installation method cannot be upgraded automatically (e.g., Windows native installation), the manual update command is printed instead.
-
-### `kimi eval`
-
-Run a benchmark across prompts, models, and variations, then emit a comparison report. This is useful for comparing model outputs, prompt versions, or `systemPrompt` settings in a repeatable way.
-
-```sh
-kimi eval [spec] [options]
-```
-
-When `spec` is omitted, use `--prompts` and `--models` to define an inline benchmark.
-
-| Parameter / Option | Short | Description |
-| --- | --- | --- |
-| `spec` | | Path to a YAML or JSON eval spec file |
-| `--prompts <paths...>` | `-p` | Prompt file paths. Requires `--models` when no spec file is given |
-| `--models <models...>` | `-m` | Model aliases. Requires `--prompts` when no spec file is given |
-| `--output <path>` | `-o` | Output report path. Use `.json` or `.md`; defaults to stdout JSON |
-| `--samples <n>` | | Override the number of samples per combination |
-| `--timeout <seconds>` | | Override the per-run timeout |
-| `--suite-timeout <seconds>` | | Override the suite timeout |
-| `--yes` | `-y` | Confirm `executeTools: true` in the spec |
-
-Example spec file:
-
-```yaml
-version: '1.0'
-name: Greeting eval
-samples: 3
-executeTools: false
-prompts:
-  - id: hello
-    file: ./prompts/hello.md
-models:
-  - default
-variations:
-  - id: default
-  - id: friendly
-    systemPrompt: 'You are a friendly assistant.'
-evaluation:
-  metrics:
-    - name: containsHello
-      type: substring
-      value: hello
-```
-
-The command exits with `0` when all runs complete successfully, and `1` when any run fails or times out.
 
 ### `kimi vis`
 

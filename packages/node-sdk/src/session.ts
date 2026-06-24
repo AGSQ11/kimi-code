@@ -16,6 +16,8 @@ import {
 } from '#/events';
 import type { SDKRpcClientBase } from '#/rpc';
 import type {
+  AddAdditionalDirOptions,
+  AddAdditionalDirResult,
   BackgroundTaskInfo,
   CompactOptions,
   CreateGoalInput,
@@ -148,6 +150,30 @@ export class Session {
   async reloadSystemPrompt(): Promise<void> {
     this.ensureOpen();
     return this.rpc.reloadSystemPrompt({ sessionId: this.id });
+  }
+
+  async getSessionWarnings() {
+    this.ensureOpen();
+    return this.rpc.getSessionWarnings({ sessionId: this.id });
+  }
+
+  async addAdditionalDir(
+    path: string,
+    options?: AddAdditionalDirOptions,
+  ): Promise<AddAdditionalDirResult> {
+    this.ensureOpen();
+    const normalized = normalizeRequiredString(
+      path,
+      'Additional directory cannot be empty',
+      ErrorCodes.REQUEST_INVALID,
+    );
+    const result = await this.rpc.addAdditionalDir({
+      id: this.id,
+      path: normalized,
+      persist: options?.persist ?? true,
+    });
+    this.summary = { ...this.requireSummary(), additionalDirs: result.additionalDirs };
+    return result;
   }
 
   async startBtw(): Promise<string> {
@@ -406,6 +432,23 @@ export class Session {
     });
   }
 
+  /**
+   * Detach a running foreground task so the current tool call can return while
+   * the task continues under background-task management.
+   */
+  async detachBackgroundTask(taskId: string): Promise<BackgroundTaskInfo | undefined> {
+    this.ensureOpen();
+    const trimmedTaskId = normalizeRequiredString(
+      taskId,
+      'Task id cannot be empty',
+      ErrorCodes.BACKGROUND_TASK_ID_EMPTY,
+    );
+    return this.rpc.detachBackgroundTask({
+      sessionId: this.id,
+      taskId: trimmedTaskId,
+    });
+  }
+
   // --- Goal lifecycle ---------------------------------------------------
   // Deterministic user/host control surface. There is intentionally no
   // `updateGoal`: the goal's terminal status is decided by the model via the
@@ -551,6 +594,13 @@ export class Session {
     if (this.closed) {
       throw new KimiError(ErrorCodes.SESSION_CLOSED, 'Session is closed');
     }
+  }
+
+  private requireSummary(): SessionSummary {
+    if (this.summary === undefined) {
+      throw new KimiError(ErrorCodes.SESSION_STATE_INVALID, 'Session summary is unavailable');
+    }
+    return this.summary;
   }
 }
 

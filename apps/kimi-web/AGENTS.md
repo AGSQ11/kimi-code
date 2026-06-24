@@ -10,7 +10,7 @@ The browser web UI for Kimi Code — a peer to the TUI in `apps/kimi-code`. It t
 
 - `main.ts` — bootstrap (creates the app, installs i18n, mounts `#app`). `App.vue` — root component, holds most app state.
 - `api/` — server client. `index.ts` exposes the `getKimiWebApi()` singleton; `config.ts` builds REST/WS URLs; `daemon/` holds the wire client (`http.ts`, `ws.ts`, `wire.ts`, `mappers.ts`, `agentEventProjector.ts`, `eventReducer.ts`).
-- `components/` — ~50 flat SFCs, no subdirectories.
+- `components/` — ~50 flat SFCs, no subdirectories. This fork intentionally keeps the flat layout to support custom dialogs and components; upstream's `chat/`/`settings/`/`dialogs/`/`mobile/` subdirectories are not used here.
 - `composables/` — reusable state logic, `useX` naming (`useKimiWebClient`, `useIsDark`, `usePaneLayout`, …).
 - `lib/` — pure helpers (`parseDiff`, `slashCommands`, `sessionRoute`, `toolMeta`, …).
 - `i18n/` — vue-i18n setup plus locale namespaces.

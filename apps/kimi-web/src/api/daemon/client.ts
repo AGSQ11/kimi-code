@@ -16,11 +16,12 @@ import type {
   AppProvider,
   ProviderRefreshResult,
   AppSession,
-  AppSkill,
   AppSessionCursor,
   AppSessionRuntimeStatus,
   AppSessionSnapshot,
   AppSessionStatus,
+  AppSessionWarning,
+  AppSkill,
   AppTask,
   AppTaskStatus,
   AppTerminal,
@@ -92,6 +93,8 @@ import type {
   WireSessionAbortResult,
   WireSessionRuntimeStatus,
   WireSessionSnapshot,
+  WireSessionWarning,
+  WireSessionWarningsResponse,
   WireWorkspace,
   WireLogoutResult,
 } from './wire';
@@ -453,6 +456,17 @@ export class DaemonKimiWebApi implements KimiWebApi {
       {},
     );
     return data;
+  }
+
+  async getSessionWarnings(sessionId: string): Promise<AppSessionWarning[]> {
+    const data = await this.http.get<WireSessionWarningsResponse>(
+      `/sessions/${encodeURIComponent(sessionId)}/warnings`,
+    );
+    return (data.warnings ?? []).map((w) => ({
+      code: w.code,
+      message: w.message,
+      severity: w.severity,
+    }));
   }
 
   // -------------------------------------------------------------------------
