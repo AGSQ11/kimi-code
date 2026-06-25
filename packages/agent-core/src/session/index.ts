@@ -6,6 +6,7 @@ import { ErrorCodes, KimiError } from '#/errors';
 import { getRootLogger, log } from '#/logging/logger';
 import type { Logger, SessionLogHandle } from '#/logging/types';
 import type { KimiConfig, SDKSessionRPC } from '#/rpc';
+import type { SessionWarning } from '@moonshot-ai/protocol';
 import { proxyWithExtraPayload } from '#/rpc/types';
 
 import { Agent, type AgentOptions, type AgentType } from '../agent';
@@ -63,6 +64,7 @@ export interface SessionOptions {
   readonly pluginSessionStarts?: readonly EnabledPluginSessionStart[];
   readonly appVersion?: string;
   readonly experimentalFlags?: ExperimentalFlagResolver;
+  readonly additionalDirs?: readonly string[];
   readonly modelProbeStatus?: Record<string, ModelProbeResult>;
   readonly requestModelProbe?: (options?: {
     background?: boolean;
@@ -264,6 +266,31 @@ export class Session {
     }
     await this.triggerSessionStart('resume');
     return { warning };
+  }
+
+  async getSessionWarnings(): Promise<readonly SessionWarning[]> {
+    // TODO: implement session warning collection (upstream feature)
+    return [];
+  }
+
+  getAdditionalDirs(): readonly string[] {
+    return this.options.additionalDirs ?? [];
+  }
+
+  async addAdditionalDir(
+    path: string,
+    persist?: boolean,
+  ): Promise<{ additionalDirs: readonly string[]; projectRoot: string; configPath: string; persisted: boolean }> {
+    // TODO: implement additional directory persistence (upstream feature)
+    for (const agent of this.readyAgents()) {
+      agent.setAdditionalDirs([...(agent.getAdditionalDirs() ?? []), path]);
+    }
+    return {
+      additionalDirs: this.getAdditionalDirs(),
+      projectRoot: this.options.kaos.getcwd(),
+      configPath: '',
+      persisted: persist ?? false,
+    };
   }
 
   async close(): Promise<void> {

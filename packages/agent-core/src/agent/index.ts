@@ -49,6 +49,7 @@ import { KosongLLM } from './turn/kosong-llm';
 import { UsageRecorder } from './usage';
 import { LlmRequestLogger, splitGenerateOptions } from './llm-request-logger';
 import { resolveCompletionBudget } from '../utils/completion-budget';
+import { normalizeAdditionalDirs } from '../config/workspace-local';
 import type { Kaos } from '@moonshot-ai/kaos';
 import type { ToolServices } from '../tools/support/services';
 
@@ -82,6 +83,8 @@ export interface AgentOptions {
   readonly pluginSessionStarts?: readonly EnabledPluginSessionStart[];
   readonly experimentalFlags?: ExperimentalFlagResolver;
   readonly replay?: ReplayBuilderOptions;
+  readonly additionalDirs?: readonly string[];
+  readonly allowBackground?: boolean;
 }
 
 export class Agent {
@@ -126,6 +129,7 @@ export class Agent {
   readonly cron: CronManager | null;
   readonly goal: GoalMode;
   readonly replayBuilder: ReplayBuilder;
+  private additionalDirs: readonly string[];
 
   forceMcpEnabled = false;
 
@@ -187,10 +191,22 @@ export class Agent {
     this.cron = this.type === 'sub' ? null : new CronManager(this);
     this.goal = new GoalMode(this);
     this.replayBuilder = new ReplayBuilder(this, options.replay);
+    this.additionalDirs = normalizeAdditionalDirs(options.additionalDirs ?? []);
   }
 
   setKaos(kaos: Kaos) {
     this._kaos = kaos;
+  }
+
+  getAdditionalDirs(): readonly string[] {
+    return this.additionalDirs;
+  }
+
+  setAdditionalDirs(additionalDirs: readonly string[]): void {
+    this.additionalDirs = normalizeAdditionalDirs(additionalDirs);
+    if (this.config.hasProvider) {
+      this.tools.initializeBuiltinTools();
+    }
   }
 
   get generate(): typeof generate {
@@ -376,6 +392,12 @@ export class Agent {
       },
       stopBackground: (payload) => {
         void this.background.stop(payload.taskId, payload.reason);
+      },
+      detachBackground: (payload) => {
+        // TODO: implement background task detachment (upstream feature)
+        const task = this.background.getTask(payload.taskId);
+        void this.background.stop(payload.taskId, 'detached');
+        return task;
       },
       clearContext: () => {
         this.context.clear();

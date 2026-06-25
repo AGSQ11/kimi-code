@@ -47,8 +47,11 @@ import {
   type TelemetryProperties,
 } from '../telemetry';
 import type { CoreRPCClient } from './client';
+import type { SessionWarning } from '@moonshot-ai/protocol';
 import type {
   ActivateSkillPayload,
+  AddAdditionalDirPayload,
+  AddAdditionalDirResult,
   ArchiveSessionPayload,
   BeginCompactionPayload,
   CancelPayload,
@@ -59,6 +62,7 @@ import type {
   CoreInfo,
   CreateGoalPayload,
   CreateSessionPayload,
+  DetachBackgroundPayload,
   ClientTelemetryInfo,
   EmptyPayload,
   EnterSwarmPayload,
@@ -233,6 +237,7 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
     const result: SessionSummary = {
       ...summary,
       metadata: options.metadata,
+      additionalDirs: options.additionalDirs,
     };
     const clientTelemetry = clientTelemetryProperties(options.client);
     const sessionTelemetryBase = withTelemetryContext(this.telemetry, { sessionId: summary.id });
@@ -270,6 +275,7 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
       pluginSessionStarts,
       appVersion: this.appVersion,
       requestModelProbe: async () => this.probeAllModels({ sessionId: summary.id }),
+      additionalDirs: options.additionalDirs,
     });
     try {
       session.metadata = {
@@ -381,6 +387,7 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
       pluginSessionStarts,
       appVersion: this.appVersion,
       requestModelProbe: async () => this.probeAllModels({ sessionId: summary.id }),
+      additionalDirs: input.additionalDirs,
     });
     let warning: string | undefined;
     try {
@@ -577,6 +584,16 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
     return this.sessionApi(sessionId).setModelProbeStatus({ status });
   }
 
+  getSessionWarnings({ sessionId }: SessionScopedPayload<EmptyPayload>): Promise<readonly SessionWarning[]> {
+    return this.sessionApi(sessionId).getSessionWarnings({});
+  }
+
+  addAdditionalDir(
+    { sessionId, ...payload }: SessionScopedPayload<AddAdditionalDirPayload>,
+  ): Promise<AddAdditionalDirResult> {
+    return this.sessionApi(sessionId).addAdditionalDir(payload);
+  }
+
   setThinking({ sessionId, ...payload }: SessionAgentPayload<SetThinkingPayload>) {
     return this.sessionApi(sessionId).setThinking(payload);
   }
@@ -643,6 +660,10 @@ export class KimiCore implements PromisableMethods<CoreAPI> {
 
   stopBackground({ sessionId, ...payload }: SessionAgentPayload<StopBackgroundPayload>) {
     return this.sessionApi(sessionId).stopBackground(payload);
+  }
+
+  detachBackground({ sessionId, ...payload }: SessionAgentPayload<DetachBackgroundPayload>) {
+    return this.sessionApi(sessionId).detachBackground(payload);
   }
 
   clearContext({ sessionId, ...payload }: SessionAgentPayload<EmptyPayload>) {
@@ -1176,6 +1197,7 @@ async function resumeSessionResult(
   }
   return {
     ...summary,
+    additionalDirs: session.getAdditionalDirs(),
     sessionMetadata: api.getSessionMetadata({}),
     agents,
     warning,

@@ -189,9 +189,9 @@ micro_compaction = false
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
-      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({
@@ -248,6 +248,7 @@ micro_compaction = false
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await core.createSessionWithOverrides(
@@ -299,9 +300,9 @@ custom_headers = { "X-Test" = "1" }
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
-      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({ id: 'ses_runtime_service_oauth', workDir });
@@ -351,9 +352,9 @@ max_context_size = 100000
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
-      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({ id: 'ses_runtime_default_model', workDir });
@@ -385,6 +386,7 @@ max_context_size = 100000
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({
@@ -424,6 +426,7 @@ max_context_size = 100000
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({
@@ -459,6 +462,7 @@ max_context_size = 100000
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({
@@ -501,6 +505,7 @@ max_context_size = 100000
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({
@@ -544,6 +549,7 @@ max_context_size = 100000
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({
@@ -581,6 +587,7 @@ max_context_size = 100000
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({
@@ -612,6 +619,7 @@ max_context_size = 100000
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({
@@ -642,6 +650,7 @@ max_context_size = 100000
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({
@@ -695,6 +704,7 @@ max_context_size = 100000
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({
@@ -740,6 +750,7 @@ max_context_size = 100000
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({
@@ -794,9 +805,9 @@ max_context_size = 100000
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
-      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
     setCoreKaos(
       core,
@@ -828,9 +839,9 @@ max_context_size = 100000
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
-      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
     setCoreKaos(core, Promise.resolve(testKaos));
     const created = await rpc.createSession({
@@ -866,9 +877,9 @@ max_context_size = 100000
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
-      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({
@@ -909,9 +920,9 @@ base_url = "https://search.example.test/v1"
     const rpc = await sdkRpc({
       emitEvent: vi.fn(),
       requestApproval: vi.fn(async (): Promise<ApprovalResponse> => ({ decision: 'rejected' })),
-      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
       requestQuestion: vi.fn(async () => null),
       toolCall: vi.fn(async () => ({ output: '' })),
+      requestMemoryApproval: vi.fn(async () => ({ approved: [] as const })),
     });
 
     const created = await rpc.createSession({

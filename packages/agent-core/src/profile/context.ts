@@ -15,15 +15,22 @@ export type PreparedSystemPromptContext = Pick<SystemPromptContext, 'cwdListing'
   systemPromptOverride?: string | undefined;
 };
 
+export interface PrepareSystemPromptContextOptions {
+  readonly additionalDirs?: readonly string[];
+}
+
 export async function prepareSystemPromptContext(
   kaos: Kaos,
   brandHome?: string,
+  options?: PrepareSystemPromptContextOptions,
 ): Promise<PreparedSystemPromptContext> {
   const [cwdListing, agentsMd, systemPromptOverride] = await Promise.all([
     listDirectory(kaos, undefined, { collapseHiddenDirs: true }),
     loadAgentsMd(kaos, brandHome),
     loadSystemPromptOverride(kaos, brandHome),
   ]);
+  // TODO: use options.additionalDirs to include additional workspace directories
+  void options?.additionalDirs;
   return { cwdListing, agentsMd, systemPromptOverride };
 }
 
