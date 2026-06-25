@@ -394,10 +394,7 @@ export class Agent {
         void this.background.stop(payload.taskId, payload.reason);
       },
       detachBackground: (payload) => {
-        // TODO: implement background task detachment (upstream feature)
-        const task = this.background.getTask(payload.taskId);
-        void this.background.stop(payload.taskId, 'detached');
-        return task;
+        return this.background.detach(payload.taskId);
       },
       clearContext: () => {
         this.context.clear();
