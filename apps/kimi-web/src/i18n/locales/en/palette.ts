@@ -1,0 +1,18 @@
+export default {
+  placeholder: 'Type a command or search…',
+  noResults: 'No matching commands',
+  newSession: 'New Session',
+  searchSessions: 'Search Sessions',
+  switchModel: 'Switch Model',
+  probeModels: 'Probe Models',
+  toggleTheme: 'Toggle Theme',
+  togglePlanMode: 'Toggle Plan Mode',
+  toggleSidebar: 'Toggle Sidebar',
+  openSettings: 'Open Settings',
+  openMemory: 'Open Memory',
+  openCompare: 'Open Compare',
+  categoryCommand: 'Command',
+  categorySession: 'Session',
+  categoryModel: 'Model',
+  categoryUI: 'UI',
+} as const;

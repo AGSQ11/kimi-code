@@ -52,6 +52,7 @@ import type {
   ActivationBadges,
   ApprovalBlock,
   ChatTurn,
+  CompareResultView,
   ConnectionState,
   ConversationStatus,
   DiffLine,
@@ -1828,13 +1829,25 @@ const turns = computed<ChatTurn[]>(() => {
   const hiddenIds = new Set(rawState.sideChatUserMessageIdsBySession[sid] ?? []);
   const messages = (rawState.messagesBySession[sid] ?? []).filter((m) => !hiddenIds.has(m.id));
   const approvals = rawState.approvalsBySession[sid] ?? [];
-  return messagesToTurns(
+  const baseTurns = messagesToTurns(
     messages,
     approvals,
     (fileId) => getKimiWebApi().getFileUrl(fileId),
     activity.value !== 'idle',
     activeAppTasks.value,
   );
+  // Append synthetic compare turns for any stored compare results
+  const compareEntries = compareResultsBySession.value[sid] ?? [];
+  if (compareEntries.length === 0) return baseTurns;
+  const lastNo = baseTurns.length > 0 ? baseTurns[baseTurns.length - 1]!.no : 0;
+  const compareTurns: ChatTurn[] = compareEntries.map((entry, i) => ({
+    id: `compare-${sid}-${i}`,
+    role: 'assistant',
+    no: lastNo + i + 1,
+    text: '',
+    blocks: [{ kind: 'compare', results: entry.results }],
+  }));
+  return [...baseTurns, ...compareTurns];
 });
 
 // ---------------------------------------------------------------------------
@@ -2949,6 +2962,7 @@ async function startSessionAndSendPrompt(
   workspaceId: string,
   text: string,
   attachments?: PromptAttachment[],
+  generationKwargs?: Record<string, number | undefined>,
 ): Promise<void> {
   const ws = mergedWorkspaces.value.find((w) => w.id === workspaceId);
   if (!ws) return;
@@ -2986,7 +3000,15 @@ async function startSessionAndSendPrompt(
     // then submitPromptInternal adds the user turn synchronously (no await in
     // between), so the view goes loading → message with no empty-composer frame.
     await selectSession(session.id);
-    await submitPromptInternal(session.id, text, attachments);
+    // Apply per-message generation kwargs before first prompt, then restore.
+    if (generationKwargs && Object.keys(generationKwargs).length > 0) {
+      const previous = { ...rawState.config?.generationKwargs };
+      await api.setConfig({ generationKwargs });
+      await submitPromptInternal(session.id, text, attachments);
+      await api.setConfig({ generationKwargs: previous });
+    } else {
+      await submitPromptInternal(session.id, text, attachments);
+    }
   } catch (err) {
     pushOperationFailure('startSessionAndSendPrompt', err);
   }
@@ -4263,13 +4285,35 @@ async function reloadSystemPromptAction(): Promise<void> {
 // Compare actions
 // -------------------------------------------------------------------------
 
+const compareResultsBySession = ref<Record<string, { results: CompareResultView[]; createdAt: string }[]>>({});
+
 async function startCompare(modelB: string, prompt: string): Promise<void> {
+  const sid = rawState.activeSessionId;
+  if (!sid) return;
   try {
     const api = getKimiWebApi();
-    await api.startCompare(modelB, prompt);
+    const result = await api.startCompare(modelB, prompt);
+    const currentModel = status.value.modelId;
+    const nextResults: CompareResultView[] = [
+      { modelAlias: result.modelA || currentModel, modelId: result.modelA || currentModel, text: result.resultA },
+      { modelAlias: result.modelB || modelB, modelId: result.modelB || modelB, text: result.resultB },
+    ];
+    const current = compareResultsBySession.value[sid] ?? [];
+    compareResultsBySession.value = {
+      ...compareResultsBySession.value,
+      [sid]: [...current, { results: nextResults, createdAt: new Date().toISOString() }],
+    };
   } catch (err) {
     pushOperationFailure('startCompare', err);
   }
+}
+
+function clearCompareResults(sessionId?: string): void {
+  const sid = sessionId ?? rawState.activeSessionId;
+  if (!sid) return;
+  const next = { ...compareResultsBySession.value };
+  delete next[sid];
+  compareResultsBySession.value = next;
 }
 
 // -------------------------------------------------------------------------
@@ -4790,6 +4834,7 @@ export function useKimiWebClient() {
 
     // Compare action
     startCompare,
+    clearCompareResults,
 
     // Goal management
     replaceGoal,

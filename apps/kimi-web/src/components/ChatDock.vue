@@ -72,6 +72,7 @@ const emit = defineEmits<{
   cancelTask: [taskId: string];
   'toggle-dock-panel': [panel: 'bash' | 'subagent' | 'todos' | 'queue'];
   'close-dock-panel': [];
+  aiAction: [payload: { action: 'refine' | 'explain' | 'fix'; text: string }];
 }>();
 
 const { t } = useI18n();
@@ -307,6 +308,7 @@ defineExpose({ loadForEdit });
       @compact="emit('compact')"
       @pick-model="emit('pickModel')"
       @select-model="emit('selectModel', $event)"
+      @ai-action="emit('aiAction', $event)"
     />
   </div>
 </template>

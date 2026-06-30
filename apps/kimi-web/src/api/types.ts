@@ -807,7 +807,7 @@ export interface KimiWebApi {
   reloadSystemPrompt(): Promise<void>;
 
   // Compare
-  startCompare(modelB: string, prompt: string): Promise<void>;
+  startCompare(modelB: string, prompt: string): Promise<AppCompareResult>;
 
   // Goal management
   replaceGoal(objective: string): Promise<void>;

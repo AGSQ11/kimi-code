@@ -36,4 +36,10 @@ export default {
   contentSearching: 'Searching messages…',
   contentSearchLimit: 'Searched {searched} of {total} sessions',
   contentSearchError: 'Search failed',
+  pin: 'Pin session',
+  unpin: 'Unpin session',
+  addTag: 'Add tag',
+  removeTag: 'Remove tag',
+  tagFilterPlaceholder: 'Filter by tag',
+  tagFilterClear: 'Clear tag filter',
 } as const;

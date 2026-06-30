@@ -1,7 +1,7 @@
 <!-- apps/kimi-web/src/components/FilePreview.vue -->
 <!-- File preview pane: renders text/markdown/json/image/binary by mime and encoding. -->
 <script setup lang="ts">
-import { computed, inject, nextTick, provide, ref, watch } from 'vue';
+import { computed, inject, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Markdown from './Markdown.vue';
 import type { FileData, FilePreviewRequest } from '../types';
@@ -81,6 +81,7 @@ const emit = defineEmits<{
   close: [];
   openExternal: [];
   reveal: [];
+  'ai-action': [payload: { action: 'refine' | 'explain' | 'fix'; text: string }];
 }>();
 
 function handleMarkdownOpenFile(target: { path: string; line?: number }): void {
@@ -388,6 +389,84 @@ function truncatePath(path: string, maxLen = 55): string {
   if (!path || path.length <= maxLen) return path;
   return '…' + path.slice(path.length - maxLen + 1);
 }
+
+// ---------------------------------------------------------------------------
+// Selection-based AI enhance toolbar
+// ---------------------------------------------------------------------------
+
+const fpSelectionActive = ref(false);
+const fpSelectedText = ref('');
+const fpToolbarPos = ref<{ top: number; left: number }>({ top: 0, left: 0 });
+const FP_AI_ACTIONS = ['refine', 'explain', 'fix'] as const;
+type FpAiAction = typeof FP_AI_ACTIONS[number];
+const fpAiToolbarIndex = ref(0);
+
+function handleFpSelection(): void {
+  const selection = window.getSelection();
+  const text = selection?.toString().trim() ?? '';
+  if (!text || text.length < 2) {
+    fpSelectionActive.value = false;
+    return;
+  }
+  fpSelectionActive.value = true;
+  fpSelectedText.value = text;
+  fpAiToolbarIndex.value = 0;
+  const range = selection?.getRangeAt(0);
+  if (range) {
+    const rect = range.getBoundingClientRect();
+    fpToolbarPos.value = {
+      top: rect.top - 8,
+      left: rect.left + rect.width / 2,
+    };
+  }
+}
+
+function handleFpMouseUp(): void {
+  // Delay slightly so selection is finalized
+  setTimeout(handleFpSelection, 10);
+}
+
+function emitFpAiAction(action: FpAiAction): void {
+  const sel = fpSelectedText.value;
+  fpSelectionActive.value = false;
+  window.getSelection()?.removeAllRanges();
+  if (!sel) return;
+  emit('ai-action', { action, text: sel });
+}
+
+function handleFpToolbarKeydown(e: KeyboardEvent): void {
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    fpAiToolbarIndex.value = (fpAiToolbarIndex.value - 1 + FP_AI_ACTIONS.length) % FP_AI_ACTIONS.length;
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    fpAiToolbarIndex.value = (fpAiToolbarIndex.value + 1) % FP_AI_ACTIONS.length;
+  } else if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    emitFpAiAction(FP_AI_ACTIONS[fpAiToolbarIndex.value]!);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    fpSelectionActive.value = false;
+  }
+}
+
+// Clear selection toolbar when clicking outside
+function onFpDocClick(e: MouseEvent): void {
+  const target = e.target as Node;
+  if (!rootRef.value?.contains(target)) {
+    fpSelectionActive.value = false;
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('mouseup', handleFpMouseUp);
+  document.addEventListener('click', onFpDocClick);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('mouseup', handleFpMouseUp);
+  document.removeEventListener('click', onFpDocClick);
+});
 </script>
 
 <template>
@@ -651,6 +730,46 @@ function truncatePath(path: string, maxLen = 55): string {
       </div>
     </template>
   </div>
+
+  <!-- Floating AI selection toolbar — appears when text is selected in the file view -->
+  <Teleport to="body">
+    <div
+      v-if="fpSelectionActive"
+      class="fp-ai-toolbar"
+      :style="{ top: fpToolbarPos.top + 'px', left: fpToolbarPos.left + 'px' }"
+      role="toolbar"
+      :aria-label="t('filePreview.aiEnhanceTitle')"
+      @keydown="handleFpToolbarKeydown"
+    >
+      <button
+        v-for="(action, i) in FP_AI_ACTIONS"
+        :key="action"
+        type="button"
+        class="fp-ai-btn"
+        :class="{ active: fpAiToolbarIndex === i }"
+        @click.stop="emitFpAiAction(action)"
+      >
+        <!-- Refine: sparkle/wand icon -->
+        <svg v-if="action === 'refine'" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 1l1.5 4.5L14 7l-4.5 1.5L8 13l-1.5-4.5L2 7l4.5-1.5z"/>
+        </svg>
+        <!-- Explain: info icon -->
+        <svg v-else-if="action === 'explain'" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.5"/>
+          <path d="M6 6.5a2 2 0 1 1 2.5 1.9c-.3.15-.5.35-.5.6V10"/>
+          <circle cx="8" cy="12" r="0.5" fill="currentColor"/>
+        </svg>
+        <!-- Fix: wrench icon -->
+        <svg v-else viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13.5 2.5l-3 3M2.5 13.5l3-3"/>
+          <path d="M9.5 1.5l-4 4a3.5 3.5 0 0 0 1 5.5 3.5 3.5 0 0 0 5.5-1l-4-4"/>
+          <path d="M11.5 3.5l1 1"/>
+        </svg>
+        <span class="fp-ai-label">{{ t(`filePreview.ai${action.charAt(0).toUpperCase() + action.slice(1)}`) }}</span>
+      </button>
+    </div>
+  </Teleport>
+
 </template>
 
 <style scoped>
@@ -1034,6 +1153,58 @@ function truncatePath(path: string, maxLen = 55): string {
   border-top-color: var(--blue);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
+}
+
+/* ---- Floating AI selection toolbar (FilePreview) ---- */
+.fp-ai-toolbar {
+  position: fixed;
+  z-index: 300;
+  transform: translate(-50%, -100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+  padding: 3px;
+  animation: fp-ai-toolbar-in 0.12s ease-out;
+}
+
+@keyframes fp-ai-toolbar-in {
+  from { opacity: 0; transform: translate(-50%, calc(-100% + 4px)); }
+  to   { opacity: 1; transform: translate(-50%, -100%); }
+}
+
+.fp-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  border-radius: 5px;
+  color: var(--dim);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: var(--ui-font-size-xs);
+  white-space: nowrap;
+  transition: background 0.1s, color 0.1s;
+}
+
+.fp-ai-btn:hover,
+.fp-ai-btn.active {
+  background: var(--soft);
+  color: var(--blue2);
+}
+
+.fp-ai-btn:active {
+  background: var(--panel2);
+}
+
+.fp-ai-label {
+  font-size: var(--ui-font-size-xs);
+  line-height: 1;
 }
 
 /* ---- Mobile (≤640px): a comfier header (copy is a real tap target), and the

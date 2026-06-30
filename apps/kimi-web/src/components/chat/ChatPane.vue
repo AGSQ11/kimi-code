@@ -9,6 +9,7 @@ import ThinkingBlock from './ThinkingBlock.vue';
 import ActivityNotice from './ActivityNotice.vue';
 import AgentCard from './AgentCard.vue';
 import AgentGroup from './AgentGroup.vue';
+import CompareCard from '../CompareCard.vue';
 import MoonSpinner from '../MoonSpinner.vue';
 import { formatMessageTime } from '../../lib/formatMessageTime';
 import { copyTextToClipboard } from '../../lib/clipboard';

@@ -37,6 +37,8 @@ import CompareDialog from './components/CompareDialog.vue';
 import ExportDialog from './components/ExportDialog.vue';
 import GoalQueueManager from './components/GoalQueueManager.vue';
 import FeedbackDialog from './components/FeedbackDialog.vue';
+import NotesPanel from './components/NotesPanel.vue';
+import CommandPalette from './components/CommandPalette.vue';
 import { useKimiWebClient } from './composables/useKimiWebClient';
 import { useIsMobile } from './composables/useIsMobile';
 import type { AppConfig, ThinkingLevel } from './api/types';
@@ -56,6 +58,9 @@ const isMobile = useIsMobile();
 // Mobile sheet visibility
 const showMobileSwitcher = ref(false);
 const showMobileSettings = ref(false);
+
+// Command Palette
+const showCommandPalette = ref(false);
 
 // Active session title for the mobile top bar.
 const activeSessionTitle = computed<string>(() => {
@@ -183,13 +188,25 @@ onMounted(() => {
   // Capture-phase so Escape closes the side detail layer BEFORE the
   // conversation pane's bubble-phase handler interrupts a running prompt.
   document.addEventListener('keydown', onGlobalKeydown, true);
+  // Global Cmd/Ctrl+K for command palette
+  document.addEventListener('keydown', onCommandPaletteKeydown, true);
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', onGlobalKeydown, true);
+  document.removeEventListener('keydown', onCommandPaletteKeydown, true);
   stopSpinner();
   if (authLogoBlinkTimer !== null) clearTimeout(authLogoBlinkTimer);
 });
+
+// Command palette global keydown handler
+function onCommandPaletteKeydown(e: KeyboardEvent): void {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k' && !e.shiftKey && !e.altKey) {
+    e.preventDefault();
+    e.stopPropagation();
+    showCommandPalette.value = true;
+  }
+}
 
 // Escape closes whichever transient right-side detail panel is open.
 function closeOpenSidePanel(): boolean {
@@ -199,6 +216,7 @@ function closeOpenSidePanel(): boolean {
   if (detailTarget.value === 'file') { closeFilePreview(); return true; }
   if (detailTarget.value === 'diff') { closeDiffDetail(); return true; }
   if (detailTarget.value === 'btw') { closeSideChat(); return true; }
+  if (detailTarget.value === 'notes') { closeNotesPanel(); return true; }
   return false;
 }
 
@@ -254,7 +272,7 @@ function toggleSidebarCollapse(): void {
 // ---------------------------------------------------------------------------
 // Unified right-side detail layer. Only one detail is open at a time.
 // ---------------------------------------------------------------------------
-type DetailTarget = 'file' | 'diff' | 'thinking' | 'compaction' | 'agent' | 'btw';
+type DetailTarget = 'file' | 'diff' | 'thinking' | 'compaction' | 'agent' | 'btw' | 'notes';
 const detailTarget = ref<DetailTarget | null>(null);
 
 const PREVIEW_WIDTH_KEY = 'kimi-web.file-preview-width';
@@ -559,6 +577,17 @@ function hideSideChatPanel(): void {
 }
 
 const btwVisible = computed(() => client.sideChatVisible.value);
+const notesPanelVisible = ref(false);
+
+function openNotesPanel(): void {
+  detailTarget.value = 'notes';
+  notesPanelVisible.value = true;
+}
+
+function closeNotesPanel(): void {
+  notesPanelVisible.value = false;
+  if (detailTarget.value === 'notes') detailTarget.value = null;
+}
 
 /** Any occupant of the shared right-side slot. */
 const sidePanelVisible = computed(
@@ -567,7 +596,8 @@ const sidePanelVisible = computed(
     (detailTarget.value !== 'thinking' || thinkingVisible.value) &&
     (detailTarget.value !== 'compaction' || compactionPanelVisible.value) &&
     (detailTarget.value !== 'agent' || agentPanelVisible.value) &&
-    (detailTarget.value !== 'btw' || btwVisible.value),
+    (detailTarget.value !== 'btw' || btwVisible.value) &&
+    (detailTarget.value !== 'notes' || notesPanelVisible.value),
 );
 
 /** True while the panel's resize handle is being dragged — the width
@@ -593,6 +623,8 @@ watch(client.activeSessionId, () => {
   closeAgentPanel();
   closeDiffDetail();
   hideSideChatPanel();
+  closeNotesPanel();
+  client.clearCompareResults();
 });
 
 // Reference to ConversationPane so we can imperatively switch tabs
@@ -630,6 +662,7 @@ const showFeedbackDialog = ref(false);
 type SubmitPayload = {
   text: string;
   attachments: { fileId: string; kind: 'image' | 'video' }[];
+  generationKwargs?: Record<string, number | undefined>;
 };
 const pendingWorkspaceSubmit = ref<SubmitPayload | null>(null);
 
@@ -884,6 +917,14 @@ async function handleEditMessage(text: string): Promise<void> {
   conversationPaneRef.value?.loadComposerForEdit(text);
 }
 
+// Handler for inline AI enhance actions (Refine / Explain / Fix) from Composer or FilePreview.
+// Composes a prompt from the selected text and sends it to the active session.
+function handleAiAction(payload: { action: 'refine' | 'explain' | 'fix'; text: string }): void {
+  const i18nKey = `composer.ai${payload.action.charAt(0).toUpperCase() + payload.action.slice(1)}Prompt` as const;
+  const prompt = t(i18nKey, { selection: payload.text });
+  void client.sendPrompt(prompt);
+}
+
 // Handler for slash commands emitted by Composer (via ConversationPane)
 function handleCommand(cmd: string): void {
   // `/compact <text>` carries an optional free-text instruction steering what
@@ -1072,12 +1113,22 @@ function handleEditQueued(index: number): void {
 async function handleSubmit(payload: SubmitPayload): Promise<void> {
   const wsId = client.activeWorkspaceId.value;
   if (!client.activeSessionId.value && wsId) {
-    await client.startSessionAndSendPrompt(wsId, payload.text, payload.attachments);
+    await client.startSessionAndSendPrompt(wsId, payload.text, payload.attachments, payload.generationKwargs);
     return;
   }
   if (!client.activeSessionId.value && !wsId) {
     pendingWorkspaceSubmit.value = payload;
     showAddWorkspace.value = true;
+    return;
+  }
+  // Per-message generation kwargs: temporarily apply before send, restore after.
+  if (payload.generationKwargs && Object.keys(payload.generationKwargs).length > 0) {
+    const previous = { ...client.generationKwargs.value };
+    await client.updateConfig({ generationKwargs: payload.generationKwargs });
+    void client.sendPrompt(payload.text, payload.attachments);
+    // Restore previous kwargs after the prompt is dispatched (not after
+    // completion — the send is async but the config update is immediate).
+    await client.updateConfig({ generationKwargs: previous });
     return;
   }
   void client.sendPrompt(payload.text, payload.attachments);
@@ -1090,7 +1141,7 @@ async function handleAddWorkspace(root: string): Promise<void> {
   pendingWorkspaceSubmit.value = null;
   const wsId = client.activeWorkspaceId.value;
   if (pending && wsId) {
-    await client.startSessionAndSendPrompt(wsId, pending.text, pending.attachments);
+    await client.startSessionAndSendPrompt(wsId, pending.text, pending.attachments, pending.generationKwargs);
   }
 }
 
@@ -1267,6 +1318,7 @@ function openPr(url: string): void {
       :pr="client.activePullRequest.value"
       :beta-toc="client.betaToc.value"
       @open-changes="openDiffDetail()"
+      @open-notes="openNotesPanel()"
       @select-workspace="handleCreateSessionInWorkspace($event)"
       @add-workspace="showAddWorkspace = true"
       @open-pr="openPr"
@@ -1300,6 +1352,7 @@ function openPr(url: string): void {
       @open-compaction="openCompactionPanel($event)"
       @open-agent="openAgentPanel($event)"
       @edit-message="handleEditMessage"
+      @ai-action="handleAiAction"
     />
 
     <!-- Multi-workspace selection placeholder -->
@@ -1370,6 +1423,11 @@ function openPr(url: string): void {
         @back="detailDiffMode = 'list'; detailDiffPath = null; client.clearFileDiff()"
         @close="closeDiffDetail"
       />
+      <NotesPanel
+        v-else-if="detailTarget === 'notes' && notesPanelVisible"
+        @close="closeNotesPanel"
+        @insert="conversationPaneRef?.loadComposerForEdit($event)"
+      />
       <FilePreview
         v-else-if="detailTarget === 'file'"
         :file="previewFile"
@@ -1383,6 +1441,7 @@ function openPr(url: string): void {
         @close="closeFilePreview"
         @open-external="openPreviewInEditor"
         @reveal="revealPreviewFile"
+        @ai-action="handleAiAction"
       />
     </aside>
 
@@ -1642,6 +1701,24 @@ function openPr(url: string): void {
       @success="handleLoginSuccess"
       @close="showLogin = false"
     />
+
+    <!-- Command Palette -->
+    <CommandPalette
+      :open="showCommandPalette"
+      :skills="client.skills.value"
+      @close="showCommandPalette = false"
+      @new-session="handleCreateSession"
+      @search-sessions="showSessions = true"
+      @switch-model="openModelPicker"
+      @probe-models="client.probeModels"
+      @toggle-theme="client.toggleTheme"
+      @toggle-plan="client.togglePlanMode"
+      @toggle-sidebar="toggleSidebarCollapse"
+      @open-settings="showSettings = true"
+      @open-memory="openMemoryDialog"
+      @open-compare="openCompareDialog"
+      @open-notes="openNotesPanel"
+    />
   </div>
 </template>
 
@@ -1873,7 +1950,7 @@ function openPr(url: string): void {
 
 <style>
 :root {
-  /* Right-side panel headers (ThinkingPanel / FilePreview / DiffView / SideChatPanel)
+  /* Right-side panel headers (ThinkingPanel / FilePreview / DiffView / SideChatPanel / NotesPanel)
      share the same 48px height as the conversation header so the hairline reads as
      one continuous line across the layout. */
   --panel-head-h: 48px;

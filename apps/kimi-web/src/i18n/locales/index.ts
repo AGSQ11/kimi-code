@@ -59,6 +59,10 @@ import en_header from './en/header';
 import zh_header from './zh/header';
 import en_sideChat from './en/sideChat';
 import zh_sideChat from './zh/sideChat';
+import en_notes from './en/notes';
+import zh_notes from './zh/notes';
+import en_palette from './en/palette';
+import zh_palette from './zh/palette';
 
 export const messages = {
   en: {
@@ -92,6 +96,8 @@ export const messages = {
     settings: en_settings,
     header: en_header,
     sideChat: en_sideChat,
+    notes: en_notes,
+    palette: en_palette,
   },
   zh: {
     common: zh_common,
@@ -124,6 +130,8 @@ export const messages = {
     settings: zh_settings,
     header: zh_header,
     sideChat: zh_sideChat,
+    notes: zh_notes,
+    palette: zh_palette,
   },
 } as const;
 

@@ -173,7 +173,8 @@ export type TurnBlock =
   | { kind: 'thinking'; thinking: string }
   | { kind: 'tool'; tool: ToolCall }
   | { kind: 'agent'; member: AgentMember }
-  | { kind: 'agentGroup'; members: AgentMember[] };
+  | { kind: 'agentGroup'; members: AgentMember[] }
+  | { kind: 'compare'; results: CompareResultView[] };
 
 export interface ChatTurn {
   id: string;
@@ -241,7 +242,23 @@ export interface ConversationStatus {
 
 /** Kind of the global right-side detail layer. Only one detail is visible at a
  *  time; opening a new one closes the previous. */
-export type DetailTarget = 'file' | 'diff' | 'thinking' | 'compaction' | 'agent' | 'btw';
+export type DetailTarget = 'file' | 'diff' | 'thinking' | 'compaction' | 'agent' | 'btw' | 'notes';
+
+/** Per-message generation parameter overrides (temperature, top_p, max_tokens). */
+export interface MessageParams {
+  temperature?: number;
+  topP?: number;
+  maxTokens?: number;
+}
+
+/** A single compare result panel for inline rendering. */
+export interface CompareResultView {
+  modelAlias: string;
+  modelId: string;
+  text: string;
+  durationMs?: number;
+  tokenCount?: number;
+}
 
 export interface ActivationBadges {
   plan: boolean;

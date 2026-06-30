@@ -24,6 +24,12 @@ export default {
   binaryNoPreview: '二进制文件 · {mime} · {size} 字节 · 暂不预览',
   unknownType: '未知类型',
   copyCode: '复制代码',
+
+  // AI selection enhance actions
+  aiRefine: '优化',
+  aiExplain: '解释',
+  aiFix: '修复',
+  aiEnhanceTitle: 'AI 操作',
   errors: {
     emptyPath: '文件路径为空',
     unsupportedPath: '不支持预览 URL 或远程路径',

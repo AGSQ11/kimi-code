@@ -1305,11 +1305,17 @@ export class DaemonKimiWebApi implements KimiWebApi {
   // Compare
   // -------------------------------------------------------------------------
 
-  async startCompare(modelB: string, prompt: string): Promise<void> {
-    await this.http.post<WireCompareResult>('/compare', {
+  async startCompare(modelB: string, prompt: string): Promise<AppCompareResult> {
+    const wire = await this.http.post<WireCompareResult>('/compare', {
       model_b: modelB,
       prompt,
     });
+    return {
+      modelA: wire.model_a,
+      modelB: wire.model_b,
+      resultA: wire.result_a,
+      resultB: wire.result_b,
+    };
   }
 
   // -------------------------------------------------------------------------

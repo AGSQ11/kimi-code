@@ -17,9 +17,35 @@ export default {
   steerTitle: 'Inject into the running turn without waiting (Ctrl+S / ⌘S)',
   tokenEstimateTitle: 'Estimated tokens (text + attachments)',
   tokenUnit: 'tokens',
+  webSearch: 'Web search',
+  webSearchTitle: 'Search the web and include results as context',
+  webSearchPlaceholder: 'Search query…',
+  webSearchActive: 'Web search: {query}',
+  webSearchOpenTab: 'Open in browser',
   emptyConversationTitle: 'Kimi Code',
   emptyConversation: 'No messages yet — type below to start the conversation',
   quickStartPlaceholder: 'Type a message to start a new conversation…',
   thinkingSuffix: ' · thinking',
+
+  // AI selection enhance actions
+  aiRefine: 'Refine',
+  aiExplain: 'Explain',
+  aiFix: 'Fix',
+  aiRefineDesc: 'Improve the selected text',
+  aiExplainDesc: 'Explain the selected text',
+  aiFixDesc: 'Fix issues in the selected text',
+  aiEnhanceTitle: 'AI Actions',
+  aiRefinePrompt: 'Improve this text — make it clearer, more precise, and better written:\n\n{selection}',
+  aiExplainPrompt: 'Explain this:\n\n{selection}',
+  aiFixPrompt: 'Fix any issues in this code or text:\n\n{selection}',
+
+  // Per-message parameter overrides
+  paramsButton: 'Parameters',
+  paramsButtonCustom: 'Parameters (custom)',
+  paramsTemperature: 'Temperature',
+  paramsTopP: 'Top P',
+  paramsMaxTokens: 'Max Tokens',
+  paramsReset: 'Reset',
+  paramsCustomIndicator: 'Custom',
 
 } as const;
