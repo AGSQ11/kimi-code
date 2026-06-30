@@ -12,6 +12,7 @@ import type {
   AppMessageRole,
   AppMcpServer,
   AppModel,
+  AppModelProbeResult,
   AppPlugin,
   AppProvider,
   ProviderRefreshResult,
@@ -263,6 +264,28 @@ interface WireTerminal {
   created_at: string;
   exited_at?: string;
   exit_code?: number | null;
+}
+
+interface WireModelProbeResult {
+  alias: string;
+  status: string;
+  provider_name: string;
+  model: string;
+  error?: string;
+  status_code?: number;
+  probed_at: number;
+}
+
+function toAppModelProbeResult(data: WireModelProbeResult): AppModelProbeResult {
+  return {
+    alias: data.alias,
+    status: data.status as AppModelProbeResult['status'],
+    providerName: data.provider_name,
+    model: data.model,
+    error: data.error,
+    statusCode: data.status_code,
+    probedAt: data.probed_at,
+  };
 }
 
 function toAppTerminal(data: WireTerminal): AppTerminal {
@@ -647,6 +670,23 @@ export class DaemonKimiWebApi implements KimiWebApi {
       {},
     );
     return { agentId: data.agent_id };
+  }
+
+  // -------------------------------------------------------------------------
+  // Model Probe
+  // PRESUMED — POST /sessions/{id}:probe-models → { results: Record<alias, ProbeResult> }
+  // -------------------------------------------------------------------------
+
+  async probeAllModels(sessionId: string): Promise<Record<string, AppModelProbeResult>> {
+    const data = await this.http.post<{ results: Record<string, WireModelProbeResult> }>(
+      `/sessions/${encodeURIComponent(sessionId)}:probe-models`,
+      {},
+    );
+    const out: Record<string, AppModelProbeResult> = {};
+    for (const [alias, result] of Object.entries(data.results ?? {})) {
+      out[alias] = toAppModelProbeResult(result);
+    }
+    return out;
   }
 
   // -------------------------------------------------------------------------

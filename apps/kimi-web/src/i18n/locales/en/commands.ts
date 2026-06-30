@@ -39,4 +39,5 @@ export default {
   steer: { desc: 'Send instructions to a running subagent' },
   tasks: { desc: 'Browse background tasks' },
   editor: { desc: 'Set external editor' },
+  probemodels: { desc: 'Probe configured models for API health' },
 } as const;

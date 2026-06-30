@@ -1041,6 +1041,10 @@ function handleCommand(cmd: string): void {
       // Open settings to let the user configure external editor
       showSettings.value = true;
       break;
+    case '/probemodels':
+    case 'probemodels':
+      void client.probeModels();
+      break;
     default: {
       // Not a built-in command → treat it as a session skill activation
       // (the user picked `/<skill>` from the menu, or typed `/<skill> args`).

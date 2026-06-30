@@ -4121,6 +4121,58 @@ async function togglePlugin(id: string): Promise<void> {
 }
 
 // -------------------------------------------------------------------------
+// Model Probe
+// -------------------------------------------------------------------------
+
+/**
+ * Probe all configured models for API health via POST /sessions/{id}:probe-models.
+ * Surfaces results as an info-severity warning toast so the user sees a
+ * structured summary without scrolling the chat transcript.
+ */
+async function probeModels(): Promise<void> {
+  const sid = rawState.activeSessionId;
+  if (!sid) return;
+  try {
+    const api = getKimiWebApi();
+    const results = await api.probeAllModels(sid);
+    const entries = Object.entries(results);
+    if (entries.length === 0) {
+      pushWarning({
+        severity: 'info',
+        title: i18n.global.t('warnings.probeModelsTitle'),
+        message: i18n.global.t('warnings.probeModelsNoModels'),
+      });
+      return;
+    }
+    // Sort: ok first, then by alias for stable ordering.
+    entries.sort((a, b) => {
+      const okDiff = (b[1].status === 'ok' ? 1 : 0) - (a[1].status === 'ok' ? 1 : 0);
+      if (okDiff !== 0) return okDiff;
+      return a[0].localeCompare(b[0]);
+    });
+    const okCount = entries.filter(([, r]) => r.status === 'ok').length;
+    const errorCount = entries.length - okCount;
+    const icon = (r: { status: string }) =>
+      r.status === 'ok' ? '✅' : r.status === 'unknown' ? '⚠️' : '❌';
+    const lines = entries.map(
+      ([alias, r]) =>
+        `${icon(r)} ${alias} — ${r.status === 'ok' ? 'ok' : (r.error ?? r.status)}`,
+    );
+    const summary =
+      errorCount === 0
+        ? i18n.global.t('warnings.probeModelsAllOk', { count: String(okCount) })
+        : i18n.global.t('warnings.probeModelsSummary', { ok: String(okCount), fail: String(errorCount) });
+    pushWarning({
+      severity: errorCount === 0 ? 'info' : 'warning',
+      title: i18n.global.t('warnings.probeModelsTitle'),
+      message: `${summary}\n${lines.join('\n')}`,
+    });
+  } catch (err) {
+    pushOperationFailure('probeModels', err, { sessionId: sid });
+  }
+}
+
+// -------------------------------------------------------------------------
 // Export actions
 // -------------------------------------------------------------------------
 
@@ -4727,6 +4779,9 @@ export function useKimiWebClient() {
     exportSession,
     submitFeedback,
     loadVersion,
+
+    // Model Probe
+    probeModels,
 
     // Reload actions
     reloadSession: reloadSessionAction,

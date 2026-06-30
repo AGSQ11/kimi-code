@@ -61,6 +61,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: '/steer',       desc: 'commands.steer.desc', acceptsInput: true },
   { name: '/tasks',       desc: 'commands.tasks.desc' },
   { name: '/editor',      desc: 'commands.editor.desc' },
+  { name: '/probemodels', desc: 'commands.probemodels.desc' },
 ];
 
 /**

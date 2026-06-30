@@ -4,6 +4,8 @@ import { ErrorCodes, KimiError } from '../../errors';
 import type { AgentContextData, ContextMessage } from '../../agent/context';
 import type { JsonObject, ListSessionsPayload, SessionSummary } from '../../rpc';
 import type { SessionMeta } from '../../session';
+import type { ModelProbeResult } from '../../session/model-probe';
+import type { SessionWarning } from '@moonshot-ai/protocol';
 import {
   type CompactSessionRequest,
   type CompactSessionResponse,
@@ -535,6 +537,16 @@ export class SessionService extends Disposable implements ISessionService {
     this._activeTurns.delete(id);
     this._abortedTurns.delete(id);
     return { archived: true };
+  }
+
+  async getSessionWarnings(id: string): Promise<readonly SessionWarning[]> {
+    await this.core.rpc.resumeSession({ sessionId: id });
+    return this.core.rpc.getSessionWarnings({ sessionId: id });
+  }
+
+  async probeAllModels(id: string): Promise<Record<string, ModelProbeResult>> {
+    await this.core.rpc.resumeSession({ sessionId: id });
+    return this.core.rpc.probeAllModels({ sessionId: id });
   }
 
   private async requireSummary(id: string): Promise<SessionSummary> {

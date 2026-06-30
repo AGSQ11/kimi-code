@@ -971,6 +971,7 @@ export function createAgentProjector(): AgentProjector {
           createdAt: new Date().toISOString(),
           subagentPhase: 'queued',
           subagentType: typeof p?.subagentName === 'string' ? p.subagentName : undefined,
+          modelAlias: typeof p?.modelAlias === 'string' ? p.modelAlias : undefined,
           parentToolCallId: typeof p?.parentToolCallId === 'string' ? p.parentToolCallId : undefined,
           swarmIndex: typeof p?.swarmIndex === 'number' ? p.swarmIndex : undefined,
         };

@@ -3,6 +3,8 @@ import { encodeWorkDirKey } from '../../session/store';
 import type { Event } from '../../base/common/event';
 import type { SessionSummary } from '../../rpc';
 import type { SessionMeta } from '../../session';
+import type { ModelProbeResult } from '../../session/model-probe';
+import type { SessionWarning } from '@moonshot-ai/protocol';
 import {
   emptySessionUsage,
   type CompactSessionRequest,
@@ -60,6 +62,10 @@ export interface ISessionService {
   undo(id: string, input: UndoSessionRequest): Promise<UndoSessionResponse>;
 
   archive(id: string): Promise<{ archived: true }>;
+
+  getSessionWarnings(id: string): Promise<readonly SessionWarning[]>;
+
+  probeAllModels(id: string): Promise<Record<string, ModelProbeResult>>;
 
   readonly onDidCreate: Event<{ session: Session }>;
 

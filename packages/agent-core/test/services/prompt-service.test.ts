@@ -312,6 +312,8 @@ function makeSessionService(): {
     compact: vi.fn() as unknown as ISessionService['compact'],
     undo: vi.fn() as unknown as ISessionService['undo'],
     archive: vi.fn() as unknown as ISessionService['archive'],
+    getSessionWarnings: vi.fn() as unknown as ISessionService['getSessionWarnings'],
+    probeAllModels: vi.fn() as unknown as ISessionService['probeAllModels'],
     onDidCreate: createEmitter.event,
     onDidClose: closeEmitter.event,
   };

@@ -39,4 +39,5 @@ export default {
   steer: { desc: '向正在运行的子代理发送指令' },
   tasks: { desc: '浏览后台任务' },
   editor: { desc: '设置外部编辑器' },
+  probemodels: { desc: '探测已配置模型的 API 健康状态' },
 };
