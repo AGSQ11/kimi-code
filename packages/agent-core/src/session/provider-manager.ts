@@ -42,6 +42,8 @@ export interface ModelProvider {
   readonly defaultModel?: string;
   resolveProviderConfig(model: string): ResolvedRuntimeProvider;
   resolveAuth?(model: string, options?: { readonly log?: Logger }): AuthorizedRequest | undefined;
+  /** Returns true if `model` is a configured alias in config.toml. */
+  hasModel?(model: string): boolean;
 }
 
 export class SingleModelProvider implements ModelProvider {
@@ -75,6 +77,14 @@ export class ProviderManager implements ModelProvider {
   private get config(): KimiConfig {
     const { config } = this.options;
     return typeof config === 'function' ? config() : config;
+  }
+
+  get defaultModel(): string | undefined {
+    return this.config.defaultModel;
+  }
+
+  hasModel(model: string): boolean {
+    return this.config.models?.[model] !== undefined;
   }
 
   resolveProviderConfig(model: string): ResolvedRuntimeProvider {
