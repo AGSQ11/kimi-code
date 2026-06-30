@@ -4,6 +4,7 @@ export interface SwarmMember {
   id: string;
   name: string;
   subagentType?: string;
+  modelAlias?: string;
   phase: AppSubagentPhase;
   summary?: string;
   outputLines?: string[];
@@ -47,6 +48,7 @@ export function buildSwarmGroups(tasks: AppTask[]): SwarmGroup[] {
       id: task.id,
       name: task.description,
       subagentType: task.subagentType,
+      modelAlias: task.modelAlias,
       phase: phaseForTask(task),
       summary: task.outputPreview,
       outputLines: task.outputLines,

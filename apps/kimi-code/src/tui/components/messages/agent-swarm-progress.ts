@@ -109,6 +109,7 @@ const CANCELLED_CLEAR_KEYS = [
 interface AgentSwarmMember {
   readonly id: string;
   agentId?: string;
+  modelAlias?: string;
   phase: AgentSwarmPhase;
   ticks: number;
   itemText: string;
@@ -290,10 +291,12 @@ export class AgentSwarmProgressComponent implements Component {
     readonly agentId: string;
     readonly swarmIndex?: number;
     readonly description?: string | undefined;
+    readonly modelAlias?: string | undefined;
   }): void {
     const member = this.findMemberForSubagent(input.agentId, input.swarmIndex);
     if (member === undefined) return;
     member.agentId = input.agentId;
+    if (input.modelAlias !== undefined) member.modelAlias = input.modelAlias;
     if (member.phase === 'pending') member.phase = 'queued';
     this.startAnimationIfNeeded();
   }
@@ -615,7 +618,9 @@ export class AgentSwarmProgressComponent implements Component {
       capacityTicks: layout.barCells * BRAILLE_LEVELS.length,
       nowMs,
     });
-    const id = chalk.hex(this.colors.primary)(member.id);
+    const id = chalk.hex(this.colors.primary)(member.modelAlias
+      ? `${member.id} · ${member.modelAlias}`
+      : member.id);
     const bar = brailleBar(
       estimate.displayTicks,
       snapshot.phase,
@@ -643,7 +648,9 @@ export class AgentSwarmProgressComponent implements Component {
       capacityTicks: barCells * BRAILLE_LEVELS.length,
       nowMs,
     });
-    const id = chalk.hex(this.colors.primary)(member.id);
+    const id = chalk.hex(this.colors.primary)(member.modelAlias
+      ? `${member.id} · ${member.modelAlias}`
+      : member.id);
     const bar = brailleBar(
       estimate.displayTicks,
       estimatePhase,
