@@ -410,7 +410,7 @@ export function registerSessionsRoutes(
         const { tail } = req.params;
         const parsed = parseActionSuffix({
           tail,
-          allowedActions: ['fork', 'compact', 'undo', 'abort', 'btw', 'archive'] as const,
+          allowedActions: ['fork', 'compact', 'undo', 'abort', 'btw', 'archive', 'probe-models'] as const,
           resourceLabel: 'session',
         });
         if (parsed.kind !== 'action') {
@@ -465,6 +465,14 @@ export function registerSessionsRoutes(
             a.get(ISessionService).archive(parsed.id),
           );
           reply.send(okEnvelope(result, req.id));
+          return;
+        }
+
+        if (parsed.action === 'probe-models') {
+          const results = await ix.invokeFunction((a) =>
+            a.get(ISessionService).probeAllModels(parsed.id),
+          );
+          reply.send(okEnvelope({ results }, req.id));
           return;
         }
 

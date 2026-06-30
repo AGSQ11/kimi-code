@@ -413,29 +413,6 @@ function adaptGoalStartChoices(
   );
 }
 
-function adaptGoalStartChoices(
-  display: Extract<ToolInputDisplay, { kind: 'goal_start' }>,
-): ApprovalPanelChoice[] {
-  // Reuse the exact options the /goal start menu shows. Each mode option starts
-  // the goal under that permission mode (the policy reads selected_label); "Do
-  // not start" declines so no goal is created.
-  return goalStartOptions(display.mode).map((option) =>
-    option.value === 'cancel'
-      ? {
-          label: option.label,
-          response: 'cancelled',
-          selected_label: 'cancel',
-          description: option.description,
-        }
-      : {
-          label: option.label,
-          response: 'approved',
-          selected_label: option.value,
-          description: option.description,
-        },
-  );
-}
-
 function adaptPlanReviewChoices(display: ToolInputDisplay): ApprovalPanelChoice[] {
   const optionChoices =
     display.kind === 'plan_review' && display.options !== undefined && display.options.length >= 2

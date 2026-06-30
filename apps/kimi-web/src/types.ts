@@ -104,6 +104,7 @@ export interface AgentMember {
   toolCallId?: string;
   name: string;
   subagentType?: string;
+  modelAlias?: string;
   phase: AgentPhase;
   status: 'running' | 'completed' | 'failed' | 'cancelled';
   /** The prompt/task the subagent was given (from the Agent tool input). */

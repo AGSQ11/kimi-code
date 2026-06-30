@@ -145,6 +145,8 @@ function makeSessionService(sessions: Map<string, Session>): ISessionService {
     archive: async () => {
       throw new Error('not implemented');
     },
+    getSessionWarnings: async () => [],
+    probeAllModels: async () => ({}),
     onDidCreate: emptyEmitter.event,
     onDidClose: emptyEmitter.event,
   };

@@ -28,6 +28,8 @@ import {
 import { collectGitContext } from './git-context';
 import type { Session } from './index';
 import { SubagentModelResolver } from './subagent-model-resolver';
+import type { ModelProbeResult } from './model-probe';
+import type { ModelProvider } from './provider-manager';
 import {
   SubagentBatch,
   resolveSwarmMaxConcurrency,
@@ -680,16 +682,124 @@ export class SessionSubagentHost {
     }
 
     const probeStatus = this.session.modelProbeStatus ?? {};
+
+    // If the desired model is not even configured in config.toml, we must
+    // not return it — it will cause a hard error when the subagent tries to
+    // make an LLM request. Instead, probe configured models and pick a
+    // healthy one from the role's fallback list, or any healthy model.
+    const providerManager = this.session.options.providerManager;
+    const isConfigured = providerManager?.hasModel?.(desired) ?? true;
+
+    if (!isConfigured) {
+      // Try fallback models from [subagent_models] for this role first
+      const fallbackModel = this.findHealthyFallback(profileName, probeStatus, providerManager);
+      if (fallbackModel !== undefined) {
+        return fallbackModel;
+      }
+
+      // If no role-specific fallback worked, try any configured + healthy model
+      const anyHealthy = this.findAnyHealthyConfiguredModel(probeStatus, providerManager);
+      if (anyHealthy !== undefined) {
+        return anyHealthy;
+      }
+
+      // If probe results are empty/unavailable, fall back to any model
+      // configured in [subagent_models] for this role, regardless of probe status
+      const anyConfiguredFallback = this.findAnyConfiguredFallback(profileName, providerManager);
+      if (anyConfiguredFallback !== undefined) {
+        return anyConfiguredFallback;
+      }
+
+      // Last resort: the default model if it's configured
+      const defaultModel = providerManager?.defaultModel;
+      if (defaultModel !== undefined && (providerManager?.hasModel?.(defaultModel) ?? true)) {
+        return defaultModel;
+      }
+    }
+
+    // Standard probe-based fallback: if the desired model is known-unhealthy,
+    // fall back to any globally-healthy alias.
     const status = probeStatus[desired];
     if (status !== undefined && status.status !== 'ok' && status.status !== 'unknown') {
       const fallback = Object.entries(probeStatus).find(
-        ([alias, result]) => alias !== desired && result.status === 'ok',
+        ([alias, result]) =>
+          alias !== desired &&
+          result.status === 'ok' &&
+          (providerManager?.hasModel?.(alias) ?? true),
       )?.[0];
       if (fallback !== undefined) {
         return fallback;
       }
     }
     return desired;
+  }
+
+  /**
+   * Find a healthy model from the [subagent_models] fallback list for a role.
+   * Only considers models that are actually configured in config.toml.
+   */
+  private findHealthyFallback(
+    profileName: string,
+    probeStatus: Readonly<Record<string, ModelProbeResult>>,
+    providerManager: ModelProvider | undefined,
+  ): string | undefined {
+    const subagentModels = this.session.options?.config?.subagentModels;
+    if (subagentModels === undefined) return undefined;
+
+    const entry = subagentModels[profileName];
+    if (entry === undefined || typeof entry === 'string') return undefined;
+
+    const models = entry.models;
+    for (const model of models) {
+      if (providerManager?.hasModel?.(model) ?? true) {
+        const status = probeStatus[model];
+        if (status === undefined || status.status === 'ok' || status.status === 'unknown') {
+          return model;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Find any model that is both configured in config.toml and probe-healthy.
+   */
+  private findAnyHealthyConfiguredModel(
+    probeStatus: Readonly<Record<string, ModelProbeResult>>,
+    providerManager: ModelProvider | undefined,
+  ): string | undefined {
+    for (const [alias, result] of Object.entries(probeStatus)) {
+      if (result.status === 'ok' && (providerManager?.hasModel?.(alias) ?? true)) {
+        return alias;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Find any model from [subagent_models] for this role that is configured in
+   * config.toml, regardless of probe status. Used when probe results are empty.
+   */
+  private findAnyConfiguredFallback(
+    profileName: string,
+    providerManager: ModelProvider | undefined,
+  ): string | undefined {
+    const subagentModels = this.session.options?.config?.subagentModels;
+    if (subagentModels === undefined) return undefined;
+
+    const entry = subagentModels[profileName];
+    if (entry === undefined) return undefined;
+
+    const models = typeof entry === 'string'
+      ? [entry]
+      : entry.models;
+
+    for (const model of models) {
+      if (providerManager?.hasModel?.(model) ?? true) {
+        return model;
+      }
+    }
+    return undefined;
   }
 
   private async ensureProbed(): Promise<void> {

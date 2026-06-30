@@ -6,12 +6,20 @@ import { ErrorCodes, KimiError } from '#/errors';
 import { getRootLogger, log } from '#/logging/logger';
 import type { Logger, SessionLogHandle } from '#/logging/types';
 import type { KimiConfig, SDKSessionRPC } from '#/rpc';
+import type { SessionWarning } from '@moonshot-ai/protocol';
 import { proxyWithExtraPayload } from '#/rpc/types';
 
 import { Agent, type AgentOptions, type AgentType } from '../agent';
 import { HookEngine, type HookDef } from './hooks';
 import type { PermissionManagerOptions, PermissionRule } from '../agent/permission';
 import { parseBooleanEnv, resolveConfigValue, type BackgroundConfig } from '../config';
+import {
+  appendWorkspaceAdditionalDir,
+  normalizeAdditionalDirs,
+  readWorkspaceAdditionalDirs,
+  resolveWorkspaceAdditionalDirs,
+  type WorkspaceAdditionalDirsLoadResult,
+} from '../config/workspace-local';
 import { makeErrorPayload } from '../errors';
 import {
   McpConnectionManager,
@@ -63,6 +71,7 @@ export interface SessionOptions {
   readonly pluginSessionStarts?: readonly EnabledPluginSessionStart[];
   readonly appVersion?: string;
   readonly experimentalFlags?: ExperimentalFlagResolver;
+  readonly additionalDirs?: readonly string[];
   readonly modelProbeStatus?: Record<string, ModelProbeResult>;
   readonly requestModelProbe?: (options?: {
     background?: boolean;
@@ -164,6 +173,8 @@ export class Session {
   };
   private writeMetadataPromise = Promise.resolve();
   modelProbeStatus: Record<string, ModelProbeResult>;
+  private additionalDirs: readonly string[];
+  private agentsMdWarning: string | undefined;
 
   constructor(public readonly options: SessionOptions) {
     // Attach the per-session log sink up front so the constructor's
@@ -182,6 +193,7 @@ export class Session {
     this.rpc = options.rpc;
     this.experimentalFlags = options.experimentalFlags ?? new FlagResolver();
     this.modelProbeStatus = options.modelProbeStatus ?? {};
+    this.additionalDirs = normalizeAdditionalDirs(options.additionalDirs ?? []);
     this.hookEngine = new HookEngine(options.hooks, {
       cwd: options.kaos.getcwd(),
       sessionId: options.id,
@@ -264,6 +276,81 @@ export class Session {
     }
     await this.triggerSessionStart('resume');
     return { warning };
+  }
+
+  async getSessionWarnings(): Promise<readonly SessionWarning[]> {
+    const warnings: SessionWarning[] = [];
+    const agentsMdWarning = await this.computeAgentsMdWarning();
+    if (agentsMdWarning !== undefined) {
+      warnings.push({
+        code: 'agents-md-oversized',
+        message: agentsMdWarning,
+        severity: 'warning',
+      });
+    }
+    return warnings;
+  }
+
+  private async computeAgentsMdWarning(): Promise<string | undefined> {
+    if (this.agentsMdWarning !== undefined) {
+      return this.agentsMdWarning;
+    }
+    try {
+      const context = await prepareSystemPromptContext(
+        this.systemContextKaos(this.toolKaos.getcwd()),
+        this.options.kimiHomeDir,
+        { additionalDirs: this.additionalDirs },
+      );
+      this.agentsMdWarning = context.agentsMdWarning;
+    } catch (error) {
+      log.warn('failed to compute AGENTS.md warning', { error });
+    }
+    return this.agentsMdWarning;
+  }
+
+  getAdditionalDirs(): readonly string[] {
+    return this.additionalDirs;
+  }
+
+  async setAdditionalDirs(additionalDirs: readonly string[]): Promise<void> {
+    this.additionalDirs = normalizeAdditionalDirs(additionalDirs);
+    for (const agent of this.readyAgents()) {
+      agent.setAdditionalDirs(this.additionalDirs);
+    }
+  }
+
+  async addAdditionalDir(
+    path: string,
+    persist = true,
+  ): Promise<WorkspaceAdditionalDirsLoadResult & { readonly persisted: boolean }> {
+    const cwd = this.toolKaos.getcwd();
+    const systemKaos = this.systemContextKaos(cwd);
+    if (persist) {
+      const result = await appendWorkspaceAdditionalDir(systemKaos, cwd, path, this.additionalDirs);
+      const nextAdditionalDirs = normalizeAdditionalDirs([...this.additionalDirs, ...result.additionalDirs]);
+      await this.setAdditionalDirs(nextAdditionalDirs);
+      this.notifyAdditionalDirAdded(path, true, result.configPath);
+      return { ...result, additionalDirs: nextAdditionalDirs, persisted: true };
+    }
+
+    const workspace = await readWorkspaceAdditionalDirs(systemKaos, cwd);
+    const resolvedDirs = await resolveWorkspaceAdditionalDirs(systemKaos, cwd, [path]);
+    const nextAdditionalDirs = normalizeAdditionalDirs([...this.additionalDirs, ...resolvedDirs]);
+    await this.setAdditionalDirs(nextAdditionalDirs);
+    this.notifyAdditionalDirAdded(path, false, workspace.configPath);
+    return {
+      projectRoot: workspace.projectRoot,
+      configPath: workspace.configPath,
+      additionalDirs: nextAdditionalDirs,
+      persisted: false,
+    };
+  }
+
+  private notifyAdditionalDirAdded(path: string, persisted: boolean, configPath: string): void {
+    const message = persisted
+      ? `Added additional workspace directory ${path} to ${configPath}`
+      : `Added additional workspace directory ${path}`;
+    this.log.info(message, { path, persisted, configPath });
   }
 
   async close(): Promise<void> {

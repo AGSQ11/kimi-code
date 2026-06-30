@@ -576,7 +576,20 @@ describe('AgentTool', () => {
 
   it('returns an error when background registration hits the task limit', async () => {
     const background = createBackgroundManager({ maxRunningTasks: 1 }).manager;
-    background.registerTask(new AgentBackgroundTask(new Promise(() => {}), 'existing agent'));
+    const controller = new AbortController();
+    background.registerTask(
+      new AgentBackgroundTask(
+        {
+          agentId: 'agent-child',
+          profileName: 'coder',
+          resumed: false,
+          completion: new Promise<{ result: string }>(() => {}),
+        },
+        'existing agent',
+        { markActiveChildDetached: () => {} },
+        controller,
+      ),
+    );
     const host = mockSubagentHost({
       spawn: vi.fn().mockResolvedValue({
         agentId: 'agent-child',

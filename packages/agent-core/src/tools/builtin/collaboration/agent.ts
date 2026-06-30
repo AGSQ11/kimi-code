@@ -123,12 +123,14 @@ export class AgentTool implements BuiltinTool<AgentToolInput> {
     subagents?: ResolvedAgentProfile['subagents'] | undefined,
     options?: {
       log?: Logger;
+      allowBackground?: boolean | undefined;
     },
   ) {
     const log = options?.log;
+    this.allowBackground = options?.allowBackground ?? true;
     const typeLines = buildSubagentDescriptions(subagents);
     const baseDescription = `${AGENT_DESCRIPTION_BASE}\n\n${
-      this.backgroundManager !== undefined ? AGENT_BACKGROUND_DESCRIPTION : AGENT_BACKGROUND_DISABLED_DESCRIPTION
+      this.allowBackground ? AGENT_BACKGROUND_DESCRIPTION : AGENT_BACKGROUND_DISABLED_DESCRIPTION
     }`;
     this.description = typeLines
       ? `${baseDescription}\n\nAvailable agent types (pass via subagent_type):\n${typeLines}`
@@ -137,6 +139,7 @@ export class AgentTool implements BuiltinTool<AgentToolInput> {
   }
 
   private readonly log?: Logger;
+  private readonly allowBackground: boolean;
 
   async resolveExecution(args: AgentToolInput): Promise<ToolExecution> {
     let profileName = args.subagent_type?.length ? args.subagent_type : 'coder';
@@ -184,6 +187,12 @@ export class AgentTool implements BuiltinTool<AgentToolInput> {
         };
       }
 
+      if (runInBackground && !this.allowBackground) {
+        return {
+          output: BACKGROUND_AGENT_UNAVAILABLE,
+          isError: true,
+        };
+      }
       if (runInBackground) {
         if (this.backgroundManager === undefined) {
           return {
@@ -233,14 +242,16 @@ export class AgentTool implements BuiltinTool<AgentToolInput> {
         let taskId: string;
         try {
           taskId = this.backgroundManager!.registerTask(
-            new AgentBackgroundTask(handle.completion, args.description, {
+            new AgentBackgroundTask(
+              handle,
+              args.description,
+              this.subagentHost,
+              backgroundController!,
+            ),
+            {
               timeoutMs: DEFAULT_SUBAGENT_TIMEOUT_MS,
-              agentId: handle.agentId,
-              subagentType: handle.profileName,
-              abort: () => {
-                backgroundController?.abort();
-              },
-            }),
+              signal: undefined,
+            },
           );
         } catch (error) {
           backgroundController?.abort();

@@ -341,13 +341,6 @@ export class McpConnectionManager {
         oauthProvider: this.resolveOAuthProvider(config, name),
       });
     }
-    if (config.transport === 'sse') {
-      return new SseMcpClient(config, {
-        toolCallTimeoutMs,
-        envLookup: this.options.envLookup,
-        oauthProvider: this.resolveOAuthProvider(config, name),
-      });
-    }
     return new HttpMcpClient(config, {
       toolCallTimeoutMs,
       envLookup: this.options.envLookup,

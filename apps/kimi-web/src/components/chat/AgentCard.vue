@@ -46,6 +46,7 @@ function open(): void {
         <span class="agent-title-row">
           <span class="agent-name">{{ member.name }}</span>
           <span v-if="member.subagentType" class="agent-type">{{ member.subagentType }}</span>
+          <span v-if="member.modelAlias" class="agent-model">{{ member.modelAlias }}</span>
           <!-- The "currently doing" line shares the title row, filling the blank
                space to its right; it never wraps onto its own line. -->
           <span
@@ -132,6 +133,12 @@ function open(): void {
 .agent-type {
   flex: none;
   color: var(--muted);
+  font-family: var(--mono);
+  font-size: calc(var(--ui-font-size) - 3px);
+}
+.agent-model {
+  flex: none;
+  color: var(--dim);
   font-family: var(--mono);
   font-size: calc(var(--ui-font-size) - 3px);
 }

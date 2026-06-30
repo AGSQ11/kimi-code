@@ -38,6 +38,30 @@ export interface AppNotice {
 export type AppWarning = string | AppNotice;
 
 // ---------------------------------------------------------------------------
+// Model Probe
+// ---------------------------------------------------------------------------
+
+export type AppModelProbeStatus =
+  | 'ok'
+  | 'auth_error'
+  | 'rate_limit'
+  | 'timeout'
+  | 'connection_error'
+  | 'api_error'
+  | 'config_error'
+  | 'unknown';
+
+export interface AppModelProbeResult {
+  alias: string;
+  status: AppModelProbeStatus;
+  providerName: string;
+  model: string;
+  error?: string;
+  statusCode?: number;
+  probedAt: number;
+}
+
+// ---------------------------------------------------------------------------
 // Session
 // ---------------------------------------------------------------------------
 
@@ -311,6 +335,7 @@ export interface AppTask {
   outputLines?: string[]; // accumulated by eventReducer from task.progress chunks
   subagentPhase?: AppSubagentPhase;
   subagentType?: string;
+  modelAlias?: string;
   parentToolCallId?: string;
   suspendedReason?: string;
   swarmIndex?: number;
@@ -813,4 +838,7 @@ export interface KimiWebApi {
   } | null>;
   cancelOAuthLogin(): Promise<{ cancelled: boolean; status: string }>;
   logout(): Promise<{ loggedOut: boolean }>;
+
+  // Model Probe — PRESUMED endpoint: POST /sessions/{id}:probe-models
+  probeAllModels(sessionId: string): Promise<Record<string, AppModelProbeResult>>;
 }

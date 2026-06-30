@@ -17,6 +17,7 @@ import type { ToolInfo } from '#/agent/tool';
 import type { KimiConfig, KimiConfigPatch, McpServerConfig } from '#/config';
 import type { ExperimentalFeatureState } from '#/flags';
 import type { ResumeSessionResult } from '#/rpc/resumed';
+import type { SessionWarning } from '@moonshot-ai/protocol';
 import type { SessionMeta } from '#/session';
 import type { ContentPart } from '@moonshot-ai/kosong';
 
@@ -57,6 +58,7 @@ export interface CreateSessionPayload {
   readonly metadata?: JsonObject | undefined;
   readonly mcpServers?: Readonly<Record<string, McpServerConfig>>;
   readonly client?: ClientTelemetryInfo | undefined;
+  readonly additionalDirs?: readonly string[];
 }
 
 export interface CloseSessionPayload {
@@ -70,6 +72,23 @@ export interface ArchiveSessionPayload {
 export interface ResumeSessionPayload {
   readonly sessionId: string;
   readonly mcpServers?: Readonly<Record<string, McpServerConfig>>;
+  readonly additionalDirs?: readonly string[];
+}
+
+export interface AddAdditionalDirPayload {
+  readonly path: string;
+  readonly persist?: boolean | undefined;
+}
+
+export interface AddAdditionalDirResult {
+  readonly additionalDirs: readonly string[];
+  readonly projectRoot: string;
+  readonly configPath: string;
+  readonly persisted: boolean;
+}
+
+export interface DetachBackgroundPayload {
+  readonly taskId: string;
 }
 
 export interface ReloadSessionPayload {
@@ -154,6 +173,7 @@ export interface SessionSummary {
   readonly updatedAt: number;
   readonly archived?: boolean | undefined;
   readonly metadata?: JsonObject | undefined;
+  readonly additionalDirs?: readonly string[];
 }
 
 export interface PromptPayload {
@@ -378,6 +398,7 @@ export interface AgentAPI {
   getForceMcp: (payload: EmptyPayload) => boolean;
   setForceMcp: (payload: SetForceMcpPayload) => void;
   stopBackground: (payload: StopBackgroundPayload) => void;
+  detachBackground: (payload: DetachBackgroundPayload) => BackgroundTaskInfo | undefined;
   clearContext: (payload: EmptyPayload) => void;
   activateSkill: (payload: ActivateSkillPayload) => void;
   startBtw: (payload: EmptyPayload) => string;
@@ -425,6 +446,8 @@ export interface SessionAPI extends AgentAPIWithId {
   generateAgentsMd: (payload: EmptyPayload) => void;
   reloadSystemPrompt: (payload: EmptyPayload) => void;
   setModelProbeStatus: (payload: SetModelProbeStatusPayload) => void;
+  getSessionWarnings: (payload: EmptyPayload) => readonly SessionWarning[];
+  addAdditionalDir: (payload: AddAdditionalDirPayload) => AddAdditionalDirResult;
 }
 
 type SessionAPIWithId = WithSessionId<SessionAPI>;

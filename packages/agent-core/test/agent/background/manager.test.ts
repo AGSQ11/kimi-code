@@ -49,6 +49,26 @@ function rejectedProcess(error: Error): KaosProcess {
   };
 }
 
+function fakeAgentTask(
+  completion: Promise<unknown>,
+  description: string,
+  abort = () => {},
+): AgentBackgroundTask {
+  const controller = new AbortController();
+  controller.signal.addEventListener('abort', () => abort());
+  return new AgentBackgroundTask(
+    {
+      agentId: 'agent-child',
+      profileName: 'coder',
+      resumed: false,
+      completion: completion as Promise<{ result: string }>,
+    },
+    description,
+    { markActiveChildDetached: () => {} },
+    controller,
+  );
+}
+
 function pendingProcess(exitOnKill = 143): {
   proc: KaosProcess;
   killSpy: ReturnType<typeof vi.fn>;
@@ -171,12 +191,7 @@ describe('BackgroundManager', () => {
   it('registers agent tasks and exposes agent metadata', () => {
     const { manager } = createBackgroundManager();
 
-    const taskId = manager.registerTask(
-      new AgentBackgroundTask(new Promise(() => {}), 'investigate bug', {
-        agentId: 'agent-child',
-        subagentType: 'coder',
-      }),
-    );
+    const taskId = manager.registerTask(fakeAgentTask(new Promise(() => {}), 'investigate bug'));
 
     expect(taskId).toMatch(/^agent-[0-9a-z]{8}$/);
     expect(manager.getTask(taskId)).toMatchObject({
@@ -206,7 +221,7 @@ describe('BackgroundManager', () => {
       registerProcess(manager, pendingProcess().proc, 'sleep 60', 'second task');
     }).toThrow('Too many background tasks are already running.');
     expect(() => {
-      manager.registerTask(new AgentBackgroundTask(new Promise(() => {}), 'agent task'));
+      manager.registerTask(fakeAgentTask(new Promise(() => {}), 'agent task'));
     }).toThrow('Too many background tasks are already running.');
   });
 
@@ -389,9 +404,7 @@ describe('BackgroundManager', () => {
       resolveCompletion = resolve;
     });
     const abort = vi.fn();
-    const taskId = manager.registerTask(
-      new AgentBackgroundTask(completion, 'agent race test', { abort }),
-    );
+    const taskId = manager.registerTask(fakeAgentTask(completion, 'agent race test', abort));
 
     const stopPromise = manager.stop(taskId, 'user requested');
     resolveCompletion({ result: 'finished naturally' });
@@ -410,9 +423,7 @@ describe('BackgroundManager', () => {
       rejectCompletion = reject;
     });
     const abort = vi.fn();
-    const taskId = manager.registerTask(
-      new AgentBackgroundTask(completion, 'agent failure race test', { abort }),
-    );
+    const taskId = manager.registerTask(fakeAgentTask(completion, 'agent failure race test', abort));
 
     const stopPromise = manager.stop(taskId, 'user requested');
     rejectCompletion(new Error('model failed'));
@@ -436,9 +447,7 @@ describe('BackgroundManager', () => {
     const abort = vi.fn(() => {
       rejectCompletion(abortError);
     });
-    const taskId = manager.registerTask(
-      new AgentBackgroundTask(completion, 'agent abort test', { abort }),
-    );
+    const taskId = manager.registerTask(fakeAgentTask(completion, 'agent abort test', abort));
 
     const result = await manager.stop(taskId, 'user requested');
 
@@ -453,9 +462,7 @@ describe('BackgroundManager', () => {
     vi.useFakeTimers();
     const { manager } = createBackgroundManager();
     const abort = vi.fn();
-    const taskId = manager.registerTask(
-      new AgentBackgroundTask(new Promise(() => {}), 'hung agent task', { abort }),
-    );
+    const taskId = manager.registerTask(fakeAgentTask(new Promise(() => {}), 'hung agent task', abort));
 
     const stopPromise = manager.stop(taskId, 'user requested');
     await Promise.resolve();
