@@ -5,6 +5,7 @@ export default {
   editQueued: 'Edit (load back into the input)',
   queuedImageOnly: 'image ×{n}',
   queuedHasImage: 'Contains {n} image(s) — remove only, not editable',
+  queuedBadge: 'Queued',
   remove: 'Remove',
   removeNamed: 'Remove {name}',
   uploading: 'Uploading',
@@ -47,5 +48,9 @@ export default {
   paramsMaxTokens: 'Max Tokens',
   paramsReset: 'Reset',
   paramsCustomIndicator: 'Custom',
+
+  // Auto-queue while running
+  queued: 'Queued',
+  queuedCount: '{n} queued',
 
 } as const;

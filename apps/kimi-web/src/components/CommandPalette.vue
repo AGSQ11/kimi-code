@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { SLASH_COMMANDS } from '../lib/slashCommands';
+import { SLASH_COMMANDS, buildSlashItems } from '../lib/slashCommands';
 
 interface PaletteItem {
   id: string;
@@ -32,6 +32,7 @@ const emit = defineEmits<{
   openMemory: [];
   openCompare: [];
   openNotes: [];
+  clearSession: [];
 }>();
 
 const { t } = useI18n();
@@ -122,9 +123,15 @@ const items = computed<PaletteItem[]>(() => {
   });
   out.push({
     id: 'ui-notes',
-    label: 'Open Notes',
+    label: t('palette.openNotes'),
     category: 'ui',
     action: () => emit('openNotes'),
+  });
+  out.push({
+    id: 'session-clear',
+    label: t('palette.clearSession'),
+    category: 'session',
+    action: () => emit('clearSession'),
   });
 
   return out;

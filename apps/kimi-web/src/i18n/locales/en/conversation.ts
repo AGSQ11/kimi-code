@@ -13,6 +13,9 @@ export default {
   compactedTokens: ' ({before} → {after} tokens)',
   viewSummary: 'View summary',
   summaryTitle: 'Compaction summary',
+  compareTitle: 'Model Comparison',
+  compareModels: 'models',
+  compareCopy: 'Copy',
   manuallyAborted: 'Manually stopped',
   activatedSkill: 'Activated skill: {name}',
   undo: 'Undo',
@@ -21,4 +24,7 @@ export default {
   confirm: 'Confirm',
   cancel: 'Cancel',
   yesterday: 'Yesterday',
+  compareTitle: 'Model Comparison',
+  compareModels: 'models',
+  compareCopy: 'Copy result',
 } as const;

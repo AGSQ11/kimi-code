@@ -13,6 +13,9 @@ export default {
   compactedTokens: '（{before} → {after} tokens）',
   viewSummary: '查看摘要',
   summaryTitle: '压缩摘要',
+  compareTitle: '模型对比',
+  compareModels: '个模型',
+  compareCopy: '复制',
   manuallyAborted: '您已手动终止',
   activatedSkill: '已激活技能: {name}',
   undo: '撤销',
@@ -21,4 +24,7 @@ export default {
   confirm: '确定',
   cancel: '取消',
   yesterday: '昨天',
+  compareTitle: '模型对比',
+  compareModels: '个模型',
+  compareCopy: '复制结果',
 } as const;
