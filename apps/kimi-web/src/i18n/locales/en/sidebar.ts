@@ -29,4 +29,11 @@ export default {
   searchPlaceholder: 'Search sessions',
   searchClear: 'Clear search',
   searchNoResults: 'No matching sessions',
+  searchModeTitle: 'Title',
+  searchModeContent: 'Content',
+  searchModeTitleHint: 'Search by session title',
+  searchModeContentHint: 'Search within session messages',
+  contentSearching: 'Searching messages…',
+  contentSearchLimit: 'Searched {searched} of {total} sessions',
+  contentSearchError: 'Search failed',
 } as const;

@@ -56,6 +56,7 @@ function latestProgress(member: SwarmMember): string | undefined {
         <div class="member-mid">
           <span class="member-bar">{{ bar(member) }}</span>
           <span v-if="member.subagentType" class="member-type">{{ member.subagentType }}</span>
+          <span v-if="member.modelAlias" class="member-model">{{ member.modelAlias }}</span>
         </div>
         <div v-if="member.suspendedReason || latestProgress(member) || member.summary" class="member-bottom">
           {{ member.suspendedReason || latestProgress(member) || member.summary }}
@@ -137,7 +138,8 @@ function latestProgress(member: SwarmMember): string | undefined {
   font-weight: 650;
 }
 .member-phase,
-.member-type {
+.member-type,
+.member-model {
   flex: none;
   min-width: 0;
   max-width: 45%;

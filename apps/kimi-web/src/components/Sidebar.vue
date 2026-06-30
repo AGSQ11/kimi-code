@@ -3,11 +3,13 @@
      The old workspace rail and workspace tabs have been removed;
      workspace switching, folding and renaming all live in the group header. -->
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { Session, WorkspaceGroup, WorkspaceView } from '../types';
+import type { AppMessage } from '../api/types';
 import SessionRow from './SessionRow.vue';
 import { serverEndpointLabel } from '../api/config';
+import { getKimiWebApi } from '../api';
 import { copyTextToClipboard } from '../lib/clipboard';
 import { loadCollapsedWorkspaces, saveCollapsedWorkspaces } from '../lib/storage';
 
@@ -61,13 +63,33 @@ const emit = defineEmits<{
 }>();
 
 // ---------------------------------------------------------------------------
-// Session search (title + last prompt, instant client-side filter)
+// Session search (title instant filter + optional full-text content search)
 // ---------------------------------------------------------------------------
+type SearchMode = 'title' | 'content';
+
+const searchMode = ref<SearchMode>('title');
 const searchQuery = ref('');
+const contentSearching = ref(false);
+const contentError = ref(false);
+const contentSearchedCount = ref(0);
+
+interface ContentSearchResult {
+  session: Session;
+  /** HTML-safe snippet with <mark> tags around matched text. */
+  snippet: string;
+}
+
+const contentResults = ref<ContentSearchResult[]>([]);
+let contentSearchToken = 0;
+
+/** Simple message-text cache keyed by session id so repeat searches don't
+ *  re-fetch.  Maps sessionId → array of text segments extracted from messages. */
+const messageTextCache = new Map<string, string[]>();
 
 const trimmedQuery = computed(() => searchQuery.value.trim());
 const isSearching = computed(() => trimmedQuery.value.length > 0);
 
+/** Title-mode results — instant client-side filter. */
 const searchResults = computed<Session[]>(() => {
   const q = trimmedQuery.value.toLowerCase();
   if (!q) return [];
@@ -78,8 +100,151 @@ const searchResults = computed<Session[]>(() => {
   });
 });
 
+/** Extract readable text segments from an AppMessage's content blocks. */
+function extractMessageTexts(msg: AppMessage): string[] {
+  const out: string[] = [];
+  for (const block of msg.content) {
+    if (block.type === 'text' && block.text) {
+      out.push(block.text);
+    }
+  }
+  return out;
+}
+
+/** Build an HTML-safe snippet (≈120 chars) around the first match, wrapping
+ *  the matched substring in <mark> for highlighting. Returns '' if no match. */
+function buildSnippet(text: string, queryLower: string): string {
+  const idx = text.toLowerCase().indexOf(queryLower);
+  if (idx === -1) return '';
+  const matchLen = queryLower.length;
+  const radius = 60;
+  const start = Math.max(0, idx - radius);
+  const end = Math.min(text.length, idx + matchLen + radius);
+  const prefix = start > 0 ? '…' : '';
+  const suffix = end < text.length ? '…' : '';
+  const before = escHtml(text.slice(start, idx));
+  const match = escHtml(text.slice(idx, idx + matchLen));
+  const after = escHtml(text.slice(idx + matchLen, end));
+  return `${prefix}${before}<mark>${match}</mark>${after}${suffix}`;
+}
+
+function escHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/** Fetch message texts for a session (cached). Returns [] on error. */
+async function fetchMessageTexts(sessionId: string): Promise<string[]> {
+  const cached = messageTextCache.get(sessionId);
+  if (cached) return cached;
+  try {
+    const page = await getKimiWebApi().listMessages(sessionId, { pageSize: 50 });
+    const texts: string[] = [];
+    for (const msg of page.items) {
+      texts.push(...extractMessageTexts(msg));
+    }
+    messageTextCache.set(sessionId, texts);
+    return texts;
+  } catch {
+    return [];
+  }
+}
+
+/** Run the full-text content search across the most recent sessions. */
+async function runContentSearch(query: string): Promise<void> {
+  const token = ++contentSearchToken;
+  const queryLower = query.toLowerCase();
+  contentSearching.value = true;
+  contentError.value = false;
+  contentResults.value = [];
+  contentSearchedCount.value = 0;
+
+  const sessionsToSearch = props.sessions.slice(0, 50);
+
+  // Fetch all session texts concurrently, processing matches as they arrive.
+  const results: ContentSearchResult[] = [];
+  let searched = 0;
+
+  // Process in batches of 8 to avoid overwhelming the server.
+  const batchSize = 8;
+  for (let i = 0; i < sessionsToSearch.length; i += batchSize) {
+    if (token !== contentSearchToken) return; // superseded
+    const batch = sessionsToSearch.slice(i, i + batchSize);
+    const textsPerSession = await Promise.all(
+      batch.map((s) => fetchMessageTexts(s.id)),
+    );
+    if (token !== contentSearchToken) return; // superseded
+
+    for (let j = 0; j < batch.length; j++) {
+      const session = batch[j]!;
+      const texts = textsPerSession[j]!;
+      searched++;
+      // Find the best snippet across all text segments.
+      let bestSnippet = '';
+      for (const text of texts) {
+        const snippet = buildSnippet(text, queryLower);
+        if (snippet && !bestSnippet) {
+          bestSnippet = snippet;
+          break; // first match is enough
+        }
+      }
+      if (bestSnippet) {
+        results.push({ session, snippet: bestSnippet });
+      }
+    }
+    contentSearchedCount.value = searched;
+    // Update results incrementally so users see matches appear.
+    contentResults.value = [...results];
+  }
+
+  contentSearching.value = false;
+}
+
+// Debounce wrapper for content search.
+let contentSearchTimer: ReturnType<typeof setTimeout> | undefined;
+
+function scheduleContentSearch(query: string): void {
+  clearTimeout(contentSearchTimer);
+  contentSearchTimer = setTimeout(() => {
+    void runContentSearch(query);
+  }, 300);
+}
+
+// Watch query changes in content mode.
+watch(
+  () => trimmedQuery.value,
+  (q) => {
+    if (searchMode.value !== 'content') return;
+    if (!q) {
+      contentResults.value = [];
+      contentSearching.value = false;
+      contentError.value = false;
+      return;
+    }
+    scheduleContentSearch(q);
+  },
+);
+
+// When switching to content mode with an active query, trigger search.
+watch(searchMode, (mode) => {
+  if (mode === 'content' && trimmedQuery.value) {
+    scheduleContentSearch(trimmedQuery.value);
+  } else if (mode === 'title') {
+    contentResults.value = [];
+    contentSearching.value = false;
+    contentError.value = false;
+  }
+});
+
 function clearSearch(): void {
   searchQuery.value = '';
+  contentResults.value = [];
+  contentSearching.value = false;
+  contentError.value = false;
 }
 
 function onSelectResult(sessionId: string): void {
@@ -364,6 +529,8 @@ onBeforeUnmount(() => {
   document.removeEventListener('scroll', closeWsMenu, true);
   window.removeEventListener('resize', closeWsMenu);
   clearTimeout(deleteArmTimer);
+  clearTimeout(contentSearchTimer);
+  contentSearchToken++; // invalidate any in-flight search
 });
 
 // Logo easter-egg: clicking the Kimi mark plays one quick blink. It's a one-shot
@@ -449,6 +616,23 @@ function blinkOnce(): void {
           :aria-label="t('sidebar.searchPlaceholder')"
           @keydown.esc.stop="clearSearch"
         />
+        <!-- Search mode toggle: Title ↔ Content -->
+        <div class="search-mode-toggle" role="group" :aria-label="t('sidebar.searchModeTitle') + ' / ' + t('sidebar.searchModeContent')">
+          <button
+            type="button"
+            class="mode-btn"
+            :class="{ active: searchMode === 'title' }"
+            :title="t('sidebar.searchModeTitleHint')"
+            @click.stop="searchMode = 'title'"
+          >{{ t('sidebar.searchModeTitle') }}</button>
+          <button
+            type="button"
+            class="mode-btn"
+            :class="{ active: searchMode === 'content' }"
+            :title="t('sidebar.searchModeContentHint')"
+            @click.stop="searchMode = 'content'"
+          >{{ t('sidebar.searchModeContent') }}</button>
+        </div>
         <button
           v-if="isSearching"
           type="button"
@@ -488,24 +672,55 @@ function blinkOnce(): void {
 
       <!-- Search results (flat, across all workspaces) -->
       <div v-if="isSearching" class="sessions">
-        <template v-if="searchResults.length > 0">
-          <SessionRow
-            v-for="s in searchResults"
-            :key="s.id"
-            :session="s"
-            :active="s.id === activeId"
-            :approval-count="pendingBySession[s.id]?.approvals ?? 0"
-            :question-count="pendingBySession[s.id]?.questions ?? 0"
-            :unread="unreadBySession[s.id] ?? false"
-            @select="onSelectResult($event)"
-            @rename="(id, title) => emit('rename', id, title)"
-            @archive="emit('archive', $event)"
-            @fork="emit('fork', $event)"
-          />
+        <!-- Title mode: standard SessionRow list -->
+        <template v-if="searchMode === 'title'">
+          <template v-if="searchResults.length > 0">
+            <SessionRow
+              v-for="s in searchResults"
+              :key="s.id"
+              :session="s"
+              :active="s.id === activeId"
+              :approval-count="pendingBySession[s.id]?.approvals ?? 0"
+              :question-count="pendingBySession[s.id]?.questions ?? 0"
+              :unread="unreadBySession[s.id] ?? false"
+              @select="onSelectResult($event)"
+              @rename="(id, title) => emit('rename', id, title)"
+              @archive="emit('archive', $event)"
+              @fork="emit('fork', $event)"
+            />
+          </template>
+          <div v-else class="empty">
+            {{ t('sidebar.searchNoResults') }}
+          </div>
         </template>
-        <div v-else class="empty">
-          {{ t('sidebar.searchNoResults') }}
-        </div>
+
+        <!-- Content mode: full-text search results with snippets -->
+        <template v-else>
+          <div v-if="contentSearching && contentResults.length === 0" class="empty">
+            {{ t('sidebar.contentSearching') }}
+          </div>
+          <template v-else>
+            <div
+              v-for="r in contentResults"
+              :key="r.session.id"
+              class="content-result"
+              :class="{ on: r.session.id === activeId }"
+              @click="onSelectResult(r.session.id)"
+            >
+              <div class="content-result-title">{{ r.session.title }}</div>
+              <div class="content-result-snippet" v-html="r.snippet"></div>
+            </div>
+            <div v-if="contentResults.length === 0 && !contentSearching" class="empty">
+              {{ contentError ? t('sidebar.contentSearchError') : t('sidebar.searchNoResults') }}
+            </div>
+            <div
+              v-if="contentResults.length > 0 || contentSearching"
+              class="content-search-info"
+            >
+              {{ t('sidebar.contentSearchLimit', { searched: contentSearchedCount, total: Math.min(sessions.length, 50) }) }}
+            </div>
+          </template>
+        </template>
       </div>
 
       <!-- Session list — grouped by workspace -->
@@ -883,6 +1098,35 @@ function blinkOnce(): void {
   color: var(--ink);
 }
 
+/* Search mode toggle — two small pill buttons inside the search box */
+.search-mode-toggle {
+  display: inline-flex;
+  flex: none;
+  gap: 1px;
+  background: var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.mode-btn {
+  border: none;
+  background: transparent;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: calc(var(--ui-font-size) - 4px);
+  padding: 2px 6px;
+  cursor: pointer;
+  line-height: 1.4;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.mode-btn:hover {
+  color: var(--dim);
+}
+.mode-btn.active {
+  background: var(--bg);
+  color: var(--ink);
+}
+
 /* Sessions */
 .sessions {
   flex: 1;
@@ -906,6 +1150,47 @@ function blinkOnce(): void {
   color: var(--faint);
   font-size: calc(var(--ui-font-size) - 3px);
   line-height: 1.6;
+}
+
+/* Full-text content search result card */
+.content-result {
+  padding: 8px var(--sb-pad-x);
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+}
+.content-result:hover { background: var(--panel2); }
+.content-result.on { background: color-mix(in srgb, var(--blue) 7%, transparent); }
+.content-result-title {
+  color: var(--ink);
+  font-size: var(--ui-font-size);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 3px;
+}
+.content-result-snippet {
+  color: var(--dim);
+  font-size: calc(var(--ui-font-size) - 3px);
+  font-family: var(--mono);
+  line-height: 1.5;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.content-result-snippet :deep(mark) {
+  background: color-mix(in srgb, var(--blue) 22%, transparent);
+  color: var(--ink);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.content-search-info {
+  padding: 6px 12px;
+  color: var(--faint);
+  font-size: calc(var(--ui-font-size) - 4px);
+  font-family: var(--mono);
+  text-align: center;
 }
 
 /* Workspace group */

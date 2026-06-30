@@ -723,6 +723,23 @@ function handleKeydown(e: KeyboardEvent): void {
 }
 
 // ---------------------------------------------------------------------------
+// Token estimation
+// ---------------------------------------------------------------------------
+
+/** Rough token estimate for the current draft text + attachments.
+    Uses Math.ceil(len/4) for text and a flat 1000 tokens per image/video. */
+const TOKENS_PER_IMAGE = 1000;
+const TOKEN_WARN_THRESHOLD = 50000;
+
+const estimatedTokens = computed(() => {
+  const textTokens = Math.ceil((text.value?.length ?? 0) / 4);
+  const imageCount = attachments.value.filter((a) => !a.error).length;
+  return textTokens + imageCount * TOKENS_PER_IMAGE;
+});
+
+const tokenOverWarn = computed(() => estimatedTokens.value > TOKEN_WARN_THRESHOLD);
+
+// ---------------------------------------------------------------------------
 // Computed
 // ---------------------------------------------------------------------------
 
@@ -997,6 +1014,14 @@ function selectModel(modelId: string): void {
             @compositionend="handleCompositionEnd"
             @input="handleInput"
           />
+
+          <!-- Token estimate badge -->
+          <span
+            v-if="text.length > 0 || attachments.length > 0"
+            class="token-count"
+            :class="{ warn: tokenOverWarn }"
+            :title="t('composer.tokenEstimateTitle')"
+          >≈ {{ estimatedTokens.toLocaleString() }} {{ t('composer.tokenUnit') }}</span>
 
           <button
             class="send"
@@ -1536,6 +1561,24 @@ function selectModel(modelId: string): void {
   opacity: 0;
   transform: scale(0.7);
   pointer-events: none;
+}
+
+/* Token estimate badge */
+.token-count {
+  font-family: var(--mono);
+  font-size: var(--ui-font-size-xs);
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin-bottom: 10px;
+  line-height: 16px;
+  transition: color 0.2s;
+  user-select: none;
+}
+
+.token-count.warn {
+  color: var(--warn, #e8a838);
 }
 
 .send.aborting {

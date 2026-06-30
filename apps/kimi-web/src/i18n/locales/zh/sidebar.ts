@@ -29,4 +29,11 @@ export default {
   searchPlaceholder: '搜索会话',
   searchClear: '清除搜索',
   searchNoResults: '没有匹配的会话',
+  searchModeTitle: '标题',
+  searchModeContent: '内容',
+  searchModeTitleHint: '按会话标题搜索',
+  searchModeContentHint: '在会话消息中搜索',
+  contentSearching: '正在搜索消息…',
+  contentSearchLimit: '已搜索 {searched} / {total} 个会话',
+  contentSearchError: '搜索失败',
 };
