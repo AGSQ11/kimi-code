@@ -6,7 +6,8 @@ import { computed, reactive, ref, watch } from 'vue';
 import { i18n } from '../i18n';
 import { getKimiWebApi } from '../api';
 import { isDaemonApiError, isDaemonNetworkError } from '../api/errors';
-import { safeGetString, safeRemove, safeSetString } from '../lib/storage';
+import { safeGetString, safeRemove, safeSetString, loadWorkspaceOrder, saveWorkspaceOrder } from '../lib/storage';
+import { sortByWorkspaceOrder, reconcileWorkspaceOrder } from '../lib/workspaceOrder';
 import type {
   AppApprovalRequest,
   AppConfig,
@@ -2401,17 +2402,37 @@ const mergedWorkspaces = computed<AppWorkspace[]>(() => {
   return result;
 });
 
-/** Sidebar-facing workspace list. */
-const workspacesView = computed<WorkspaceView[]>(() =>
-  mergedWorkspaces.value.map((w) => ({
+/** User-defined workspace display order (persisted in localStorage). */
+const userWorkspaceOrder = ref<string[]>(loadWorkspaceOrder());
+
+/** Apply a new workspace order from drag-and-drop, persist, and reconcile. */
+function applyWorkspaceOrder(newOrder: string[]): void {
+  userWorkspaceOrder.value = newOrder;
+  saveWorkspaceOrder(newOrder);
+}
+
+/** Sidebar-facing workspace list, sorted by user-defined order. */
+const workspacesView = computed<WorkspaceView[]>(() => {
+  const mapped = mergedWorkspaces.value.map((w) => ({
     id: w.id,
     name: w.name,
     root: w.root,
     shortPath: shortenHome(w.root, rawState.fsHome),
     branch: w.branch,
     sessionCount: w.sessionCount,
-  })),
-);
+  }));
+  const sorted = sortByWorkspaceOrder(mapped, userWorkspaceOrder.value);
+  // Reconcile: if new workspaces appeared, prepend them to saved order.
+  const reconciled = reconcileWorkspaceOrder(
+    mergedWorkspaces.value.map((w) => w.id),
+    userWorkspaceOrder.value,
+  );
+  if (reconciled !== null) {
+    userWorkspaceOrder.value = reconciled;
+    saveWorkspaceOrder(reconciled);
+  }
+  return sorted;
+});
 
 /** The active workspace id, falling back to the first available workspace. */
 const activeWorkspaceId = computed<string | null>(() => {
@@ -4645,6 +4666,7 @@ export function useKimiWebClient() {
     activeWorkspaceId,
     sessionsForView,
     workspaceGroups,
+    applyWorkspaceOrder,
     attentionBySession,
     pendingBySession,
     attentionByWorkspace,

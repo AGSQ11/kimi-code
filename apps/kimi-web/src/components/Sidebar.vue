@@ -11,6 +11,7 @@ import SessionRow from './SessionRow.vue';
 import { serverEndpointLabel } from '../api/config';
 import { getKimiWebApi } from '../api';
 import { copyTextToClipboard } from '../lib/clipboard';
+import { moveInOrder } from '../lib/workspaceOrder';
 import {
   loadCollapsedWorkspaces,
   saveCollapsedWorkspaces,
@@ -431,6 +432,51 @@ function onSelectSession(sessionId: string): void {
 // ---------------------------------------------------------------------------
 const renamingId = ref<string | null>(null);
 const renameValue = ref('');
+
+// ── Workspace drag-to-reorder ───────────────────────────────────────────
+const draggingWsId = ref<string | null>(null);
+const dragOverWsId = ref<string | null>(null);
+const dropPosition = ref<'before' | 'after'>('before');
+
+function onWsDragStart(wsId: string, event: DragEvent): void {
+  if (!event.dataTransfer) return;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', wsId);
+  draggingWsId.value = wsId;
+}
+
+function onWsDragEnd(): void {
+  draggingWsId.value = null;
+  dragOverWsId.value = null;
+}
+
+function onWsDragOver(wsId: string, event: DragEvent): void {
+  if (wsId === draggingWsId.value) return;
+  if (draggingWsId.value === null) return;
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+  dragOverWsId.value = wsId;
+  // Position indicator: top half → before, bottom half → after
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  dropPosition.value = (event.clientY - rect.top) < rect.height / 2 ? 'before' : 'after';
+}
+
+function onWsDragLeave(): void {
+  dragOverWsId.value = null;
+}
+
+function onWsDrop(targetWsId: string, event: DragEvent): void {
+  event.preventDefault();
+  const sourceId = event.dataTransfer?.getData('text/plain');
+  if (!sourceId || sourceId === targetWsId) {
+    onWsDragEnd();
+    return;
+  }
+  const allIds = props.groups.map((g) => g.workspace.id);
+  const newOrder = moveInOrder(allIds, sourceId, targetWsId, dropPosition.value);
+  emit('reorderWorkspaces', newOrder);
+  onWsDragEnd();
+}
 const renameInputRef = ref<HTMLInputElement | null>(null);
 
 function startRenameWorkspace(id: string, name: string): void {
@@ -860,12 +906,23 @@ function blinkOnce(): void {
         </div>
 
         <template v-else>
-          <div v-for="g in groups" :key="g.workspace.id" class="group">
+          <div
+            v-for="g in groups"
+            :key="g.workspace.id"
+            class="group"
+            :class="{ 'drag-over-before': dragOverWsId === g.workspace.id && dropPosition === 'before', 'drag-over-after': dragOverWsId === g.workspace.id && dropPosition === 'after', 'dragging': draggingWsId === g.workspace.id }"
+            @dragover="onWsDragOver(g.workspace.id, $event)"
+            @dragleave="onWsDragLeave()"
+            @drop="onWsDrop(g.workspace.id, $event)"
+          >
             <div
               class="gh"
               :class="{ on: g.workspace.id === activeWorkspaceId, sel: selectedIds.has(g.workspace.id) }"
+              draggable="true"
               @click.stop="handleGhClick(g.workspace.id, $event)"
               @contextmenu="openGhMenu(g.workspace, $event)"
+              @dragstart="onWsDragStart(g.workspace.id, $event)"
+              @dragend="onWsDragEnd()"
             >
               <div class="gh-top">
                 <!-- Folder icon -->
@@ -1378,7 +1435,26 @@ function blinkOnce(): void {
 }
 
 /* Workspace group */
-.group { padding-bottom: 6px; }
+.group { padding-bottom: 6px; position: relative; }
+.group.dragging { opacity: 0.35; }
+.group.drag-over-before::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 4px; right: 4px;
+  height: 2px;
+  background: var(--accent, #5b9aff);
+  border-radius: 1px;
+  z-index: 10;
+}
+.group.drag-over-after::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 4px; right: 4px;
+  height: 2px;
+  background: var(--accent, #5b9aff);
+  border-radius: 1px;
+  z-index: 10;
+}
 .gh {
   display: flex;
   flex-direction: column;
