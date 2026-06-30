@@ -691,7 +691,8 @@ const anyOverlayOpen = computed<boolean>(() =>
   showCompareDialog.value ||
   showExportDialog.value ||
   showGoalQueue.value ||
-  showFeedbackDialog.value,
+  showFeedbackDialog.value ||
+  showCommandPalette.value,
 );
 
 // Loading state for model/provider fetches
@@ -1718,6 +1719,8 @@ function openPr(url: string): void {
       @open-memory="openMemoryDialog"
       @open-compare="openCompareDialog"
       @open-notes="openNotesPanel"
+      @clear-session="handleCommand('/clear')"
+      @command="handleCommand"
     />
   </div>
 </template>

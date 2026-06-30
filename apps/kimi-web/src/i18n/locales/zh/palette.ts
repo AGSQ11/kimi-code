@@ -11,6 +11,8 @@ export default {
   openSettings: '打开设置',
   openMemory: '打开记忆',
   openCompare: '打开对比',
+  openNotes: '打开笔记',
+  clearSession: '清空会话',
   categoryCommand: '命令',
   categorySession: '会话',
   categoryModel: '模型',

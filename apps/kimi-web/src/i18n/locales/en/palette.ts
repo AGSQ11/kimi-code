@@ -11,6 +11,8 @@ export default {
   openSettings: 'Open Settings',
   openMemory: 'Open Memory',
   openCompare: 'Open Compare',
+  openNotes: 'Open Notes',
+  clearSession: 'Clear Session',
   categoryCommand: 'Command',
   categorySession: 'Session',
   categoryModel: 'Model',

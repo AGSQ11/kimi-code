@@ -99,13 +99,48 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 // ---------------------------------------------------------------------------
-// Textarea
+// Local message queue (auto-queue when AI is running)
 // ---------------------------------------------------------------------------
+const localQueue = ref<string[]>([]);
 
-// Unsent-draft persistence: the composer text is kept in localStorage PER
-// SESSION, so switching away and back (or a page refresh) restores whatever the
-// user was typing for that session. Cleared when the draft is sent/steered.
-const DRAFT_PREFIX = 'kimi-web.draft.';
+function queueMessage(): void {
+  const trimmed = text.value.trim();
+  if (!trimmed) return;
+  localQueue.value = [...localQueue.value, trimmed];
+  pushInputHistory(trimmed);
+  text.value = '';
+  slashOpen.value = false;
+  mentionOpen.value = false;
+  webSearchQuery.value = '';
+  void nextTick(autosize);
+}
+
+function removeQueuedMessage(index: number): void {
+  localQueue.value = localQueue.value.filter((_, i) => i !== index);
+}
+
+function drainQueue(): void {
+  if (localQueue.value.length === 0) return;
+  const [next, ...rest] = localQueue.value;
+  localQueue.value = rest;
+  text.value = next;
+  void nextTick(() => {
+    handleSubmit();
+  });
+}
+
+// Auto-drain the local queue when the session transitions from running to idle.
+watch(() => props.running, (isRunning, wasRunning) => {
+  if (wasRunning && !isRunning) {
+    drainQueue();
+  }
+});
+
+const queuedCount = computed(() => localQueue.value.length);
+
+// ---------------------------------------------------------------------------
+// Selection-based AI enhance toolbar
+// ---------------------------------------------------------------------------
 function draftKey(sid: string | undefined): string {
   return DRAFT_PREFIX + (sid && sid.length > 0 ? sid : '__new__');
 }
@@ -607,6 +642,12 @@ function handleSubmit(): void {
       emit('command', parsed.arg ? `${parsed.cmd} ${parsed.arg}` : parsed.cmd);
       return;
     }
+  }
+
+  // When the AI is running, queue locally instead of submitting.
+  if (props.running) {
+    queueMessage();
+    return;
   }
 
   // Inject active web-search context as a `/web-search <query>` prefix.
@@ -1202,6 +1243,27 @@ function resetParams(): void {
       </span>
     </div>
 
+    <!-- Local queued message chips (shown while AI is running) -->
+    <div v-if="localQueue.length > 0" class="queue-strip">
+      <div
+        v-for="(q, i) in localQueue"
+        :key="`q-${i}`"
+        class="queue-chip"
+        :title="q"
+      >
+        <span class="queue-chip-text">{{ q }}</span>
+        <button
+          type="button"
+          class="queue-chip-rm"
+          :title="t('composer.remove')"
+          :aria-label="t('composer.remove')"
+          @click="removeQueuedMessage(i)"
+        >
+          <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>
+        </button>
+      </div>
+    </div>
+
     <div v-if="previewAttachment" class="att-lightbox" @click.self="closeAttachmentPreview">
       <div class="att-lightbox-card">
         <button type="button" class="att-lightbox-close" :title="t('model.close')" @click="closeAttachmentPreview">✕</button>
@@ -1270,6 +1332,8 @@ function resetParams(): void {
             :title="running ? t('composer.interruptTitle') : sendLabel"
             @click="running ? emit('interrupt') : handleSubmit()"
           >
+            <!-- Queued badge -->
+            <span v-if="queuedCount > 0" class="queued-badge">{{ queuedCount }}</span>
             <svg
               class="send-icon"
               :class="{ hidden: running }"
@@ -2919,5 +2983,77 @@ function resetParams(): void {
 .ai-toolbar-label {
   font-size: var(--ui-font-size-xs);
   line-height: 1;
+}
+
+/* Local queued message chips */
+.queue-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0 6px;
+}
+
+.queue-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 6px 3px 8px;
+  font-family: var(--mono);
+  font-size: calc(var(--ui-font-size) - 2px);
+  color: var(--text);
+  max-width: 260px;
+  cursor: default;
+}
+
+.queue-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.queue-chip-rm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 1px;
+  cursor: pointer;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.queue-chip-rm:hover {
+  color: var(--err);
+}
+
+/* Queued badge on send button */
+.queued-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--warn);
+  color: var(--bg);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.send {
+  position: relative;
 }
 </style>

@@ -11,6 +11,7 @@ import AgentCard from './AgentCard.vue';
 import AgentGroup from './AgentGroup.vue';
 import MoonSpinner from './MoonSpinner.vue';
 import { formatMessageTime } from '../lib/formatMessageTime';
+import CompareCard from './CompareCard.vue';
 
 const { t } = useI18n();
 
@@ -230,6 +231,8 @@ function turnToMarkdown(turn: ChatTurn): string {
       parts.push(`**Agent** ${blk.member.name} (${blk.member.phase})`);
     } else if (blk.kind === 'agentGroup') {
       parts.push(`**Agents**\n\n${blk.members.map((member) => `- ${member.name}: ${member.phase}`).join('\n')}`);
+    } else if (blk.kind === 'compare') {
+      parts.push(`**Compare**\n\n${blk.results.map((r) => `### ${r.modelAlias}\n${r.text}`).join('\n\n')}`);
     }
   }
   return parts.join('\n\n');
@@ -349,7 +352,8 @@ type AssistantRenderBlock =
   | { kind: 'tool'; tool: ToolStackItem['tool']; sourceIndex: number }
   | { kind: 'tool-stack'; tools: ToolStackItem[] }
   | { kind: 'agent'; member: Extract<TurnBlock, { kind: 'agent' }>['member']; sourceIndex: number }
-  | { kind: 'agentGroup'; members: Extract<TurnBlock, { kind: 'agentGroup' }>['members']; sourceIndex: number };
+  | { kind: 'agentGroup'; members: Extract<TurnBlock, { kind: 'agentGroup' }>['members']; sourceIndex: number }
+  | { kind: 'compare'; results: Extract<TurnBlock, { kind: 'compare' }>['results']; sourceIndex: number };
 
 function rendersToolCard(block: Extract<TurnBlock, { kind: 'tool' }>): boolean {
   return !(block.tool.status === 'ok' && block.tool.media);
@@ -395,6 +399,8 @@ function assistantRenderBlocks(turn: ChatTurn): AssistantRenderBlock[] {
       rendered.push({ kind: 'text', text: block.text, sourceIndex });
     } else if (block.kind === 'agent') {
       rendered.push({ kind: 'agent', member: block.member, sourceIndex });
+    } else if (block.kind === 'compare') {
+      rendered.push({ kind: 'compare', results: block.results, sourceIndex });
     } else {
       rendered.push({ kind: 'agentGroup', members: block.members, sourceIndex });
     }
@@ -420,6 +426,7 @@ function renderBlockKey(block: AssistantRenderBlock, index: number): string {
   if (block.kind === 'tool') return toolStackKey({ tool: block.tool, sourceIndex: block.sourceIndex });
   if (block.kind === 'agent') return `agent-${block.member.id}-${block.sourceIndex}`;
   if (block.kind === 'agentGroup') return `agent-group-${block.members[0]?.id ?? block.sourceIndex}`;
+  if (block.kind === 'compare') return `compare-${block.sourceIndex}`;
   return `${block.kind}-${block.sourceIndex}`;
 }
 
@@ -548,6 +555,7 @@ function renderBlockKey(block: AssistantRenderBlock, index: number): string {
           </div>
           <AgentCard v-else-if="blk.kind === 'agent'" :member="blk.member" @open="emit('openAgent', { turnId: turn.id, blockIndex: blk.sourceIndex, memberId: $event })" />
           <AgentGroup v-else-if="blk.kind === 'agentGroup'" :members="blk.members" @open="emit('openAgent', { turnId: turn.id, blockIndex: blk.sourceIndex, memberId: $event })" />
+          <CompareCard v-else-if="blk.kind === 'compare'" :results="blk.results" />
           <ToolCall v-else-if="blk.kind === 'tool'" :tool="blk.tool" :mobile="childBubble" @open-media="emit('openMedia', $event)" />
         </template>
         <div v-if="turn.id !== streamingTurnId && isAssistantRunEnd(ti) && (assistantRunFinalText(ti).trim().length > 0 || turn.durationMs !== undefined)" class="a-msg-ft">
@@ -670,6 +678,7 @@ function renderBlockKey(block: AssistantRenderBlock, index: number): string {
               </div>
               <AgentCard v-else-if="blk.kind === 'agent'" :member="blk.member" @open="emit('openAgent', { turnId: turn.id, blockIndex: blk.sourceIndex, memberId: $event })" />
               <AgentGroup v-else-if="blk.kind === 'agentGroup'" :members="blk.members" @open="emit('openAgent', { turnId: turn.id, blockIndex: blk.sourceIndex, memberId: $event })" />
+              <CompareCard v-else-if="blk.kind === 'compare'" :results="blk.results" />
               <ToolCall v-else-if="blk.kind === 'tool'" :tool="blk.tool" @open-media="emit('openMedia', $event)" />
             </template>
           </template>
