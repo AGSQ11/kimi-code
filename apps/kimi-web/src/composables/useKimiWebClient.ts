@@ -4196,9 +4196,13 @@ async function probeModels(): Promise<void> {
     const errorCount = entries.length - okCount;
     const icon = (r: { status: string }) =>
       r.status === 'ok' ? '✅' : r.status === 'unknown' ? '⚠️' : '❌';
-    const lines = entries.map(
-      ([alias, r]) =>
-        `${icon(r)} ${alias} — ${r.status === 'ok' ? 'ok' : (r.error ?? r.status)}`,
+    const details = entries.map(
+      ([alias, r]) => ({
+        label: `${icon(r)} ${alias}`,
+        value: r.status === 'ok'
+          ? `${r.latencyMs ?? ''}${r.latencyMs != null ? 'ms' : 'ok'}${r.providerName ? ' · ' + r.providerName : ''}`
+          : (r.error ?? r.status),
+      }),
     );
     const summary =
       errorCount === 0
@@ -4207,7 +4211,8 @@ async function probeModels(): Promise<void> {
     pushWarning({
       severity: errorCount === 0 ? 'info' : 'warning',
       title: i18n.global.t('warnings.probeModelsTitle'),
-      message: `${summary}\n${lines.join('\n')}`,
+      message: summary,
+      details,
     });
   } catch (err) {
     pushOperationFailure('probeModels', err, { sessionId: sid });
