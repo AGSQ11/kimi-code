@@ -24,6 +24,8 @@ export const STORAGE_KEYS = {
   hiddenWorkspaces: 'kimi-web.hidden-workspaces',
   collapsedWorkspaces: 'kimi-web.collapsed-workspaces',
   workspaceOrder: 'kimi-web.workspace-order',
+  pinnedSessions: 'kimi-web.pinned-sessions',
+  sessionTags: 'kimi-web.session-tags',
   betaToc: 'kimi-web.beta-toc',
   notifyOnComplete: 'kimi-web.notify-on-complete',
   inputHistory: 'kimi-web.input-history',
@@ -155,4 +157,41 @@ export function loadWorkspaceOrder(): string[] {
 
 export function saveWorkspaceOrder(ids: Iterable<string>): void {
   safeSetJson(STORAGE_KEYS.workspaceOrder, Array.from(ids));
+}
+
+/**
+ * Pinned session ids. Persisted as a JSON array so pinned sessions stay at the
+ * top of their workspace group across reloads.
+ */
+export function loadPinnedSessions(): Set<string> {
+  const parsed = safeGetJson<unknown>(STORAGE_KEYS.pinnedSessions);
+  if (!Array.isArray(parsed)) return new Set();
+  return new Set(parsed.filter((id): id is string => typeof id === 'string'));
+}
+
+export function savePinnedSessions(ids: Iterable<string>): void {
+  safeSetJson(STORAGE_KEYS.pinnedSessions, Array.from(ids));
+}
+
+/**
+ * Per-session tags. Persisted as a JSON object mapping session id to an array
+ * of tag strings. Tags are purely client-side metadata for organising sessions.
+ */
+export type SessionTags = Record<string, string[]>;
+
+export function loadSessionTags(): SessionTags {
+  const parsed = safeGetJson<unknown>(STORAGE_KEYS.sessionTags);
+  if (!parsed || typeof parsed !== 'object') return {};
+  const out: SessionTags = {};
+  for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
+    if (Array.isArray(value)) {
+      const tags = value.filter((t): t is string => typeof t === 'string');
+      if (tags.length) out[id] = tags;
+    }
+  }
+  return out;
+}
+
+export function saveSessionTags(tags: SessionTags): void {
+  safeSetJson(STORAGE_KEYS.sessionTags, tags);
 }

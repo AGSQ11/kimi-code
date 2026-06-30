@@ -36,4 +36,10 @@ export default {
   contentSearching: '正在搜索消息…',
   contentSearchLimit: '已搜索 {searched} / {total} 个会话',
   contentSearchError: '搜索失败',
+  pin: '置顶会话',
+  unpin: '取消置顶',
+  addTag: '添加标签',
+  removeTag: '移除标签',
+  tagFilterPlaceholder: '按标签筛选',
+  tagFilterClear: '清除标签筛选',
 };

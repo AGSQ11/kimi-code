@@ -43,7 +43,8 @@ export type AssistantRenderBlock =
   | { kind: 'tool'; tool: ToolStackItem['tool']; sourceIndex: number }
   | { kind: 'tool-stack'; tools: ToolStackItem[] }
   | { kind: 'agent'; member: Extract<TurnBlock, { kind: 'agent' }>['member']; sourceIndex: number }
-  | { kind: 'agentGroup'; members: Extract<TurnBlock, { kind: 'agentGroup' }>['members']; sourceIndex: number };
+  | { kind: 'agentGroup'; members: Extract<TurnBlock, { kind: 'agentGroup' }>['members']; sourceIndex: number }
+  | { kind: 'compare'; results: Extract<TurnBlock, { kind: 'compare' }>['results']; sourceIndex: number };
 
 export function rendersToolCard(block: Extract<TurnBlock, { kind: 'tool' }>): boolean {
   return !(block.tool.status === 'ok' && block.tool.media);
@@ -89,6 +90,8 @@ export function assistantRenderBlocks(turn: ChatTurn): AssistantRenderBlock[] {
       rendered.push({ kind: 'text', text: block.text, sourceIndex });
     } else if (block.kind === 'agent') {
       rendered.push({ kind: 'agent', member: block.member, sourceIndex });
+    } else if (block.kind === 'compare') {
+      rendered.push({ kind: 'compare', results: block.results, sourceIndex });
     } else {
       rendered.push({ kind: 'agentGroup', members: block.members, sourceIndex });
     }
@@ -135,5 +138,6 @@ export function renderBlockKey(block: AssistantRenderBlock, index: number): stri
   if (block.kind === 'tool') return toolStackKey({ tool: block.tool, sourceIndex: block.sourceIndex });
   if (block.kind === 'agent') return `agent-${block.member.id}-${block.sourceIndex}`;
   if (block.kind === 'agentGroup') return `agent-group-${block.members[0]?.id ?? block.sourceIndex}`;
+  if (block.kind === 'compare') return `compare-${block.sourceIndex}`;
   return `${block.kind}-${block.sourceIndex}`;
 }

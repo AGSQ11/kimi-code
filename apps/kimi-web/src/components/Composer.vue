@@ -74,7 +74,7 @@ const placeholder = computed(() =>
 );
 
 const emit = defineEmits<{
-  submit: [payload: { text: string; attachments: { fileId: string; kind: 'image' | 'video' }[] }];
+  submit: [payload: { text: string; attachments: { fileId: string; kind: 'image' | 'video' }[]; generationKwargs?: Record<string, number | undefined> }];
   /** Steer the composer text (+ any queued prompts, merged by the parent)
       into the RUNNING turn — TUI ctrl+s. */
   steer: [payload: { text: string; attachments: { fileId: string; kind: 'image' | 'video' }[] }];
@@ -93,6 +93,7 @@ const emit = defineEmits<{
   compact: [];
   pickModel: [];
   selectModel: [modelId: string];
+  'ai-action': [payload: { action: 'refine' | 'explain' | 'fix'; text: string }];
 }>();
 
 const { t } = useI18n();
@@ -127,6 +128,67 @@ function saveDraft(sid: string | undefined, value: string): void {
 
 const text = ref(loadDraft(props.sessionId));
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
+
+// ---------------------------------------------------------------------------
+// Selection-based AI enhance toolbar
+// ---------------------------------------------------------------------------
+
+/** Whether text is currently selected in the textarea. */
+const selectionActive = ref(false);
+/** The currently selected text content. */
+const selectedText = ref('');
+/** Position of the floating AI toolbar (CSS fixed coords). */
+const toolbarPos = ref<{ top: number; left: number }>({ top: 0, left: 0 });
+
+const AI_ACTIONS = ['refine', 'explain', 'fix'] as const;
+type AiAction = typeof AI_ACTIONS[number];
+const aiToolbarIndex = ref(0);
+
+function updateSelection(): void {
+  const el = textareaRef.value;
+  if (!el) { selectionActive.value = false; return; }
+  const start = el.selectionStart ?? 0;
+  const end = el.selectionEnd ?? 0;
+  if (start === end) { selectionActive.value = false; return; }
+  selectionActive.value = true;
+  selectedText.value = el.value.slice(start, end);
+  aiToolbarIndex.value = 0;
+  // Position the toolbar above the textarea center
+  const rect = el.getBoundingClientRect();
+  toolbarPos.value = {
+    top: rect.top - 8,
+    left: rect.left + rect.width / 2,
+  };
+}
+
+function onSelectionChange(): void {
+  // Delay slightly so selectionEnd is updated
+  setTimeout(updateSelection, 0);
+}
+
+function emitAiAction(action: AiAction): void {
+  const sel = selectedText.value;
+  selectionActive.value = false;
+  if (!sel) return;
+  emit('ai-action', { action, text: sel });
+}
+
+function handleToolbarKeydown(e: KeyboardEvent): void {
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    aiToolbarIndex.value = (aiToolbarIndex.value - 1 + AI_ACTIONS.length) % AI_ACTIONS.length;
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    aiToolbarIndex.value = (aiToolbarIndex.value + 1) % AI_ACTIONS.length;
+  } else if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    emitAiAction(AI_ACTIONS[aiToolbarIndex.value]!);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    selectionActive.value = false;
+    textareaRef.value?.focus();
+  }
+}
 
 function autosize(): void {
   const el = textareaRef.value;
@@ -475,6 +537,8 @@ function handleDrop(e: DragEvent): void {
 
 onMounted(() => {
   document.addEventListener('paste', handleDocumentPaste);
+  document.addEventListener('mouseup', onSelectionChange);
+  document.addEventListener('keyup', onSelectionChange);
   // Fit the box to a restored draft on first render.
   if (text.value) void nextTick(autosize);
 });
@@ -483,6 +547,10 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('paste', handleDocumentPaste);
   document.removeEventListener('mousedown', onModesDocClick);
+  document.removeEventListener('mousedown', onWebSearchDocClick);
+  document.removeEventListener('mouseup', onSelectionChange);
+  document.removeEventListener('keyup', onSelectionChange);
+  document.removeEventListener('click', onParamsDocClick, true);
   for (const att of attachments.value) {
     revokeAttachment(att);
   }
@@ -541,9 +609,14 @@ function handleSubmit(): void {
     }
   }
 
+  // Inject active web-search context as a `/web-search <query>` prefix.
+  const prefix = webSearchQuery.value ? `/web-search ${webSearchQuery.value}\n\n` : '';
+  const finalText = prefix + trimmed;
+
   const payload = {
-    text: trimmed,
+    text: finalText,
     attachments: readyAttachments.map((a) => ({ fileId: a.fileId!, kind: a.kind })),
+    generationKwargs: buildPerMessageKwargs(),
   };
 
   // Revoke object URLs for submitted attachments
@@ -553,10 +626,12 @@ function handleSubmit(): void {
   }
   attachments.value = [];
 
-  pushInputHistory(trimmed);
+  pushInputHistory(finalText);
   text.value = '';
   slashOpen.value = false;
   mentionOpen.value = false;
+  webSearchQuery.value = '';
+  resetParams();
   emit('submit', payload);
 }
 
@@ -620,6 +695,16 @@ function handleKeydown(e: KeyboardEvent): void {
 
   // Close dropdowns on Escape
   if (e.key === 'Escape') {
+    if (webSearchOpen.value) {
+      e.preventDefault();
+      closeWebSearch();
+      return;
+    }
+    if (paramsOpen.value) {
+      e.preventDefault();
+      closeParams();
+      return;
+    }
     if (dropdownOpen.value) {
       e.preventDefault();
       closeDropdown();
@@ -878,6 +963,79 @@ function toggleModes(): void {
   modesOpen.value = true;
   setTimeout(() => document.addEventListener('mousedown', onModesDocClick), 0);
 }
+
+// ---------------------------------------------------------------------------
+// Web search context
+// ---------------------------------------------------------------------------
+
+/** Query that will be injected as `/web-search <query>` prefix on next send. */
+const webSearchQuery = ref('');
+/** Draft value inside the web-search popover input. */
+const webSearchDraft = ref('');
+const webSearchOpen = ref(false);
+const webSearchInputRef = ref<HTMLInputElement | null>(null);
+const webSearchBtnRef = ref<HTMLButtonElement | null>(null);
+const webSearchMenuRef = ref<HTMLElement | null>(null);
+const webSearchMenuStyle = ref<Record<string, string>>({});
+
+function openWebSearch(): void {
+  const r = webSearchBtnRef.value?.getBoundingClientRect();
+  if (r) {
+    webSearchMenuStyle.value = {
+      left: `${Math.round(r.left)}px`,
+      bottom: `${Math.round(window.innerHeight - r.top + 8)}px`,
+    };
+  }
+  webSearchDraft.value = webSearchQuery.value;
+  webSearchOpen.value = true;
+  void nextTick(() => {
+    webSearchInputRef.value?.focus();
+  });
+}
+
+function closeWebSearch(): void {
+  webSearchOpen.value = false;
+}
+
+function toggleWebSearch(): void {
+  if (webSearchOpen.value) closeWebSearch();
+  else openWebSearch();
+}
+
+function applyWebSearch(raw: string): void {
+  const query = raw.trim();
+  if (!query) {
+    closeWebSearch();
+    return;
+  }
+  webSearchQuery.value = query;
+  closeWebSearch();
+}
+
+function removeWebSearch(): void {
+  webSearchQuery.value = '';
+  webSearchDraft.value = '';
+}
+
+function openWebSearchInBrowser(): void {
+  const q = webSearchQuery.value || webSearchDraft.value;
+  if (!q) return;
+  const url = `https://www.google.com/search?q=${encodeURIComponent(q.trim())}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+function onWebSearchDocClick(e: MouseEvent): void {
+  const t = e.target as Node;
+  if (webSearchBtnRef.value?.contains(t)) return;
+  if (webSearchMenuRef.value?.contains(t)) return;
+  closeWebSearch();
+}
+
+watch(webSearchOpen, (open) => {
+  if (open) setTimeout(() => document.addEventListener('mousedown', onWebSearchDocClick), 0);
+  else document.removeEventListener('mousedown', onWebSearchDocClick);
+});
+
 // Permission modes
 const PERM_MODES: { mode: PermissionMode; color: string; labelKey: string; descKey: string }[] = [
   { mode: 'manual', color: 'var(--dim)', labelKey: 'status.permissionManual', descKey: 'status.permissionManualDesc' },
@@ -921,6 +1079,60 @@ function selectModel(modelId: string): void {
   emit('selectModel', modelId);
   closeDropdown();
 }
+
+// ---------------------------------------------------------------------------
+// Per-message parameter overrides (temperature, top_p, max_tokens)
+// ---------------------------------------------------------------------------
+
+const paramsOpen = ref(false);
+const paramsRef = ref<HTMLElement | null>(null);
+
+/** Custom per-message parameter values. undefined = use session default. */
+const paramsTemperature = ref<number | undefined>(undefined);
+const paramsTopP = ref<number | undefined>(undefined);
+const paramsMaxTokens = ref<number | undefined>(undefined);
+
+const hasCustomParams = computed(() =>
+  paramsTemperature.value !== undefined ||
+  paramsTopP.value !== undefined ||
+  paramsMaxTokens.value !== undefined,
+);
+
+/** Build the kwargs dict to attach to the submit payload (only non-undefined). */
+function buildPerMessageKwargs(): Record<string, number | undefined> | undefined {
+  if (!hasCustomParams.value) return undefined;
+  const kw: Record<string, number | undefined> = {};
+  if (paramsTemperature.value !== undefined) kw.temperature = paramsTemperature.value;
+  if (paramsTopP.value !== undefined) kw.topP = paramsTopP.value;
+  if (paramsMaxTokens.value !== undefined) kw.maxTokens = paramsMaxTokens.value;
+  return kw;
+}
+
+function toggleParams(): void {
+  paramsOpen.value = !paramsOpen.value;
+  if (paramsOpen.value) {
+    document.addEventListener('click', onParamsDocClick, true);
+  } else {
+    document.removeEventListener('click', onParamsDocClick, true);
+  }
+}
+
+function closeParams(): void {
+  paramsOpen.value = false;
+  document.removeEventListener('click', onParamsDocClick, true);
+}
+
+function onParamsDocClick(e: MouseEvent): void {
+  if (paramsRef.value && !paramsRef.value.contains(e.target as Node)) {
+    closeParams();
+  }
+}
+
+function resetParams(): void {
+  paramsTemperature.value = undefined;
+  paramsTopP.value = undefined;
+  paramsMaxTokens.value = undefined;
+}
 </script>
 
 <template>
@@ -962,6 +1174,32 @@ function selectModel(modelId: string): void {
           <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>
         </button>
       </div>
+    </div>
+
+    <!-- Active web-search context chip -->
+    <div v-if="webSearchQuery" class="web-search-chip-strip">
+      <span class="web-search-chip" :title="t('composer.webSearchActive', { query: webSearchQuery })">
+        <svg class="ws-chip-icon" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="4"/><line x1="9.5" y1="9.5" x2="13.5" y2="13.5"/></svg>
+        <span class="ws-chip-text">{{ t('composer.webSearchActive', { query: webSearchQuery }) }}</span>
+        <button
+          type="button"
+          class="ws-chip-action"
+          :title="t('composer.webSearchOpenTab')"
+          :aria-label="t('composer.webSearchOpenTab')"
+          @click.stop="openWebSearchInBrowser"
+        >
+          <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 2h6v6M14 2L8 8M4 4H2v10h10v-2"/></svg>
+        </button>
+        <button
+          type="button"
+          class="ws-chip-rm"
+          :title="t('composer.remove')"
+          :aria-label="t('composer.remove')"
+          @click.stop="removeWebSearch"
+        >
+          <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>
+        </button>
+      </span>
     </div>
 
     <div v-if="previewAttachment" class="att-lightbox" @click.self="closeAttachmentPreview">
@@ -1013,6 +1251,8 @@ function selectModel(modelId: string): void {
             @compositionstart="handleCompositionStart"
             @compositionend="handleCompositionEnd"
             @input="handleInput"
+            @select="onSelectionChange"
+            @mouseup="onSelectionChange"
           />
 
           <!-- Token estimate badge -->
@@ -1083,6 +1323,20 @@ function selectModel(modelId: string): void {
             @click="openFilePicker"
           >
             <svg class="attach-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 3v10M3 8h10"/></svg>
+          </button>
+
+          <!-- Web search button -->
+          <button
+            ref="webSearchBtnRef"
+            type="button"
+            class="web-search-btn"
+            :class="{ active: webSearchOpen || webSearchQuery }"
+            :title="t('composer.webSearchTitle')"
+            :aria-label="t('composer.webSearch')"
+            @click.stop="toggleWebSearch"
+          >
+            <svg class="ws-icon" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5"/><line x1="11" y1="11" x2="14.5" y2="14.5"/><path d="M7 2c-1.8 1.8-2.7 3.2-2.7 5s.9 3.2 2.7 5"/><path d="M7 2c1.8 1.8 2.7 3.2 2.7 5s-.9 3.2-2.7 5"/></svg>
+            <span v-if="webSearchQuery" class="ws-dot" aria-hidden="true" />
           </button>
 
           <!-- Permission pill — click to open dropdown -->
@@ -1168,6 +1422,72 @@ function selectModel(modelId: string): void {
             </div>
           </div>
 
+        </div>
+
+        <!-- Per-message Parameters popover -->
+        <div ref="paramsRef" class="params-popover-anchor">
+          <button
+            type="button"
+            class="params-btn"
+            :class="{ on: paramsOpen || hasCustomParams }"
+            :title="hasCustomParams ? t('composer.paramsButtonCustom') : t('composer.paramsButton')"
+            @click.stop="toggleParams"
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+              <line x1="2" y1="4" x2="14" y2="4" /><line x1="2" y1="8" x2="14" y2="8" /><line x1="2" y1="12" x2="14" y2="12" />
+              <circle cx="5" cy="4" r="1.5" fill="currentColor" /><circle cx="10" cy="8" r="1.5" fill="currentColor" /><circle cx="6" cy="12" r="1.5" fill="currentColor" />
+            </svg>
+            <span v-if="hasCustomParams" class="params-badge">{{ t('composer.paramsCustomIndicator') }}</span>
+          </button>
+          <div v-if="paramsOpen" class="params-popover" @click.stop>
+            <div class="params-row">
+              <label class="params-label">{{ t('composer.paramsTemperature') }}</label>
+              <span class="params-val">{{ paramsTemperature !== undefined ? paramsTemperature.toFixed(1) : '—' }}</span>
+            </div>
+            <input
+              type="range"
+              class="params-slider"
+              min="0"
+              max="2"
+              step="0.1"
+              :value="paramsTemperature ?? 0.7"
+              @input="paramsTemperature = parseFloat(($event.target as HTMLInputElement).value)"
+            />
+            <div class="params-range"><span>0</span><span>2</span></div>
+
+            <div class="params-row">
+              <label class="params-label">{{ t('composer.paramsTopP') }}</label>
+              <span class="params-val">{{ paramsTopP !== undefined ? paramsTopP.toFixed(2) : '—' }}</span>
+            </div>
+            <input
+              type="range"
+              class="params-slider"
+              min="0"
+              max="1"
+              step="0.05"
+              :value="paramsTopP ?? 1"
+              @input="paramsTopP = parseFloat(($event.target as HTMLInputElement).value)"
+            />
+            <div class="params-range"><span>0</span><span>1</span></div>
+
+            <div class="params-row">
+              <label class="params-label">{{ t('composer.paramsMaxTokens') }}</label>
+              <span class="params-val">{{ paramsMaxTokens ?? '—' }}</span>
+            </div>
+            <input
+              type="number"
+              class="params-num"
+              min="1"
+              max="100000"
+              :value="paramsMaxTokens"
+              :placeholder="t('composer.paramsMaxTokens')"
+              @input="paramsMaxTokens = ($event.target as HTMLInputElement).valueAsNumber || undefined"
+            />
+
+            <div class="params-actions">
+              <button type="button" class="params-reset" @click="resetParams">{{ t('composer.paramsReset') }}</button>
+            </div>
+          </div>
         </div>
 
         <!-- Right: ctx + model -->
@@ -1277,9 +1597,90 @@ function selectModel(modelId: string): void {
             <span class="md-name">{{ t('status.moreModels') }}</span>
           </button>
         </div>
+
+        <!-- Web search popover -->
+        <div
+          v-if="webSearchOpen"
+          ref="webSearchMenuRef"
+          class="web-search-menu"
+          :style="webSearchMenuStyle"
+          role="dialog"
+          :aria-label="t('composer.webSearch')"
+          @click.stop
+        >
+          <div class="ws-header">
+            <svg class="ws-header-icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5"/><line x1="11" y1="11" x2="14.5" y2="14.5"/><path d="M7 2c-1.8 1.8-2.7 3.2-2.7 5s.9 3.2 2.7 5"/><path d="M7 2c1.8 1.8 2.7 3.2 2.7 5s-.9 3.2-2.7 5"/></svg>
+            <span class="ws-header-title">{{ t('composer.webSearch') }}</span>
+          </div>
+          <input
+            ref="webSearchInputRef"
+            v-model="webSearchDraft"
+            type="text"
+            class="ws-input"
+            :placeholder="t('composer.webSearchPlaceholder')"
+            @keydown.enter.prevent="applyWebSearch(webSearchDraft)"
+            @keydown.esc.prevent="closeWebSearch"
+          />
+          <div class="ws-actions">
+            <button
+              type="button"
+              class="ws-action-primary"
+              :disabled="!webSearchDraft.trim()"
+              @click="applyWebSearch(webSearchDraft)"
+            >{{ t('composer.webSearch') }}</button>
+            <button
+              type="button"
+              class="ws-action-secondary"
+              :disabled="!webSearchDraft.trim()"
+              @click="openWebSearchInBrowser"
+            >{{ t('composer.webSearchOpenTab') }}</button>
+          </div>
+          <p class="ws-hint">{{ t('composer.webSearchTitle') }}</p>
+        </div>
       </div>
   </div>
 </div>
+
+<!-- Floating AI selection toolbar — appears above textarea when text is selected -->
+<Teleport to="body">
+  <div
+    v-if="selectionActive"
+    class="ai-toolbar-float"
+    :style="{ top: toolbarPos.top + 'px', left: toolbarPos.left + 'px' }"
+    role="toolbar"
+    :aria-label="t('composer.aiEnhanceTitle')"
+    @keydown="handleToolbarKeydown"
+  >
+    <button
+      v-for="(action, i) in AI_ACTIONS"
+      :key="action"
+      type="button"
+      class="ai-toolbar-btn"
+      :class="{ active: aiToolbarIndex === i }"
+      :title="t(`composer.ai${action.charAt(0).toUpperCase() + action.slice(1)}Desc`)"
+      @click.stop="emitAiAction(action)"
+    >
+      <!-- Refine: sparkle/wand icon -->
+      <svg v-if="action === 'refine'" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M8 1l1.5 4.5L14 7l-4.5 1.5L8 13l-1.5-4.5L2 7l4.5-1.5z"/>
+      </svg>
+      <!-- Explain: info/lightbulb icon -->
+      <svg v-else-if="action === 'explain'" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="8" cy="8" r="6.5"/>
+        <path d="M6 6.5a2 2 0 1 1 2.5 1.9c-.3.15-.5.35-.5.6V10"/>
+        <circle cx="8" cy="12" r="0.5" fill="currentColor"/>
+      </svg>
+      <!-- Fix: wrench icon -->
+      <svg v-else viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M13.5 2.5l-3 3M2.5 13.5l3-3"/>
+        <path d="M9.5 1.5l-4 4a3.5 3.5 0 0 0 1 5.5 3.5 3.5 0 0 0 5.5-1l-4-4"/>
+        <path d="M11.5 3.5l1 1"/>
+      </svg>
+      <span class="ai-toolbar-label">{{ t(`composer.ai${action.charAt(0).toUpperCase() + action.slice(1)}`) }}</span>
+    </button>
+  </div>
+</Teleport>
+
 </template>
 
 <style scoped>
@@ -2046,6 +2447,135 @@ function selectModel(modelId: string): void {
   font-size: var(--ui-font-size-xs);
 }
 
+/* ---- Per-message parameter overrides popover ---- */
+.params-popover-anchor {
+  position: relative;
+  display: inline-flex;
+  z-index: 30;
+}
+.params-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: var(--ui-font-size);
+  font-family: var(--sans);
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s, color 0.15s;
+  line-height: 1;
+}
+.params-btn:hover { background: var(--soft); color: var(--text); }
+.params-btn.on { background: var(--soft); color: var(--blue2); }
+.params-badge {
+  font-family: var(--mono);
+  font-size: calc(var(--ui-font-size) - 3px);
+  color: var(--blue2);
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 999px;
+  padding: 0 5px;
+  line-height: 15px;
+}
+.params-popover {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 70;
+  min-width: 240px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+  padding: 10px 12px;
+}
+.params-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.params-label {
+  font-family: var(--sans);
+  font-size: calc(var(--ui-font-size) - 1px);
+  color: var(--ink);
+  font-weight: 500;
+}
+.params-val {
+  font-family: var(--mono);
+  font-size: var(--ui-font-size-xs);
+  color: var(--muted);
+  min-width: 24px;
+  text-align: right;
+}
+.params-slider {
+  width: 100%;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--line);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  margin: 2px 0;
+}
+.params-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: 2px solid var(--bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+.params-range {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: max(9px, calc(var(--ui-font-size) - 4px));
+  color: var(--faint);
+  margin-bottom: 8px;
+}
+.params-num {
+  width: 100%;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: var(--ui-font-size-xs);
+  margin-bottom: 4px;
+  box-sizing: border-box;
+}
+.params-num:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+.params-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.params-reset {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 3px 10px;
+  font-size: calc(var(--ui-font-size) - 2px);
+  font-family: var(--sans);
+  color: var(--dim);
+  cursor: pointer;
+}
+.params-reset:hover { background: var(--soft); color: var(--ink); }
+
 /* ---- Mobile composer (prototype): round attach + rounded panel input +
        round blue send with a soft shadow. The .cin container loses its border
        and acts as a flex row; the textarea itself becomes the pill input. ---- */
@@ -2155,4 +2685,239 @@ function selectModel(modelId: string): void {
    Scoped `:global(html[data-theme=modern]) .cin` rules did NOT reliably win the
    cascade against the base `.cin` (the input stayed square + mono), so they were
    moved to the global sheet where they apply. */
+
+/* ---- Web search context ---- */
+.web-search-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: var(--ui-font-size);
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s, color 0.15s;
+  font-family: var(--sans);
+  background: none;
+  border: none;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.web-search-btn:hover { background: var(--soft); color: var(--text); }
+.web-search-btn.active { color: var(--blue2); }
+
+.ws-icon {
+  display: block;
+  flex: none;
+}
+
+.ws-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+
+/* Active web-search chip above the input */
+.web-search-chip-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0 6px;
+}
+
+.web-search-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: color-mix(in srgb, var(--blue), var(--bg) 88%);
+  border: 1px solid color-mix(in srgb, var(--blue), var(--line) 70%);
+  border-radius: 999px;
+  padding: 2px 4px 2px 8px;
+  font-family: var(--sans);
+  font-size: calc(var(--ui-font-size) - 2px);
+  color: var(--blue2);
+  max-width: 100%;
+}
+
+.ws-chip-icon {
+  flex: none;
+  color: var(--blue);
+}
+
+.ws-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.ws-chip-action,
+.ws-chip-rm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 2px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.ws-chip-action:hover,
+.ws-chip-rm:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+
+/* Web search popover menu */
+.web-search-menu {
+  position: fixed;
+  z-index: 200;
+  min-width: 280px;
+  max-width: min(360px, calc(100vw - 24px));
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.14);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ws-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+
+.ws-header-icon {
+  flex: none;
+  color: var(--blue);
+}
+
+.ws-header-title {
+  font-family: var(--sans);
+  font-size: var(--ui-font-size-sm);
+  font-weight: 500;
+}
+
+.ws-input {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel2);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--ui-font-size);
+  outline: none;
+}
+.ws-input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--blue), transparent 80%);
+}
+
+.ws-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ws-action-primary,
+.ws-action-secondary {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  font-family: var(--sans);
+  font-size: var(--ui-font-size-sm);
+  cursor: pointer;
+  transition: background 0.1s, opacity 0.1s;
+}
+.ws-action-primary {
+  background: var(--blue);
+  color: var(--bg);
+  border-color: var(--blue);
+}
+.ws-action-primary:hover:not(:disabled) { background: var(--blue2); }
+.ws-action-secondary {
+  background: var(--panel2);
+  color: var(--text);
+}
+.ws-action-secondary:hover:not(:disabled) { background: var(--soft); }
+.ws-action-primary:disabled,
+.ws-action-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ws-hint {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: var(--ui-font-size-xs);
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+/* ---- Floating AI selection toolbar ---- */
+.ai-toolbar-float {
+  position: fixed;
+  z-index: 300;
+  transform: translate(-50%, -100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+  padding: 3px;
+  animation: ai-toolbar-in 0.12s ease-out;
+}
+
+@keyframes ai-toolbar-in {
+  from { opacity: 0; transform: translate(-50%, calc(-100% + 4px)); }
+  to   { opacity: 1; transform: translate(-50%, -100%); }
+}
+
+.ai-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  border-radius: 5px;
+  color: var(--dim);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: var(--ui-font-size-xs);
+  white-space: nowrap;
+  transition: background 0.1s, color 0.1s;
+}
+
+.ai-toolbar-btn:hover,
+.ai-toolbar-btn.active {
+  background: var(--soft);
+  color: var(--blue2);
+}
+
+.ai-toolbar-btn:active {
+  background: var(--panel2);
+}
+
+.ai-toolbar-label {
+  font-size: var(--ui-font-size-xs);
+  line-height: 1;
+}
 </style>

@@ -22,6 +22,11 @@ function mountComposer(props: Record<string, unknown> = {}) {
           send: 'Send',
           steerNow: 'Steer now',
           steerTitle: 'Steer now',
+          webSearch: 'Web search',
+          webSearchTitle: 'Search the web',
+          webSearchPlaceholder: 'Search query…',
+          webSearchActive: 'Web search: {query}',
+          webSearchOpenTab: 'Open in browser',
         },
         commands: {
           goal: { desc: 'Start a goal' },
@@ -353,5 +358,69 @@ describe('Composer context indicator', () => {
     const wrapper = mountComposer({ status, hideContext: true });
 
     expect(wrapper.find('.model-pill').exists()).toBe(true);
+  });
+});
+
+describe('Composer web search context', () => {
+  it('opens the web search popover when the globe button is clicked', async () => {
+    const wrapper = mountComposer();
+
+    await wrapper.find('.web-search-btn').trigger('click');
+
+    expect(wrapper.find('.web-search-menu').exists()).toBe(true);
+    expect(wrapper.find('.ws-input').exists()).toBe(true);
+  });
+
+  it('shows an active chip and prefixes the next message with /web-search', async () => {
+    const wrapper = mountComposer();
+    const textarea = wrapper.get('textarea');
+
+    await wrapper.find('.web-search-btn').trigger('click');
+    await wrapper.find('.ws-input').setValue('vue composition api');
+    await wrapper.find('.ws-input').trigger('keydown', { key: 'Enter' });
+
+    expect(wrapper.find('.web-search-menu').exists()).toBe(false);
+    expect(wrapper.find('.web-search-chip').exists()).toBe(true);
+    expect(wrapper.text()).toContain('Web search: vue composition api');
+
+    await textarea.setValue('explain reactivity');
+    await textarea.trigger('keydown', { key: 'Enter' });
+
+    const submit = wrapper.emitted('submit');
+    expect(submit).toHaveLength(1);
+    expect((submit![0] as [{ text: string; attachments: unknown[] }])[0].text).toBe(
+      '/web-search vue composition api\n\nexplain reactivity',
+    );
+    expect(wrapper.find('.web-search-chip').exists()).toBe(false);
+  });
+
+  it('removes the active web search context when the chip remove button is clicked', async () => {
+    const wrapper = mountComposer();
+
+    await wrapper.find('.web-search-btn').trigger('click');
+    await wrapper.find('.ws-input').setValue('vue 3');
+    await wrapper.find('.ws-action-primary').trigger('click');
+
+    expect(wrapper.find('.web-search-chip').exists()).toBe(true);
+
+    await wrapper.find('.ws-chip-rm').trigger('click');
+
+    expect(wrapper.find('.web-search-chip').exists()).toBe(false);
+  });
+
+  it('opens the search query in a new browser tab from the chip action', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const wrapper = mountComposer();
+
+    await wrapper.find('.web-search-btn').trigger('click');
+    await wrapper.find('.ws-input').setValue('kimi code');
+    await wrapper.find('.ws-action-primary').trigger('click');
+    await wrapper.find('.ws-chip-action').trigger('click');
+
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://www.google.com/search?q=kimi%20code',
+      '_blank',
+      'noopener,noreferrer',
+    );
   });
 });

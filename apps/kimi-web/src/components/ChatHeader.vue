@@ -35,6 +35,7 @@ const emit = defineEmits<{
   renameSession: [id: string, title: string];
   forkSession: [id: string];
   archiveSession: [id: string];
+  openNotes: [];
 }>();
 
 const ahead = computed(() => props.ahead ?? 0);
@@ -218,6 +219,20 @@ function startArchive(): void {
       />
       <span v-else-if="sessionTitle" class="ch-ses" :title="sessionTitle">{{ sessionTitle }}</span>
     </div>
+
+    <!-- Notes button -->
+    <button
+      type="button"
+      class="ch-act ch-act-notes"
+      :title="t('notes.title')"
+      :aria-label="t('notes.title')"
+      @click="emit('openNotes')"
+    >
+      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 1h6l4 4v10H5V1z" />
+        <path d="M11 1v4h4" />
+      </svg>
+    </button>
 
     <!-- More menu trigger: copy-all + session actions -->
     <button
@@ -412,6 +427,19 @@ function startArchive(): void {
 }
 .ch-act-more:hover { background: var(--panel2); }
 .ch-act-more:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+
+.ch-act-notes {
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--dim);
+}
+.ch-act-notes:hover { background: var(--panel2); color: var(--ink); }
+.ch-act-notes:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: -2px;
 }

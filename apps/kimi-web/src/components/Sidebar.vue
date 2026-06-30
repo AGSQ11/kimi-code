@@ -11,7 +11,15 @@ import SessionRow from './SessionRow.vue';
 import { serverEndpointLabel } from '../api/config';
 import { getKimiWebApi } from '../api';
 import { copyTextToClipboard } from '../lib/clipboard';
-import { loadCollapsedWorkspaces, saveCollapsedWorkspaces } from '../lib/storage';
+import {
+  loadCollapsedWorkspaces,
+  saveCollapsedWorkspaces,
+  loadPinnedSessions,
+  savePinnedSessions,
+  loadSessionTags,
+  saveSessionTags,
+  type SessionTags,
+} from '../lib/storage';
 
 const { t } = useI18n();
 
@@ -63,6 +71,66 @@ const emit = defineEmits<{
 }>();
 
 // ---------------------------------------------------------------------------
+// Pinned sessions + tags (client-side localStorage state)
+// ---------------------------------------------------------------------------
+const pinnedIds = ref<Set<string>>(loadPinnedSessions());
+const sessionTags = ref<SessionTags>(loadSessionTags());
+
+function isPinned(id: string): boolean {
+  return pinnedIds.value.has(id);
+}
+
+function sessionTagsFor(id: string): string[] {
+  return sessionTags.value[id] ?? [];
+}
+
+function togglePinned(id: string): void {
+  const next = new Set(pinnedIds.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  pinnedIds.value = next;
+  savePinnedSessions(next);
+}
+
+function addSessionTag(id: string, tag: string): void {
+  const current = sessionTags.value[id] ?? [];
+  if (current.includes(tag)) return;
+  const next: SessionTags = { ...sessionTags.value, [id]: [...current, tag] };
+  sessionTags.value = next;
+  saveSessionTags(next);
+}
+
+function removeSessionTag(id: string, tag: string): void {
+  const current = sessionTags.value[id] ?? [];
+  const filtered = current.filter((t) => t !== tag);
+  const next: SessionTags = { ...sessionTags.value };
+  if (filtered.length === 0) delete next[id];
+  else next[id] = filtered;
+  sessionTags.value = next;
+  saveSessionTags(next);
+}
+
+// ---------------------------------------------------------------------------
+// Tag filter
+// ---------------------------------------------------------------------------
+const tagFilter = ref('');
+const trimmedTagFilter = computed(() => tagFilter.value.trim().toLowerCase());
+const isTagFiltering = computed(() => trimmedTagFilter.value.length > 0);
+
+function clearTagFilter(): void {
+  tagFilter.value = '';
+}
+
+/** All distinct tags across sessions, sorted alphabetically. */
+const allTags = computed<string[]>(() => {
+  const set = new Set<string>();
+  for (const tags of Object.values(sessionTags.value)) {
+    for (const tag of tags) set.add(tag);
+  }
+  return Array.from(set).sort();
+});
+
+// ---------------------------------------------------------------------------
 // Session search (title instant filter + optional full-text content search)
 // ---------------------------------------------------------------------------
 type SearchMode = 'title' | 'content';
@@ -87,17 +155,29 @@ let contentSearchToken = 0;
 const messageTextCache = new Map<string, string[]>();
 
 const trimmedQuery = computed(() => searchQuery.value.trim());
-const isSearching = computed(() => trimmedQuery.value.length > 0);
+const isSearching = computed(() => trimmedQuery.value.length > 0 || isTagFiltering.value);
 
 /** Title-mode results — instant client-side filter. */
 const searchResults = computed<Session[]>(() => {
   const q = trimmedQuery.value.toLowerCase();
-  if (!q) return [];
+  const tag = trimmedTagFilter.value;
+  if (!q && !tag) return [];
   return props.sessions.filter((s) => {
     const title = (s.title ?? '').toLowerCase();
     const last = (s.lastPrompt ?? '').toLowerCase();
-    return title.includes(q) || last.includes(q);
+    const matchesText = !q || title.includes(q) || last.includes(q);
+    const matchesTag = !tag || (sessionTags.value[s.id] ?? []).some((t) => t.includes(tag));
+    return matchesText && matchesTag;
   });
+});
+
+/** Content search results filtered by the active tag query. */
+const filteredContentResults = computed<ContentSearchResult[]>(() => {
+  const tag = trimmedTagFilter.value;
+  if (!tag) return contentResults.value;
+  return contentResults.value.filter((r) =>
+    (sessionTags.value[r.session.id] ?? []).some((t) => t.includes(tag)),
+  );
 });
 
 /** Extract readable text segments from an AppMessage's content blocks. */
@@ -242,6 +322,7 @@ watch(searchMode, (mode) => {
 
 function clearSearch(): void {
   searchQuery.value = '';
+  tagFilter.value = '';
   contentResults.value = [];
   contentSearching.value = false;
   contentError.value = false;
@@ -295,13 +376,24 @@ function toggleExpand(wsId: string): void {
   expandedWsIds.value = next;
 }
 
+/** Sort sessions so pinned ones appear first while preserving recency within
+    each pinned/unpinned block. */
+function sortSessions(sessions: Session[]): Session[] {
+  return [...sessions].sort((a, b) => {
+    const aPinned = isPinned(a.id) ? 1 : 0;
+    const bPinned = isPinned(b.id) ? 1 : 0;
+    return bPinned - aPinned;
+  });
+}
+
 /** Show the most recent N sessions. If the active session is older than N,
     replace the last slot with it so the highlight never disappears. */
 function visibleSessions(sessions: Session[], expanded: boolean, activeId?: string): Session[] {
-  if (expanded || sessions.length <= DEFAULT_VISIBLE_COUNT) return sessions;
-  const visible = sessions.slice(0, DEFAULT_VISIBLE_COUNT);
+  const sorted = sortSessions(sessions);
+  if (expanded || sorted.length <= DEFAULT_VISIBLE_COUNT) return sorted;
+  const visible = sorted.slice(0, DEFAULT_VISIBLE_COUNT);
   if (activeId && !visible.some((s) => s.id === activeId)) {
-    const active = sessions.find((s) => s.id === activeId);
+    const active = sorted.find((s) => s.id === activeId);
     if (active) visible[DEFAULT_VISIBLE_COUNT - 1] = active;
   }
   return visible;
@@ -647,6 +739,37 @@ function blinkOnce(): void {
         </button>
       </div>
 
+      <!-- Tag filter -->
+      <div class="tag-filter">
+        <svg class="tag-filter-icon" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M2 2l3 6v6l4-3V8l3-6H2z"/>
+        </svg>
+        <input
+          v-model="tagFilter"
+          class="tag-filter-input"
+          type="text"
+          list="session-tag-suggestions"
+          :placeholder="t('sidebar.tagFilterPlaceholder')"
+          :aria-label="t('sidebar.tagFilterPlaceholder')"
+          @keydown.esc.stop="clearTagFilter"
+        />
+        <datalist v-if="allTags.length > 0" id="session-tag-suggestions">
+          <option v-for="tag in allTags" :key="tag" :value="tag" />
+        </datalist>
+        <button
+          v-if="isTagFiltering"
+          type="button"
+          class="tag-filter-clear"
+          :title="t('sidebar.tagFilterClear')"
+          :aria-label="t('sidebar.tagFilterClear')"
+          @click.stop="clearTagFilter"
+        >
+          <svg viewBox="0 0 10 10" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/>
+          </svg>
+        </button>
+      </div>
+
       <!-- New chat + new workspace buttons -->
       <div class="btn-wrap">
         <button class="btn-new-chat" @click.stop="emit('create')">
@@ -683,10 +806,15 @@ function blinkOnce(): void {
               :approval-count="pendingBySession[s.id]?.approvals ?? 0"
               :question-count="pendingBySession[s.id]?.questions ?? 0"
               :unread="unreadBySession[s.id] ?? false"
+              :pinned="isPinned(s.id)"
+              :tags="sessionTagsFor(s.id)"
               @select="onSelectResult($event)"
               @rename="(id, title) => emit('rename', id, title)"
               @archive="emit('archive', $event)"
               @fork="emit('fork', $event)"
+              @pin-toggle="togglePinned($event)"
+              @add-tag="addSessionTag"
+              @remove-tag="removeSessionTag"
             />
           </template>
           <div v-else class="empty">
@@ -696,12 +824,12 @@ function blinkOnce(): void {
 
         <!-- Content mode: full-text search results with snippets -->
         <template v-else>
-          <div v-if="contentSearching && contentResults.length === 0" class="empty">
+          <div v-if="contentSearching && filteredContentResults.length === 0" class="empty">
             {{ t('sidebar.contentSearching') }}
           </div>
           <template v-else>
             <div
-              v-for="r in contentResults"
+              v-for="r in filteredContentResults"
               :key="r.session.id"
               class="content-result"
               :class="{ on: r.session.id === activeId }"
@@ -710,11 +838,11 @@ function blinkOnce(): void {
               <div class="content-result-title">{{ r.session.title }}</div>
               <div class="content-result-snippet" v-html="r.snippet"></div>
             </div>
-            <div v-if="contentResults.length === 0 && !contentSearching" class="empty">
+            <div v-if="filteredContentResults.length === 0 && !contentSearching" class="empty">
               {{ contentError ? t('sidebar.contentSearchError') : t('sidebar.searchNoResults') }}
             </div>
             <div
-              v-if="contentResults.length > 0 || contentSearching"
+              v-if="filteredContentResults.length > 0 || contentSearching"
               class="content-search-info"
             >
               {{ t('sidebar.contentSearchLimit', { searched: contentSearchedCount, total: Math.min(sessions.length, 50) }) }}
@@ -819,10 +947,15 @@ function blinkOnce(): void {
                 :approval-count="pendingBySession[s.id]?.approvals ?? 0"
                 :question-count="pendingBySession[s.id]?.questions ?? 0"
                 :unread="unreadBySession[s.id] ?? false"
+                :pinned="isPinned(s.id)"
+                :tags="sessionTagsFor(s.id)"
                 @select="onSelectSession($event)"
                 @rename="(id, title) => emit('rename', id, title)"
                 @archive="emit('archive', $event)"
                 @fork="emit('fork', $event)"
+                @pin-toggle="togglePinned($event)"
+                @add-tag="addSessionTag"
+                @remove-tag="removeSessionTag"
               />
               <button
                 v-if="!isExpanded(g.workspace.id) && visibleSessions(g.sessions, false, activeId).length < g.sessions.length"
@@ -1124,6 +1257,57 @@ function blinkOnce(): void {
 }
 .mode-btn.active {
   background: var(--bg);
+  color: var(--ink);
+}
+
+/* Tag filter */
+.tag-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 12px 8px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+.tag-filter:focus-within {
+  border-color: var(--bd);
+  color: var(--ink);
+}
+.tag-filter-icon {
+  flex: none;
+}
+.tag-filter-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: calc(var(--ui-font-size) - 1.5px);
+}
+.tag-filter-input::placeholder {
+  color: var(--faint);
+}
+.tag-filter-clear {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.tag-filter-clear:hover {
+  background: var(--soft);
   color: var(--ink);
 }
 

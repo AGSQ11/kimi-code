@@ -19,8 +19,12 @@ const props = withDefaults(
     questionCount?: number;
     /** A background turn finished here that the user hasn't opened — blue dot. */
     unread?: boolean;
+    /** Whether this session is pinned to the top of its workspace group. */
+    pinned?: boolean;
+    /** Client-side tags attached to this session. */
+    tags?: string[];
   }>(),
-  { approvalCount: 0, questionCount: 0, unread: false },
+  { approvalCount: 0, questionCount: 0, unread: false, pinned: false, tags: () => [] },
 );
 
 const emit = defineEmits<{
@@ -28,6 +32,9 @@ const emit = defineEmits<{
   rename: [id: string, title: string];
   archive: [id: string];
   fork: [id: string];
+  pinToggle: [id: string];
+  addTag: [id: string, tag: string];
+  removeTag: [id: string, tag: string];
 }>();
 
 // Kebab menu
@@ -104,6 +111,42 @@ function forkRow(): void {
   emit('fork', props.session.id);
 }
 
+// Pin toggle
+function togglePin(): void {
+  emit('pinToggle', props.session.id);
+}
+
+// Tag management
+const addingTag = ref(false);
+const tagValue = ref('');
+const tagInputRef = ref<HTMLInputElement | null>(null);
+
+async function startAddTag(): Promise<void> {
+  closeMenu();
+  addingTag.value = true;
+  tagValue.value = '';
+  await nextTick();
+  tagInputRef.value?.focus();
+}
+
+function commitAddTag(): void {
+  const tag = tagValue.value.trim().toLowerCase();
+  if (tag && !props.tags.includes(tag)) {
+    emit('addTag', props.session.id, tag);
+  }
+  addingTag.value = false;
+  tagValue.value = '';
+}
+
+function cancelAddTag(): void {
+  addingTag.value = false;
+  tagValue.value = '';
+}
+
+function removeTag(tag: string): void {
+  emit('removeTag', props.session.id, tag);
+}
+
 // Archive confirm
 const confirming = ref(false);
 function startArchive(): void {
@@ -154,19 +197,64 @@ defineExpose({ closeMenu, cancelArchive });
       </div>
 
       <template v-else>
+        <!-- Pin button — visible when pinned or hovering the row. -->
+        <button
+          v-if="!renaming"
+          type="button"
+          class="pin-btn"
+          :class="{ pinned: pinned }"
+          :title="pinned ? t('sidebar.unpin') : t('sidebar.pin')"
+          :aria-label="pinned ? t('sidebar.unpin') : t('sidebar.pin')"
+          @click.stop="togglePin"
+        >
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
+            <path d="M8 1.5c2.5 0 4.5 2 4.5 4.5 0 2.5-4.5 8.5-4.5 8.5S3.5 8.5 3.5 6c0-2.5 2-4.5 4.5-4.5z" fill="currentColor"/>
+          </svg>
+        </button>
+
         <div class="left">
-          <!-- Inline rename input -->
-          <input
-            v-if="renaming"
-            ref="renameInputRef"
-            v-model="renameValue"
-            class="rename-input"
-            @click.stop
-            @keydown.enter.stop="commitRename"
-            @keydown.esc.stop="cancelRename"
-            @blur="commitRename"
-          />
-          <span v-else class="t" @dblclick.stop="startRename">{{ session.title }}</span>
+          <div class="title-line">
+            <!-- Inline rename input -->
+            <input
+              v-if="renaming"
+              ref="renameInputRef"
+              v-model="renameValue"
+              class="rename-input"
+              @click.stop
+              @keydown.enter.stop="commitRename"
+              @keydown.esc.stop="cancelRename"
+              @blur="commitRename"
+            />
+            <span v-else class="t" @dblclick.stop="startRename">{{ session.title }}</span>
+          </div>
+
+          <!-- Tags row — shown below the title when tags exist or the user is adding one. -->
+          <div v-if="tags.length > 0 || addingTag" class="tags-row" @click.stop>
+            <span
+              v-for="tag in tags"
+              :key="tag"
+              class="session-tag"
+              :title="t('sidebar.removeTag')"
+              @click.stop="removeTag(tag)"
+            >
+              {{ tag }}
+              <svg viewBox="0 0 10 10" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+                <line x1="1" y1="1" x2="9" y2="9" />
+                <line x1="9" y1="1" x2="1" y2="9" />
+              </svg>
+            </span>
+            <input
+              v-if="addingTag"
+              ref="tagInputRef"
+              v-model="tagValue"
+              class="tag-input"
+              :placeholder="t('sidebar.addTag')"
+              @click.stop
+              @keydown.enter.stop="commitAddTag"
+              @keydown.esc.stop="cancelAddTag"
+              @blur="commitAddTag"
+            />
+          </div>
         </div>
 
         <span class="ts">{{ session.time }}</span>
@@ -219,6 +307,11 @@ defineExpose({ closeMenu, cancelArchive });
 
     <!-- Kebab dropdown -->
     <div ref="menuRef" v-if="menuOpen" class="menu" @click.stop>
+      <button class="menu-item" @click.stop="togglePin">
+        {{ pinned ? t('sidebar.unpin') : t('sidebar.pin') }}
+      </button>
+      <button class="menu-item" @click.stop="startAddTag">{{ t('sidebar.addTag') }}</button>
+      <div class="menu-divider" />
       <button class="menu-item copy-id" :class="{ failed: copyFailed }" @click.stop="copySessionId">
         {{
           copyFailed
@@ -257,8 +350,16 @@ defineExpose({ closeMenu, cancelArchive });
 
 .left {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
   flex: 1;
+  min-width: 0;
+  gap: 3px;
+}
+
+.title-line {
+  display: flex;
+  align-items: center;
   min-width: 0;
 }
 
@@ -451,5 +552,74 @@ defineExpose({ closeMenu, cancelArchive });
 .btn-confirm:hover { opacity: 0.85; }
 .btn-cancel:hover { background: var(--panel2); }
 
+/* Pin button — hidden until hover unless pinned. Sits just before the title. */
+.pin-btn {
+  flex: none;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--faint);
+  cursor: pointer;
+}
+.se:hover .pin-btn,
+.pin-btn.pinned {
+  display: inline-flex;
+}
+.pin-btn:hover { color: var(--ink); background: var(--line2); }
+.pin-btn.pinned { color: var(--blue2); }
+
+/* Tags row — sits below the title row inside .left. */
+.tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.session-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  height: 16px;
+  line-height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  font-size: calc(var(--ui-font-size) - 3.5px);
+  font-family: var(--mono);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--blue) 12%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--blue) 30%, var(--bg));
+  cursor: pointer;
+  white-space: nowrap;
+}
+.session-tag:hover {
+  background: color-mix(in srgb, var(--blue) 20%, var(--bg));
+}
+.session-tag svg { flex: none; opacity: 0.7; }
+.session-tag:hover svg { opacity: 1; }
+
+.tag-input {
+  flex: 1;
+  min-width: 60px;
+  max-width: 120px;
+  height: 16px;
+  font-family: var(--mono);
+  font-size: calc(var(--ui-font-size) - 3.5px);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--blue);
+  border-radius: 8px;
+  padding: 0 5px;
+  outline: none;
+}
 
 </style>

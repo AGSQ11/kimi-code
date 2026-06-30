@@ -17,9 +17,35 @@ export default {
   steerTitle: '不等当前回合结束，把消息直接插进正在运行的任务（Ctrl+S / ⌘S）',
   tokenEstimateTitle: '估算 token 数（文本 + 附件）',
   tokenUnit: 'tokens',
+  webSearch: '网页搜索',
+  webSearchTitle: '搜索网页并将结果作为上下文',
+  webSearchPlaceholder: '搜索关键词…',
+  webSearchActive: '网页搜索：{query}',
+  webSearchOpenTab: '在浏览器中打开',
   emptyConversationTitle: 'Kimi Code',
   emptyConversation: '还没有消息 —— 在下方输入开始对话',
   quickStartPlaceholder: '输入消息开始新对话…',
   thinkingSuffix: ' · thinking',
+
+  // AI selection enhance actions
+  aiRefine: '优化',
+  aiExplain: '解释',
+  aiFix: '修复',
+  aiRefineDesc: '改进选中的文本',
+  aiExplainDesc: '解释选中的文本',
+  aiFixDesc: '修复选中文本中的问题',
+  aiEnhanceTitle: 'AI 操作',
+  aiRefinePrompt: '改进这段文本，使其更清晰、更精确、表达更好：\n\n{selection}',
+  aiExplainPrompt: '解释这段内容：\n\n{selection}',
+  aiFixPrompt: '修复这段代码或文本中的问题：\n\n{selection}',
+
+  // Per-message parameter overrides
+  paramsButton: '参数',
+  paramsButtonCustom: '参数 (自定义)',
+  paramsTemperature: '温度',
+  paramsTopP: 'Top P',
+  paramsMaxTokens: '最大 Tokens',
+  paramsReset: '重置',
+  paramsCustomIndicator: '自定义',
 
 } as const;

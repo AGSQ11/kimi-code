@@ -100,6 +100,7 @@ const emit = defineEmits<{
   openAgent: [target: { turnId: string; blockIndex: number; memberId: string }];
   /** Chat header / files pane: focus the diff detail layer and refresh git status. */
   openChanges: [];
+  openNotes: [];
   refreshGitStatus: [];
   /** Edit + resend the last user message (App undoes, then refills composer). */
   editMessage: [text: string];
@@ -115,6 +116,7 @@ const emit = defineEmits<{
   forkSession: [id: string];
   /** Chat header / session row: archive current session. */
   archiveSession: [id: string];
+  aiAction: [payload: { action: 'refine' | 'explain' | 'fix'; text: string }];
 }>();
 
 // Empty-composer workspace picker.
@@ -791,6 +793,7 @@ defineExpose({ loadComposerForEdit });
       @rename-session="(id, title) => emit('renameSession', id, title)"
       @fork-session="(id) => emit('forkSession', id)"
       @archive-session="(id) => emit('archiveSession', id)"
+      @open-notes="emit('openNotes')"
     />
 
     <!-- Beta conversation outline: right edge, proportional bubbles, viewport indicator, hover tooltip. -->
@@ -941,6 +944,7 @@ defineExpose({ loadComposerForEdit });
               @compact="emit('compact')"
               @pick-model="emit('pickModel')"
               @select-model="emit('selectModel', $event)"
+              @ai-action="emit('aiAction', $event)"
             />
             <div class="empty-spacer" />
           </template>
@@ -1027,6 +1031,7 @@ defineExpose({ loadComposerForEdit });
           @compact="emit('compact')"
           @pick-model="emit('pickModel')"
           @select-model="emit('selectModel', $event)"
+          @ai-action="emit('aiAction', $event)"
       />
     </div>
 
