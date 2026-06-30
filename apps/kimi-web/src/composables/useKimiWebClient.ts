@@ -539,6 +539,10 @@ const MOON_FAST_CHARS_PER_SECOND = 160;
 
 type MoonSpeedSample = { time: number; chars: number };
 const fastMoon = ref(false);
+
+/** Probe results keyed by model alias: { alias: ModelProbeResult }. */
+const probeStatus = ref<Record<string, { status: string; error?: string; latencyMs?: number }>>({});
+
 let moonSpeedSamples: MoonSpeedSample[] = [];
 let moonFastResetTimer: ReturnType<typeof setTimeout> | null = null;
 let lastMoonFastCheckAt = -MOON_FAST_CHECK_INTERVAL_MS;
@@ -4177,6 +4181,7 @@ async function probeModels(): Promise<void> {
   try {
     const api = getKimiWebApi();
     const results = await api.probeAllModels(sid);
+    probeStatus.value = results;
     const entries = Object.entries(results);
     if (entries.length === 0) {
       pushWarning({
@@ -4852,6 +4857,7 @@ export function useKimiWebClient() {
 
     // Model Probe
     probeModels,
+    probeStatus,
 
     // Reload actions
     reloadSession: reloadSessionAction,

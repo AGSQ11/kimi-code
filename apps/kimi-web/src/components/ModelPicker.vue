@@ -13,6 +13,7 @@ const props = defineProps<{
   models: AppModel[];
   current: string;
   starredIds?: string[];
+  probeStatus?: Record<string, { status: string; error?: string; latencyMs?: number }>;
   loading?: boolean;
   /** If true, models could not be fetched (daemon 404 / unsupported) */
   unavailable?: boolean;
@@ -124,6 +125,16 @@ function flatIdx(m: AppModel): number {
 function selectTab(tabId: string): void {
   activeTab.value = tabId;
 }
+
+function probeIndicator(modelId: string): { icon: string; tip: string } | undefined {
+  const s = props.probeStatus?.[modelId];
+  if (!s) return undefined;
+  if (s.status === 'ok') {
+    return { icon: '✅', tip: `${s.latencyMs ?? ''}${s.latencyMs != null ? 'ms' : 'ok'}` };
+  }
+  if (s.status === 'unknown') return { icon: '⚠️', tip: 'Probe status unknown' };
+  return { icon: '❌', tip: s.error ?? s.status };
+}
 </script>
 
 <template>
@@ -217,7 +228,10 @@ function selectTab(tabId: string): void {
             </svg>
           </span>
           <span class="model-main">
-            <span class="model-name">{{ m.displayName ?? m.model }}</span>
+            <span class="model-name">
+              {{ m.displayName ?? m.model }}
+              <span v-if="probeIndicator(m.id)" class="probe-dot" :title="probeIndicator(m.id)!.tip">{{ probeIndicator(m.id)!.icon }}</span>
+            </span>
             <span class="model-id">{{ m.id }}</span>
           </span>
           <span class="model-provider">{{ m.provider }}</span>
@@ -406,6 +420,11 @@ function selectTab(tabId: string): void {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.probe-dot {
+  margin-left: 4px;
+  font-size: max(9px, calc(var(--ui-font-size) - 3px));
+  cursor: help;
 }
 .model-id {
   color: var(--faint);

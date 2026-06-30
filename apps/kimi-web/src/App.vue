@@ -1457,6 +1457,7 @@ function openPr(url: string): void {
       :models="client.models.value"
       :current="client.status.value.modelId"
       :starred-ids="client.starredModelIds.value"
+      :probe-status="client.probeStatus.value"
       :loading="modelsLoading"
       :unavailable="modelsUnavailable"
       @select="handleSelectModel($event)"
