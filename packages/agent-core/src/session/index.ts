@@ -693,6 +693,7 @@ export class Session {
       log: this.log.createChild({ agentId: id }),
       pluginSessionStarts: type === 'main' ? this.options.pluginSessionStarts : undefined,
       experimentalFlags: this.experimentalFlags,
+      additionalDirs: this.additionalDirs,
     });
   }
 

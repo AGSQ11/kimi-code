@@ -604,6 +604,27 @@ describe('AgentAPI.startBtw', () => {
       await enabledSession.close();
     }
   });
+
+  it('creates the main agent without crashing when a provider and additionalDirs are configured', async () => {
+    const workDir = await makeTempDir();
+    const sessionDir = await makeTempDir();
+
+    const session = new Session({
+      id: 'test-additional-dirs-provider',
+      kaos: testKaos.withCwd(workDir),
+      homedir: sessionDir,
+      rpc: createSessionRpc([]),
+      providerManager: providerManagerWithDefaultModel(),
+      additionalDirs: [join(workDir, 'extra')],
+    });
+
+    try {
+      const mainAgent = await session.createMain();
+      expect(mainAgent.getAdditionalDirs()).toContain(join(workDir, 'extra'));
+    } finally {
+      await session.close();
+    }
+  });
 });
 
 async function makeTempDir(): Promise<string> {
@@ -615,6 +636,27 @@ async function makeTempDir(): Promise<string> {
 function testProviderManager(): ProviderManager {
   return new ProviderManager({
     config: {
+      providers: {
+        test: {
+          type: MOCK_PROVIDER.type,
+          apiKey: MOCK_PROVIDER.apiKey,
+        },
+      },
+      models: {
+        [MOCK_PROVIDER.model]: {
+          provider: 'test',
+          model: MOCK_PROVIDER.model,
+          maxContextSize: 1_000_000,
+        },
+      },
+    },
+  });
+}
+
+function providerManagerWithDefaultModel(): ProviderManager {
+  return new ProviderManager({
+    config: {
+      defaultModel: MOCK_PROVIDER.model,
       providers: {
         test: {
           type: MOCK_PROVIDER.type,

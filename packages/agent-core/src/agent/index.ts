@@ -177,6 +177,10 @@ export class Agent {
     this.swarmMode = new SwarmMode(this);
     this.usage = new UsageRecorder(this);
     this.skills = options.skills ? new SkillManager(this, options.skills) : null;
+    // Initialize additionalDirs before ToolManager because ToolManager's constructor
+    // may synchronously initialize builtin tools (when a provider is configured), and
+    // those tools read agent.getAdditionalDirs().
+    this.additionalDirs = normalizeAdditionalDirs(options.additionalDirs ?? []);
     const kimiHomeDir = options.kimiHomeDir ?? join(this.kaos.gethome(), '.kimi-code');
     this.memoryStore = new MemoryStore({
       globalDbPath: join(kimiHomeDir, 'memory.db'),
@@ -191,7 +195,6 @@ export class Agent {
     this.cron = this.type === 'sub' ? null : new CronManager(this);
     this.goal = new GoalMode(this);
     this.replayBuilder = new ReplayBuilder(this, options.replay);
-    this.additionalDirs = normalizeAdditionalDirs(options.additionalDirs ?? []);
   }
 
   setKaos(kaos: Kaos) {

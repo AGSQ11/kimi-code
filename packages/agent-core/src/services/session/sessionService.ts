@@ -545,7 +545,8 @@ export class SessionService extends Disposable implements ISessionService {
   }
 
   async probeAllModels(id: string): Promise<Record<string, ModelProbeResult>> {
-    await this.core.rpc.resumeSession({ sessionId: id });
+    // probeAllModels only needs the global config for the provider manager —
+    // no need to resume the session (which may fail for fresh sessions).
     return this.core.rpc.probeAllModels({ sessionId: id });
   }
 
