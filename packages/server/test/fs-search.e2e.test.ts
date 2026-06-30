@@ -342,8 +342,10 @@ describe('POST /api/v1/sessions/{sid}/fs:grep (W11.1)', () => {
 
 describe('FsSearchService direct: rg fallback + grep timeout (W11.1)', () => {
   function makeStubSession(cwd: string): ISessionService {
+    const noopEmitter = { event: () => () => {} };
     return {
-      list: async () => [],
+      _serviceBrand: undefined,
+      list: async () => ({ items: [], has_more: false }),
       get: async () => ({
         id: 'sess_stub',
         metadata: { cwd, model: 'kimi-k2', created_at: '2026-06-04T00:00:00Z' },
@@ -354,13 +356,30 @@ describe('FsSearchService direct: rg fallback + grep timeout (W11.1)', () => {
       create: async () => {
         throw new Error('not used');
       },
-      delete: async () => {
-        throw new Error('not used');
-      },
       update: async () => {
         throw new Error('not used');
       },
-      dispose: () => undefined,
+      fork: async () => {
+        throw new Error('not used');
+      },
+      listChildren: async () => ({ items: [], has_more: false }),
+      createChild: async () => {
+        throw new Error('not used');
+      },
+      getStatus: async () => {
+        throw new Error('not used');
+      },
+      compact: async () => {
+        throw new Error('not used');
+      },
+      undo: async () => {
+        throw new Error('not used');
+      },
+      archive: async () => ({ archived: true }),
+      getSessionWarnings: async () => [],
+      probeAllModels: async () => ({}),
+      onDidCreate: noopEmitter.event,
+      onDidClose: noopEmitter.event,
     } as unknown as ISessionService;
   }
 

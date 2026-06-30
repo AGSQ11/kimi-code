@@ -15,7 +15,7 @@ export default {
   summaryTitle: 'Compaction summary',
   compareTitle: 'Model Comparison',
   compareModels: 'models',
-  compareCopy: 'Copy',
+  compareCopy: 'Copy result',
   manuallyAborted: 'Manually stopped',
   activatedSkill: 'Activated skill: {name}',
   undo: 'Undo',
@@ -24,7 +24,4 @@ export default {
   confirm: 'Confirm',
   cancel: 'Cancel',
   yesterday: 'Yesterday',
-  compareTitle: 'Model Comparison',
-  compareModels: 'models',
-  compareCopy: 'Copy result',
 } as const;

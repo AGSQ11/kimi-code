@@ -10,7 +10,6 @@ import { safeGetString, safeRemove, safeSetString } from '../lib/storage';
 import type {
   AppApprovalRequest,
   AppConfig,
-  AppCompareResult,
   AppFeatureFlag,
   AppGoal,
   AppMemory,

@@ -505,6 +505,7 @@ export class Session {
     const context = await prepareSystemPromptContext(
       this.systemContextKaos(agent.kaos.getcwd()),
       this.options.kimiHomeDir,
+      { additionalDirs: this.additionalDirs },
     );
     agent.useProfile(profile, context);
   }
