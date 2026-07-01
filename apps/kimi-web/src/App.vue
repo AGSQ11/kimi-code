@@ -10,6 +10,8 @@ import ThinkingPanel from './components/ThinkingPanel.vue';
 import AgentDetailPanel from './components/AgentDetailPanel.vue';
 import SideChatPanel from './components/SideChatPanel.vue';
 import DiffView from './components/DiffView.vue';
+import GitPanel from './components/GitPanel.vue';
+import FileExplorer from './components/FileExplorer.vue';
 import type { AgentMember } from './types';
 import ModelPicker from './components/ModelPicker.vue';
 import ProviderManager from './components/ProviderManager.vue';
@@ -215,6 +217,8 @@ function closeOpenSidePanel(): boolean {
   if (detailTarget.value === 'agent' && agentPanelVisible.value) { closeAgentPanel(); return true; }
   if (detailTarget.value === 'file') { closeFilePreview(); return true; }
   if (detailTarget.value === 'diff') { closeDiffDetail(); return true; }
+  if (detailTarget.value === 'git') { closeGitPanel(); return true; }
+  if (detailTarget.value === 'explorer') { closeFileExplorer(); return true; }
   if (detailTarget.value === 'btw') { closeSideChat(); return true; }
   if (detailTarget.value === 'notes') { closeNotesPanel(); return true; }
   return false;
@@ -272,7 +276,7 @@ function toggleSidebarCollapse(): void {
 // ---------------------------------------------------------------------------
 // Unified right-side detail layer. Only one detail is open at a time.
 // ---------------------------------------------------------------------------
-type DetailTarget = 'file' | 'diff' | 'thinking' | 'compaction' | 'agent' | 'btw' | 'notes';
+type DetailTarget = 'file' | 'diff' | 'git' | 'explorer' | 'thinking' | 'compaction' | 'agent' | 'btw' | 'notes';
 const detailTarget = ref<DetailTarget | null>(null);
 
 const PREVIEW_WIDTH_KEY = 'kimi-web.file-preview-width';
@@ -589,6 +593,49 @@ function closeNotesPanel(): void {
   if (detailTarget.value === 'notes') detailTarget.value = null;
 }
 
+// ---------------------------------------------------------------------------
+// Git panel (persistent git status sidebar)
+// ---------------------------------------------------------------------------
+const gitPanelDiffMode = ref<'list' | 'detail'>('list');
+const gitPanelDiffPath = ref<string | null>(null);
+
+function openGitPanel(): void {
+  detailTarget.value = 'git';
+  gitPanelDiffMode.value = 'list';
+  gitPanelDiffPath.value = null;
+  void client.loadGitStatus(client.activeSessionId.value!);
+}
+
+function closeGitPanel(): void {
+  if (detailTarget.value === 'git') detailTarget.value = null;
+  gitPanelDiffMode.value = 'list';
+  gitPanelDiffPath.value = null;
+  client.clearFileDiff();
+}
+
+async function selectGitPanelFile(path: string): Promise<void> {
+  gitPanelDiffMode.value = 'detail';
+  gitPanelDiffPath.value = path;
+  await client.loadFileDiff(path);
+}
+
+function backGitPanel(): void {
+  gitPanelDiffMode.value = 'list';
+  gitPanelDiffPath.value = null;
+  client.clearFileDiff();
+}
+
+// ---------------------------------------------------------------------------
+// File explorer panel
+// ---------------------------------------------------------------------------
+function openFileExplorer(): void {
+  detailTarget.value = 'explorer';
+}
+
+function closeFileExplorer(): void {
+  if (detailTarget.value === 'explorer') detailTarget.value = null;
+}
+
 /** Any occupant of the shared right-side slot. */
 const sidePanelVisible = computed(
   () =>
@@ -597,7 +644,9 @@ const sidePanelVisible = computed(
     (detailTarget.value !== 'compaction' || compactionPanelVisible.value) &&
     (detailTarget.value !== 'agent' || agentPanelVisible.value) &&
     (detailTarget.value !== 'btw' || btwVisible.value) &&
-    (detailTarget.value !== 'notes' || notesPanelVisible.value),
+    (detailTarget.value !== 'notes' || notesPanelVisible.value) &&
+    (detailTarget.value !== 'git') &&
+    (detailTarget.value !== 'explorer'),
 );
 
 /** True while the panel's resize handle is being dragged — the width
@@ -622,6 +671,8 @@ watch(client.activeSessionId, () => {
   closeCompactionPanel();
   closeAgentPanel();
   closeDiffDetail();
+  closeGitPanel();
+  closeFileExplorer();
   hideSideChatPanel();
   closeNotesPanel();
   client.clearCompareResults();
@@ -920,6 +971,16 @@ async function handleEditMessage(text: string): Promise<void> {
   await client.undo(1);
   await nextTick();
   conversationPaneRef.value?.loadComposerForEdit(text);
+}
+
+// Regenerate: undo the latest exchange, then resend the last user prompt so the
+// model produces a fresh reply. `undo` returns the text of the undone user
+// message; if that is missing (edge case), fall back to a no-op.
+async function handleRegenerate(): Promise<void> {
+  const lastUserText = await client.undo(1);
+  if (lastUserText) {
+    await client.sendPrompt(lastUserText);
+  }
 }
 
 // Handler for inline AI enhance actions (Refine / Explain / Fix) from Composer or FilePreview.
@@ -1325,6 +1386,7 @@ function openPr(url: string): void {
       :beta-toc="client.betaToc.value"
       @open-changes="openDiffDetail()"
       @open-notes="openNotesPanel()"
+      @open-git-panel="openGitPanel()"
       @select-workspace="handleCreateSessionInWorkspace($event)"
       @add-workspace="showAddWorkspace = true"
       @open-pr="openPr"
@@ -1429,6 +1491,25 @@ function openPr(url: string): void {
         @back="detailDiffMode = 'list'; detailDiffPath = null; client.clearFileDiff()"
         @close="closeDiffDetail"
       />
+      <GitPanel
+        v-else-if="detailTarget === 'git'"
+        :changes="client.changes.value"
+        :git-info="client.gitInfo.value"
+        :file-diff="client.fileDiff.value"
+        :selected-diff-path="gitPanelDiffMode === 'detail' ? gitPanelDiffPath : null"
+        :file-diff-loading="client.fileDiffLoading.value"
+        @open="selectGitPanelFile"
+        @back="backGitPanel"
+        @close="closeGitPanel"
+      />
+      <FileExplorer
+        v-else-if="detailTarget === 'explorer'"
+        :workspace-root="client.visibleWorkspace.value?.root ?? client.status.value.cwd"
+        :current-file="previewNormalizedPath"
+        :list-dir="client.listDir"
+        @open-file="openFilePreview($event)"
+        @close="closeFileExplorer"
+      />
       <NotesPanel
         v-else-if="detailTarget === 'notes' && notesPanelVisible"
         @close="closeNotesPanel"
@@ -1475,6 +1556,7 @@ function openPr(url: string): void {
       :account-model="client.defaultModel.value"
       :notify="client.notifyOnComplete.value"
       :notify-permission="client.notifyPermission.value"
+      :sound-alerts="client.soundAlerts.value"
       :beta-toc="client.betaToc.value"
       :config="client.config.value"
       :models="client.models.value"
@@ -1486,6 +1568,7 @@ function openPr(url: string): void {
       @set-color-scheme="client.setColorScheme($event)"
       @set-ui-font-size="client.setUiFontSize($event)"
       @set-notify="client.setNotifyOnComplete($event)"
+      @set-sound-alerts="client.setSoundAlerts($event)"
       @set-beta-toc="client.setBetaToc($event)"
       @set-thinking-level="client.setThinking($event)"
       @set-external-editor="externalEditor = $event"

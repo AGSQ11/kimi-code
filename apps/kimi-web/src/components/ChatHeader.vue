@@ -36,6 +36,7 @@ const emit = defineEmits<{
   forkSession: [id: string];
   archiveSession: [id: string];
   openNotes: [];
+  openGitPanel: [];
 }>();
 
 const ahead = computed(() => props.ahead ?? 0);
@@ -231,6 +232,21 @@ function startArchive(): void {
       <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M5 1h6l4 4v10H5V1z" />
         <path d="M11 1v4h4" />
+      </svg>
+    </button>
+
+    <!-- Git panel toggle button -->
+    <button
+      v-if="isGitRepo"
+      type="button"
+      class="ch-act ch-act-git"
+      :title="t('gitPanel.title')"
+      :aria-label="t('gitPanel.title')"
+      @click="emit('openGitPanel')"
+    >
+      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="4" cy="3" r="1.5" /><circle cx="4" cy="13" r="1.5" /><circle cx="12" cy="8" r="1.5" />
+        <path d="M4 4.5v7" /><path d="M4 8a4 4 0 0 0 4-4V4.5" /><path d="M12 6.5v3" />
       </svg>
     </button>
 
@@ -440,6 +456,19 @@ function startArchive(): void {
 }
 .ch-act-notes:hover { background: var(--panel2); color: var(--ink); }
 .ch-act-notes:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+
+.ch-act-git {
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--dim);
+}
+.ch-act-git:hover { background: var(--panel2); color: var(--ink); }
+.ch-act-git:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: -2px;
 }

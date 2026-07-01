@@ -113,6 +113,8 @@ const emit = defineEmits<{
   refreshGitStatus: [];
   /** Edit + resend the last user message (App undoes, then refills composer). */
   editMessage: [text: string];
+  /** Regenerate the last assistant response (undo + resend prompt). */
+  regenerate: [];
   /** Empty-composer workspace picker: start a new conversation elsewhere. */
   selectWorkspace: [workspaceId: string];
   /** Empty-composer workspace picker: create a new workspace. */
@@ -656,6 +658,7 @@ watch(
   async () => {
     following.value = true;
     lastScrollTop = 0;
+    if (searchOpen.value) closeSearch();
     await nextTick();
     scheduleStableFollow();
     updateTocViewport();
@@ -808,7 +811,157 @@ function onKeyDown(event: KeyboardEvent): void {
     event.preventDefault();
     handleInterrupt();
   }
+  if (event.key === 'Escape' && searchOpen.value) {
+    event.preventDefault();
+    closeSearch();
+  }
+  if (event.key === 'Enter' && searchOpen.value && (event.target as HTMLElement)?.classList?.contains('search-input')) {
+    event.preventDefault();
+    if (event.shiftKey) prevMatch();
+    else nextMatch();
+  }
 }
+
+// ---------------------------------------------------------------------------
+// In-conversation text search
+// ---------------------------------------------------------------------------
+const searchOpen = ref(false);
+const searchQuery = ref('');
+const searchInputRef = ref<HTMLInputElement | null>(null);
+const matchCount = ref(0);
+const currentMatch = ref(0); // 1-based, 0 = no matches
+
+function openSearch(): void {
+  searchOpen.value = true;
+  void nextTick(() => {
+    searchInputRef.value?.focus();
+    searchInputRef.value?.select();
+  });
+}
+
+function closeSearch(): void {
+  searchOpen.value = false;
+  searchQuery.value = '';
+  matchCount.value = 0;
+  currentMatch.value = 0;
+  clearHighlights();
+}
+
+function toggleSearch(): void {
+  if (searchOpen.value) closeSearch();
+  else openSearch();
+}
+
+function clearHighlights(): void {
+  const pane = panesRef.value;
+  if (!pane) return;
+  pane.querySelectorAll('mark.search-hl').forEach((m) => {
+    const parent = m.parentNode;
+    if (!parent) return;
+    parent.replaceChild(document.createTextNode(m.textContent ?? ''), m);
+    parent.normalize();
+  });
+}
+
+function applyHighlights(query: string): void {
+  clearHighlights();
+  const pane = panesRef.value;
+  if (!pane || !query) {
+    matchCount.value = 0;
+    currentMatch.value = 0;
+    return;
+  }
+  // Walk text nodes inside the message containers only.
+  const walker = document.createTreeWalker(pane, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const el = node.parentElement;
+      if (!el) return NodeFilter.FILTER_REJECT;
+      // Skip script/style/marked elements
+      const tag = el.tagName;
+      if (tag === 'SCRIPT' || tag === 'STYLE') return NodeFilter.FILTER_REJECT;
+      // Only highlight inside message content elements
+      if (!el.closest('.msg, .u-text, .md, .tx')) return NodeFilter.FILTER_REJECT;
+      if (!(node.nodeValue ?? '').trim()) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+
+  const lower = query.toLowerCase();
+  const marks: HTMLElement[] = [];
+
+  // Collect text nodes first to avoid issues with live tree mutation
+  const textNodes: Text[] = [];
+  let n: Node | null;
+  while ((n = walker.nextNode()) !== null) textNodes.push(n as Text);
+
+  for (const textNode of textNodes) {
+    const text = textNode.nodeValue ?? '';
+    const lowerText = text.toLowerCase();
+    let idx = lowerText.indexOf(lower);
+    if (idx === -1) continue;
+
+    const frag = document.createDocumentFragment();
+    let lastIdx = 0;
+    while (idx !== -1) {
+      if (idx > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, idx)));
+      const mark = document.createElement('mark');
+      mark.className = 'search-hl';
+      mark.textContent = text.slice(idx, idx + query.length);
+      frag.appendChild(mark);
+      marks.push(mark);
+      lastIdx = idx + query.length;
+      idx = lowerText.indexOf(lower, lastIdx);
+    }
+    if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+    textNode.parentNode?.replaceChild(frag, textNode);
+  }
+
+  matchCount.value = marks.length;
+  currentMatch.value = marks.length > 0 ? 1 : 0;
+  highlightCurrentMatch(marks);
+}
+
+function highlightCurrentMatch(marks: HTMLElement[]): void {
+  marks.forEach((m, i) => {
+    m.classList.toggle('search-current', i === currentMatch.value - 1);
+  });
+  const target = marks[currentMatch.value - 1];
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+function nextMatch(): void {
+  if (matchCount.value === 0) return;
+  currentMatch.value = currentMatch.value >= matchCount.value ? 1 : currentMatch.value + 1;
+  refreshCurrentMatch();
+}
+
+function prevMatch(): void {
+  if (matchCount.value === 0) return;
+  currentMatch.value = currentMatch.value <= 1 ? matchCount.value : currentMatch.value - 1;
+  refreshCurrentMatch();
+}
+
+function refreshCurrentMatch(): void {
+  const pane = panesRef.value;
+  if (!pane) return;
+  const marks = Array.from(pane.querySelectorAll<HTMLElement>('mark.search-hl'));
+  highlightCurrentMatch(marks);
+}
+
+function runSearch(): void {
+  applyHighlights(searchQuery.value.trim());
+}
+
+watch(searchQuery, () => {
+  if (searchQuery.value) runSearch();
+  else {
+    clearHighlights();
+    matchCount.value = 0;
+    currentMatch.value = 0;
+  }
+});
 
 onMounted(() => {
   nextTick(() => {
@@ -841,6 +994,7 @@ onUnmounted(() => {
     clearTimeout(copyConversationCopiedTimer);
     copyConversationCopiedTimer = null;
   }
+  clearHighlights();
   if (typeof document !== 'undefined') {
     document.removeEventListener('visibilitychange', onVisibilityChange);
     document.removeEventListener('keydown', onKeyDown);
@@ -875,7 +1029,41 @@ defineExpose({ loadComposerForEdit });
       @rename-session="(id, title) => emit('renameSession', id, title)"
       @fork-session="(id) => emit('forkSession', id)"
       @archive-session="(id) => emit('archiveSession', id)"
+      @toggle-search="toggleSearch"
     />
+
+    <!-- In-conversation search bar -->
+    <div v-if="searchOpen" class="search-bar">
+      <svg class="search-bar-icon" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.5" />
+        <path d="m10.5 10.5 3 3" />
+      </svg>
+      <input
+        ref="searchInputRef"
+        v-model="searchQuery"
+        class="search-input"
+        type="text"
+        :placeholder="t('conversation.searchPlaceholder')"
+      />
+      <span v-if="searchQuery" class="search-count">
+        {{ matchCount > 0 ? `${currentMatch}/${matchCount}` : t('conversation.noMatches') }}
+      </span>
+      <button v-if="searchQuery" type="button" class="search-nav-btn" :title="t('conversation.prevMatch')" :disabled="matchCount === 0" @click="prevMatch">
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="4,10 8,6 12,10" />
+        </svg>
+      </button>
+      <button v-if="searchQuery" type="button" class="search-nav-btn" :title="t('conversation.nextMatch')" :disabled="matchCount === 0" @click="nextMatch">
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="4,6 8,10 12,6" />
+        </svg>
+      </button>
+      <button type="button" class="search-close-btn" :title="t('conversation.closeSearch')" @click="closeSearch">
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <path d="M4 4l8 8M12 4l-8 8" />
+        </svg>
+      </button>
+    </div>
 
     <!-- Beta conversation outline: right edge, proportional bubbles, viewport indicator, hover tooltip. -->
     <ConversationToc
@@ -1007,6 +1195,7 @@ defineExpose({ loadComposerForEdit });
               ref="chatPaneRef"
               :key="fileReloadKey ?? 'no-session'"
               :turns="turns"
+              :session-id="sessionId"
               :approvals="approvals"
               :bubble="bubble"
               :mobile="mobile"
@@ -1026,6 +1215,9 @@ defineExpose({ loadComposerForEdit });
               @open-compaction="emit('openCompaction', $event)"
               @open-agent="emit('openAgent', $event)"
               @edit-message="emit('editMessage', $event)"
+              @insert-code="loadComposerForEdit($event)"
+              @fill-composer="loadComposerForEdit($event)"
+              @regenerate="emit('regenerate')"
               @load-older-messages="handleLoadOlderMessages"
             />
             <div v-if="activeSwarms.length > 0" class="swarm-stack">
@@ -1419,4 +1611,67 @@ defineExpose({ loadComposerForEdit });
   opacity: 0;
   transform: translateX(-50%) translateY(-6px);
 }
+
+/* In-conversation search bar */
+.search-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  height: 38px;
+}
+.search-bar-icon {
+  flex: none;
+  color: var(--muted);
+}
+.search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: var(--ui-font-size-sm);
+  outline: none;
+}
+.search-input::placeholder { color: var(--faint); }
+.search-count {
+  flex: none;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--ui-font-size-xs);
+  white-space: nowrap;
+}
+.search-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  flex: none;
+}
+.search-nav-btn:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
+.search-nav-btn:disabled { opacity: 0.4; cursor: default; }
+.search-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  flex: none;
+}
+.search-close-btn:hover { background: var(--hover); color: var(--ink); }
 </style>

@@ -840,6 +840,105 @@ function fireCompletionNotification(sid: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// Sound alerts (Web Audio API). Generates subtle beep tones for turn completion,
+// approval requests, and errors. Only fires when the tab is NOT visible (same
+// condition as desktop notifications). The preference is persisted per browser.
+// ---------------------------------------------------------------------------
+const SOUND_STORAGE_KEY = 'kimi-web.sound-alerts';
+function loadSoundFromStorage(): boolean {
+  try {
+    const v = safeGetString(SOUND_STORAGE_KEY);
+    return v === null ? true : v === '1';
+  } catch {
+    return true;
+  }
+}
+const soundAlerts = ref(loadSoundFromStorage());
+let audioCtx: AudioContext | null = null;
+
+function setSoundAlerts(on: boolean): void {
+  soundAlerts.value = on;
+  try { safeSetString(SOUND_STORAGE_KEY, on ? '1' : '0'); } catch { /* ignore */ }
+}
+
+/** Lazily create (or reuse) a single AudioContext. Browsers require it to be
+    resumed after a user gesture; we attempt that each time. */
+function getAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  if (audioCtx === null) {
+    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    try {
+      audioCtx = new Ctor();
+    } catch {
+      return null;
+    }
+  }
+  if (audioCtx.state === 'suspended') {
+    void audioCtx.resume().catch(() => { /* ignore */ });
+  }
+  return audioCtx;
+}
+
+/** Play a single beep tone. */
+function playTone(ctx: AudioContext, freq: number, durationMs: number, type: OscillatorType, startAt: number): void {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, startAt);
+  // Envelope: quick attack, exponential decay to avoid clicks.
+  gain.gain.setValueAtTime(0, startAt);
+  gain.gain.linearRampToValueAtTime(0.15, startAt + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.001, startAt + durationMs / 1000);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(startAt);
+  osc.stop(startAt + durationMs / 1000 + 0.02);
+}
+
+/** True when the tab is hidden OR a different session is active (same gate as
+    desktop notifications). */
+function isTabHidden(): boolean {
+  return typeof document !== 'undefined' && document.visibilityState === 'hidden';
+}
+
+/** Play a sound cue for turn completion: single short C5 note (523Hz, 150ms,
+    sine wave). Only when the tab is not visible and sound is enabled. */
+function maybePlayCompleteSound(sid: string): void {
+  if (!soundAlerts.value) return;
+  if (!isTabHidden()) {
+    // Also play when the user is looking at a different session.
+    if (sid === rawState.activeSessionId) return;
+  }
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  playTone(ctx, 523, 150, 'sine', now);
+}
+
+/** Play a sound cue for a pending approval: double A4 note (440Hz, 200ms x2,
+    square wave). Only when the tab is not visible and sound is enabled. */
+function maybePlayApprovalSound(): void {
+  if (!soundAlerts.value) return;
+  if (!isTabHidden()) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  playTone(ctx, 440, 200, 'square', now);
+  playTone(ctx, 440, 200, 'square', now + 0.24);
+}
+
+/** Play a sound cue for an error: low E3 note (165Hz, 300ms, sawtooth). */
+function maybePlayErrorSound(): void {
+  if (!soundAlerts.value) return;
+  if (!isTabHidden()) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  playTone(ctx, 165, 300, 'sawtooth', now);
+}
+
+// ---------------------------------------------------------------------------
 // Onboarding: a "has the user been onboarded" flag that gates the first-run
 // onboarding screen (preferences: language + theme). Persisted; can be reset to
 // re-open the screen from the settings popover.
@@ -1012,6 +1111,7 @@ function connectEventsIfNeeded(): void {
       // permission endpoint. When permission is 'auto' or 'yolo' and an approval
       // request arrives, immediately respond with 'approved'.
       if (appEvent.type === 'approvalRequested') {
+        maybePlayApprovalSound();
         const perm = rawState.permission;
         if (perm === 'auto' || perm === 'yolo') {
           void respondApproval(appEvent.approval.approvalId, {
@@ -1031,6 +1131,7 @@ function connectEventsIfNeeded(): void {
     },
 
     onError(_code: number, msg: string, _fatal: boolean) {
+      maybePlayErrorSound();
       pushWarning({
         severity: 'error',
         title: i18n.global.t('warnings.wsTitle'),
@@ -2618,6 +2719,7 @@ function onSessionIdle(sid: string): void {
 
   // Browser notification when the user isn't watching this session.
   maybeNotifyCompletion(sid);
+  maybePlayCompleteSound(sid);
 
   const queue = rawState.queuedBySession[sid] ?? [];
   if (queue.length === 0) return;
@@ -4757,6 +4859,8 @@ export function useKimiWebClient() {
     notifyOnComplete,
     notifyPermission,
     setNotifyOnComplete,
+    soundAlerts,
+    setSoundAlerts,
     onboarded,
     setOnboarded,
 

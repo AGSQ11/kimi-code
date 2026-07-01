@@ -16,4 +16,5 @@ export default {
   forkSession: 'Fork session',
   archiveSession: 'Archive',
   confirmArchive: 'Confirm archive?',
+  search: 'Search in conversation',
 };

@@ -175,6 +175,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('mousedown', onModesDocClick);
+  document.removeEventListener('mousedown', onQuickActionsDocClick);
   clearCompositionEndTimer();
 });
 
@@ -392,6 +393,57 @@ function handleKeydown(e: KeyboardEvent): void {
     e.preventDefault();
     handleSubmit();
   }
+}
+
+// ---------------------------------------------------------------------------
+// Quick action prompt templates
+// ---------------------------------------------------------------------------
+const quickActionsOpen = ref(false);
+const quickActionsRef = ref<HTMLElement | null>(null);
+
+const QUICK_ACTIONS: { key: string; prompt: string }[] = [
+  { key: 'composer.quickActionExplain', prompt: 'composer.quickActionExplainPrompt' },
+  { key: 'composer.quickActionTests', prompt: 'composer.quickActionTestsPrompt' },
+  { key: 'composer.quickActionRefactor', prompt: 'composer.quickActionRefactorPrompt' },
+  { key: 'composer.quickActionFindBugs', prompt: 'composer.quickActionFindBugsPrompt' },
+  { key: 'composer.quickActionDocument', prompt: 'composer.quickActionDocumentPrompt' },
+];
+
+function toggleQuickActions(): void {
+  quickActionsOpen.value = !quickActionsOpen.value;
+  if (quickActionsOpen.value) {
+    dropdownOpen.value = false;
+    permDropdownOpen.value = false;
+    closeModes();
+    setTimeout(() => document.addEventListener('mousedown', onQuickActionsDocClick), 0);
+  } else {
+    document.removeEventListener('mousedown', onQuickActionsDocClick);
+  }
+}
+
+function closeQuickActions(): void {
+  quickActionsOpen.value = false;
+  document.removeEventListener('mousedown', onQuickActionsDocClick);
+}
+
+function onQuickActionsDocClick(e: MouseEvent): void {
+  if (quickActionsRef.value && !quickActionsRef.value.contains(e.target as Node)) {
+    closeQuickActions();
+  }
+}
+
+function applyQuickAction(promptKey: string): void {
+  text.value = t(promptKey);
+  closeQuickActions();
+  void nextTick(() => {
+    autosize();
+    textareaRef.value?.focus();
+    const el = textareaRef.value;
+    if (el) {
+      const len = el.value.length;
+      el.setSelectionRange(len, len);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -731,6 +783,32 @@ function selectModel(modelId: string): void {
           >
             <svg class="attach-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 3v10M3 8h10"/></svg>
           </button>
+
+          <!-- Quick actions (lightning bolt) -->
+          <div ref="quickActionsRef" class="quick-actions">
+            <button
+              type="button"
+              class="quick-actions-btn"
+              :class="{ on: quickActionsOpen }"
+              :title="t('composer.quickActions')"
+              @click.stop="toggleQuickActions"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M9 1L3 9h4l-1 6 6-8H8l1-6z"/></svg>
+            </button>
+
+            <div v-if="quickActionsOpen" class="quick-actions-menu" @click.stop>
+              <div class="qa-header">{{ t('composer.quickActions') }}</div>
+              <button
+                v-for="action in QUICK_ACTIONS"
+                :key="action.key"
+                type="button"
+                class="qa-item"
+                @click="applyQuickAction(action.prompt)"
+              >
+                {{ t(action.key) }}
+              </button>
+            </div>
+          </div>
 
           <!-- Permission pill — click to open dropdown -->
           <span
@@ -1265,6 +1343,80 @@ function selectModel(modelId: string): void {
   background: var(--soft);
 }
 
+/* Quick actions button */
+.quick-actions {
+  position: relative;
+  display: inline-flex;
+  z-index: 30;
+}
+.quick-actions-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: var(--ui-font-size);
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s, color 0.15s;
+  font-family: var(--sans);
+  background: none;
+  border: none;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.quick-actions-btn:hover {
+  background: var(--soft);
+  color: var(--ink);
+}
+.quick-actions-btn.on {
+  background: var(--soft);
+  color: var(--blue);
+}
+.quick-actions-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  z-index: 60;
+  min-width: 200px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.qa-header {
+  padding: 4px 7px 2px;
+  font-size: var(--ui-font-size);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+.qa-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: var(--ui-font-size);
+  color: var(--text);
+  padding: 6px 7px;
+  border-radius: 6px;
+  text-align: left;
+  transition: background 0.1s;
+}
+.qa-item:hover {
+  background: var(--soft);
+  color: var(--blue);
+}
+
 /* Permission pill */
 .perm-pill {
   display: inline-flex;
@@ -1727,7 +1879,8 @@ function selectModel(modelId: string): void {
      at ≥80% usage) and tapping it triggers compaction directly. */
   .perm-pill,
   .modes,
-  .ctx-group {
+  .ctx-group,
+  .quick-actions {
     display: none;
   }
 

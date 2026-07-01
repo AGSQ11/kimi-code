@@ -16,4 +16,5 @@ export default {
   forkSession: '分叉会话',
   archiveSession: '归档',
   confirmArchive: '确认归档？',
+  search: '在对话中搜索',
 };

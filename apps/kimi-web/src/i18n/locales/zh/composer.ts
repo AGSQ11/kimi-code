@@ -53,4 +53,17 @@ export default {
   queued: '已排队',
   queuedCount: '{n} 条排队',
 
+  // Quick action prompt templates
+  quickActions: '快捷操作',
+  quickActionExplain: '解释代码',
+  quickActionTests: '编写测试',
+  quickActionRefactor: '重构',
+  quickActionFindBugs: '查找 Bug',
+  quickActionDocument: '添加文档',
+  quickActionExplainPrompt: '解释以下代码：\n\n',
+  quickActionTestsPrompt: '为当前文件编写全面的测试\n\n',
+  quickActionRefactorPrompt: '重构以下代码以提高可读性：\n\n',
+  quickActionFindBugsPrompt: '审查以下代码中潜在的 Bug：\n\n',
+  quickActionDocumentPrompt: '为以下内容添加文档/注释：\n\n',
+
 } as const;

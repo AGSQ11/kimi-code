@@ -1,0 +1,17 @@
+export default {
+  title: 'Git',
+  branch: '分支',
+  detached: 'detached',
+  aheadTitle: 'ahead of remote',
+  behindTitle: 'behind remote',
+  modified: '已修改',
+  added: '已新增',
+  deleted: '已删除',
+  untracked: '未跟踪',
+  clean: '工作区干净',
+  empty: '不是 Git 仓库',
+  back: '返回',
+  loading: '正在加载 diff…',
+  noDiff: '该文件没有行级改动',
+  close: '关闭',
+} as const;

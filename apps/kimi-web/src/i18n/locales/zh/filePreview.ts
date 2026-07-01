@@ -24,6 +24,7 @@ export default {
   binaryNoPreview: '二进制文件 · {mime} · {size} 字节 · 暂不预览',
   unknownType: '未知类型',
   copyCode: '复制代码',
+  insertIntoComposer: '插入到输入框',
 
   // AI selection enhance actions
   aiRefine: '优化',

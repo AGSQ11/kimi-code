@@ -17,6 +17,18 @@ export type ColorScheme = 'light' | 'dark' | 'system';
 /** Accent: 'blue' (Kimi blue, default) or 'mono' (black/white). */
 export type Accent = 'blue' | 'mono';
 
+/** Preset accent swatches shown in settings. The hex value is applied directly
+    to --blue (and derived shades) on :root. */
+export const ACCENT_PRESETS: ReadonlyArray<{ id: string; labelKey: string; hex: string }> = [
+  { id: 'blue', labelKey: 'settings.accentBlue', hex: '#1783ff' },
+  { id: 'green', labelKey: 'settings.accentGreen', hex: '#22c55e' },
+  { id: 'purple', labelKey: 'settings.accentPurple', hex: '#8b5cf6' },
+  { id: 'orange', labelKey: 'settings.accentOrange', hex: '#f97316' },
+  { id: 'pink', labelKey: 'settings.accentPink', hex: '#ec4899' },
+  { id: 'teal', labelKey: 'settings.accentTeal', hex: '#14b8a6' },
+  { id: 'red', labelKey: 'settings.accentRed', hex: '#ef4444' },
+];
+
 const ACCENT_VALUES: readonly string[] = ['blue', 'mono'];
 const COLOR_SCHEME_VALUES: readonly string[] = ['light', 'dark', 'system'];
 const UI_FONT_SIZE_DEFAULT = 15;
@@ -30,8 +42,53 @@ function loadAccent(): Accent {
 }
 
 function applyAccent(a: Accent): void {
-  if (typeof document === 'undefined' || !document.documentElement) return;
+  if (typeof document === undefined || !document.documentElement) return;
   document.documentElement.dataset.accent = a;
+}
+
+// ---------------------------------------------------------------------------
+// Custom accent color: when the user picks a specific hex colour, we override
+// the --blue / --blue2 / --soft / --bd CSS custom properties directly on
+// :root (inline style beats the stylesheet [data-accent] rules).  Pass null
+// (or an empty string) to clear the override and fall back to blue/mono.
+// ---------------------------------------------------------------------------
+
+/** Validate a hex colour string to #RRGGBB (or #RGB shorthand). Returns
+    the canonical 6-digit form, or null when the input is invalid / empty. */
+function normalizeHex(raw: string | null): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(s)) return s.toLowerCase();
+  if (/^#[0-9a-fA-F]{3}$/.test(s)) {
+    return ('#' + s[1] + s[1] + s[2] + s[2] + s[3] + s[3]).toLowerCase();
+  }
+  return null;
+}
+
+function loadCustomAccent(): string | null {
+  return normalizeHex(safeGetString(STORAGE_KEYS.customAccent));
+}
+
+function applyCustomAccent(hex: string | null): void {
+  if (typeof document === 'undefined' || !document.documentElement) return;
+  const root = document.documentElement;
+  if (!hex) {
+    root.style.removeProperty('--blue');
+    root.style.removeProperty('--blue2');
+    root.style.removeProperty('--soft');
+    root.style.removeProperty('--bd');
+    root.style.removeProperty('--bluebg');
+    root.style.removeProperty('--accent');
+    return;
+  }
+  // Derive shades with color-mix so derived tokens (hover, fill, border)
+  // stay perceptually consistent regardless of the chosen hue.
+  root.style.setProperty('--accent', hex);
+  root.style.setProperty('--blue', hex);
+  root.style.setProperty('--blue2', `color-mix(in srgb, ${hex} 80%, black)`);
+  root.style.setProperty('--soft', `color-mix(in srgb, ${hex} 12%, var(--bg))`);
+  root.style.setProperty('--bd', `color-mix(in srgb, ${hex} 30%, transparent)`);
+  root.style.setProperty('--bluebg', `color-mix(in srgb, ${hex} 8%, var(--bg))`);
 }
 
 function loadColorScheme(): ColorScheme {
@@ -84,11 +141,13 @@ function applyUiFontSize(value: number): void {
 const theme = ref<Theme>(loadTheme());
 const colorScheme = ref<ColorScheme>(loadColorScheme());
 const accent = ref<Accent>(loadAccent());
+const customAccent = ref<string | null>(loadCustomAccent());
 const uiFontSize = ref<number>(loadUiFontSize());
 
 watch(theme, applyTheme, { immediate: true });
 watch(colorScheme, applyColorScheme, { immediate: true });
 watch(accent, applyAccent, { immediate: true });
+watch(customAccent, applyCustomAccent, { immediate: true });
 watch(uiFontSize, applyUiFontSize, { immediate: true });
 
 function setTheme(t: Theme): void {
@@ -111,6 +170,18 @@ function setAccent(a: Accent): void {
   if (!ACCENT_VALUES.includes(a)) return;
   accent.value = a;
   safeSetString(STORAGE_KEYS.accent, a);
+}
+
+/** Set a custom accent hex colour. Pass null/empty to clear and revert to the
+    built-in blue/mono accent. Invalid values are silently rejected. */
+function setCustomAccent(hex: string | null): void {
+  const normalized = normalizeHex(hex);
+  if (hex !== null && hex !== '' && normalized === null) return; // invalid — ignore
+  customAccent.value = normalized;
+  if (normalized) safeSetString(STORAGE_KEYS.customAccent, normalized);
+  else {
+    try { globalThis.localStorage.removeItem(STORAGE_KEYS.customAccent); } catch { /* ignore */ }
+  }
 }
 
 function setUiFontSize(value: number): void {
@@ -177,12 +248,14 @@ export function useAppearance() {
     theme,
     colorScheme,
     accent,
+    customAccent,
     uiFontSize,
     fastMoon,
     setTheme,
     toggleTheme,
     setColorScheme,
     setAccent,
+    setCustomAccent,
     setUiFontSize,
     resetFastMoon,
     recordMoonDelta,

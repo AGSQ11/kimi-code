@@ -53,4 +53,17 @@ export default {
   queued: 'Queued',
   queuedCount: '{n} queued',
 
+  // Quick action prompt templates
+  quickActions: 'Quick Actions',
+  quickActionExplain: 'Explain this code',
+  quickActionTests: 'Write tests',
+  quickActionRefactor: 'Refactor',
+  quickActionFindBugs: 'Find bugs',
+  quickActionDocument: 'Document',
+  quickActionExplainPrompt: 'Explain the following code:\n\n',
+  quickActionTestsPrompt: 'Write comprehensive tests for the current file\n\n',
+  quickActionRefactorPrompt: 'Refactor the following code for better readability:\n\n',
+  quickActionFindBugsPrompt: 'Review the following code for potential bugs:\n\n',
+  quickActionDocumentPrompt: 'Add documentation/comments to:\n\n',
+
 } as const;

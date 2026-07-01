@@ -1,0 +1,17 @@
+export default {
+  title: 'Git',
+  branch: 'Branch',
+  detached: 'detached',
+  aheadTitle: 'ahead of remote',
+  behindTitle: 'behind remote',
+  modified: 'modified',
+  added: 'added',
+  deleted: 'deleted',
+  untracked: 'untracked',
+  clean: 'Working tree clean',
+  empty: 'Not a git repository',
+  back: 'Back',
+  loading: 'Loading diff…',
+  noDiff: 'No line changes for this file',
+  close: 'Close',
+} as const;

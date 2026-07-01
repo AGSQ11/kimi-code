@@ -13,6 +13,7 @@ import CompareCard from '../CompareCard.vue';
 import MoonSpinner from '../MoonSpinner.vue';
 import { formatMessageTime } from '../../lib/formatMessageTime';
 import { copyTextToClipboard } from '../../lib/clipboard';
+import { safeGetJson, safeSetJson, STORAGE_KEYS } from '../../lib/storage';
 import {
   assistantRenderBlocks,
   formatDuration,
@@ -45,6 +46,8 @@ onUnmounted(() => {
 const props = withDefaults(
   defineProps<{
     turns: ChatTurn[];
+    /** Active session id — used as the localStorage namespace for bookmarks. */
+    sessionId?: string;
     approvals?: { approvalId: string; block: ApprovalBlock; agentName?: string }[];
     /**
      * Bubble chat layout: render each turn as a chat bubble (user = right-aligned
@@ -199,6 +202,14 @@ const emit = defineEmits<{
   openAgent: [target: { turnId: string; blockIndex: number; memberId: string }];
   /** Edit + resend the last user message (parent undoes, then refills composer). */
   editMessage: [text: string];
+  /** Insert code text from a code block into the composer. */
+  insertCode: [code: string];
+  /** Regenerate the last assistant response (undo last exchange + resend prompt). */
+  regenerate: [];
+  /** Fill the composer with text without undoing (edit-any-message affordance). */
+  fillComposer: [text: string];
+  /** Bookmark toggle for a message (persisted in localStorage). */
+  bookmark: [turnId: string];
   /** Fetch the next older page of messages (triggered by top sentinel visibility or click). */
   loadOlderMessages: [];
 }>();
@@ -221,6 +232,30 @@ function canEditTurn(turn: ChatTurn): boolean {
     !props.running &&
     !props.sending &&
     !turn.skillActivation
+  );
+}
+
+// The id of the last assistant run-ending turn — the only one offered a
+// "regenerate" button. Regenerate undoes the latest exchange and resends the
+// last user prompt for a fresh reply.
+const lastAssistantRunEndId = computed<string | null>(() => {
+  for (let i = props.turns.length - 1; i >= 0; i--) {
+    if (props.turns[i]!.role === 'assistant' && isAssistantRunEnd(i)) {
+      return props.turns[i]!.id;
+    }
+  }
+  return null;
+});
+
+/** Show the regenerate button only on the last assistant turn while idle and
+    when there is a preceding user message that can be resent. */
+function canRegenerate(turn: ChatTurn): boolean {
+  return (
+    turn.role === 'assistant' &&
+    turn.id === lastAssistantRunEndId.value &&
+    !props.running &&
+    !props.sending &&
+    lastUserTurnId.value !== null
   );
 }
 
@@ -382,6 +417,71 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
   return block.sourceIndex === turnBlocks(turn).length - 1;
 }
 
+// ---------------------------------------------------------------------------
+// Hover action bar: Copy / Bookmark / Edit — shown on message hover.
+// Copy reuses the per-turn copiedTurn ref; Edit only appears on user turns.
+// ---------------------------------------------------------------------------
+
+/** Fill composer with this message text (no undo — just pre-fills the textarea). */
+function handleFillComposer(turn: ChatTurn): void {
+  emit('fillComposer', turn.text);
+}
+
+/** Copy ANY turn's text (user input verbatim or assistant run final text). */
+function copyAnyTurn(ti: number): void {
+  const turn = props.turns[ti];
+  if (!turn) return;
+  const text = turn.role === 'assistant' ? assistantRunFinalText(ti) : turn.text;
+  if (!text.trim()) return;
+  void copyTextToClipboard(text).then((ok) => {
+    if (!ok) return;
+    copiedTurn.value = turn.id;
+    if (copiedTimer !== null) clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => {
+      copiedTimer = null;
+      copiedTurn.value = null;
+    }, 1400);
+  }).catch(() => {/* ignore */});
+}
+
+/** Can we offer the copy hover action on this turn? */
+function canCopyTurn(ti: number): boolean {
+  const turn = props.turns[ti];
+  if (!turn || turn.id === streamingTurnId.value) return false;
+  if (turn.role === 'compaction') return false;
+  if (turn.role === 'assistant') return isAssistantRunEnd(ti) && assistantRunFinalText(ti).trim().length > 0;
+  return turn.text.trim().length > 0;
+}
+
+// --- Bookmarks (localStorage-backed Set<string> per session) ---
+
+const bookmarkedIds = ref<Set<string>>(new Set());
+
+function bookmarkStorageKey(): string {
+  return `${STORAGE_KEYS.bookmarks}.${props.sessionId ?? '__all__'}`;
+}
+
+function loadBookmarks(): void {
+  const arr = safeGetJson<string[]>(bookmarkStorageKey());
+  bookmarkedIds.value = new Set(Array.isArray(arr) ? arr.filter((v): v is string => typeof v === 'string') : []);
+}
+
+function isBookmarked(turnId: string): boolean {
+  return bookmarkedIds.value.has(turnId);
+}
+
+function toggleBookmark(turn: ChatTurn): void {
+  const next = new Set(bookmarkedIds.value);
+  if (next.has(turn.id)) next.delete(turn.id);
+  else next.add(turn.id);
+  bookmarkedIds.value = next;
+  safeSetJson(bookmarkStorageKey(), Array.from(next));
+  emit('bookmark', turn.id);
+}
+
+// Reload bookmarks when the session changes.
+watch(() => props.sessionId, loadBookmarks, { immediate: true });
+
 // NOTE: the turn-summary line ("已调用 N 个工具…") was removed in f9417af. If it
 // comes back, rebuild it from turnBlocks() with i18n strings — the old
 // implementation lives in git history at f9417af^.
@@ -455,6 +555,35 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
           </div>
           <!-- User input renders verbatim (pre-wrap), never through Markdown -->
           <div v-else class="u-text">{{ turn.text }}</div>
+          <!-- Hover action bar: Copy / Edit -->
+          <div v-if="turn.id !== streamingTurnId" class="hover-bar hb-bubble hb-user" @click.stop>
+            <button
+              v-if="canCopyTurn(ti)"
+              type="button"
+              class="hb-btn"
+              :title="t('conversation.copyMessage')"
+              @click="copyAnyTurn(ti)"
+            >
+              <svg v-if="copiedTurn !== turn.id" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="9" height="9" rx="1.5"/>
+                <path d="M6 1h7a1 1 0 0 1 1 1v7"/>
+              </svg>
+              <svg v-else viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="3,8 6.5,11.5 13,5"/>
+              </svg>
+            </button>
+            <button
+              v-if="!turn.skillActivation"
+              type="button"
+              class="hb-btn"
+              :title="t('conversation.editMessage')"
+              @click="handleFillComposer(turn)"
+            >
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11.5 2.5l2 2L6 12l-2.5.5L4 10l7.5-7.5z"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <div v-if="turn.createdAt || canEditTurn(turn)" class="u-meta">
           <div v-if="canEditTurn(turn)" class="u-edit-wrap" :class="{ undoing: undoingTurnId === turn.id }">
@@ -521,7 +650,7 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
       <div v-else class="a-msg turn-anchor" :data-turn-id="turn.id">
         <template v-for="(blk, bi) in assistantRenderBlocks(turn)" :key="renderBlockKey(blk, bi)">
           <ThinkingBlock v-if="blk.kind === 'thinking'" :text="blk.thinking" :mobile="childBubble" :streaming="isStreamingRenderBlock(turn, blk)" @open="emit('openThinking', { turnId: turn.id, blockIndex: blk.sourceIndex })" />
-          <div v-else-if="blk.kind === 'text' && blk.text" class="msg"><Markdown :text="blk.text" :streaming="isStreamingRenderBlock(turn, blk)" :open-file="(target) => emit('openFile', target)" /></div>
+          <div v-else-if="blk.kind === 'text' && blk.text" class="msg"><Markdown :text="blk.text" :streaming="isStreamingRenderBlock(turn, blk)" :open-file="(target) => emit('openFile', target)" :insert-code="(code) => emit('insertCode', code)" /></div>
           <div v-else-if="blk.kind === 'tool-stack'" class="tool-stack">
             <ToolCall v-for="(item, si) in blk.tools" :key="toolStackKey(item)" :tool="item.tool" :mobile="childBubble" :stack-position="toolStackPosition(si, blk.tools.length)" @open-media="emit('openMedia', $event)" />
           </div>
@@ -530,7 +659,7 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
           <CompareCard v-else-if="blk.kind === 'compare'" :results="blk.results" />
           <ToolCall v-else-if="blk.kind === 'tool'" :tool="blk.tool" :mobile="childBubble" @open-media="emit('openMedia', $event)" />
         </template>
-        <div v-if="turn.id !== streamingTurnId && isAssistantRunEnd(ti) && (assistantRunFinalText(ti).trim().length > 0 || turn.durationMs !== undefined)" class="a-msg-ft">
+        <div v-if="turn.id !== streamingTurnId && isAssistantRunEnd(ti) && (assistantRunFinalText(ti).trim().length > 0 || turn.durationMs !== undefined || canRegenerate(turn))" class="a-msg-ft">
           <span v-if="turn.durationMs !== undefined" class="a-duration" :title="`${turn.durationMs} ms`">{{ formatDuration(turn.durationMs) }}</span>
           <button
             v-if="assistantRunFinalText(ti).trim().length > 0"
@@ -546,6 +675,50 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
               <polyline points="3,8 6.5,11.5 13,5"/>
             </svg>
             <span class="a-cpbtn-text">{{ t('filePreview.copy') }}</span>
+          </button>
+          <button
+            v-if="canRegenerate(turn)"
+            class="a-cpbtn regen-btn"
+            tabindex="-1"
+            :title="t('conversation.regenerate')"
+            @click="emit('regenerate')"
+          >
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2.5 8a5.5 5.5 0 0 1 9.4-3.9"/>
+              <path d="M12 2v3h-3"/>
+              <path d="M13.5 8a5.5 5.5 0 0 1-9.4 3.9"/>
+              <path d="M4 14v-3h3"/>
+            </svg>
+            <span class="a-cpbtn-text">{{ t('conversation.regenerate') }}</span>
+          </button>
+        </div>
+        <!-- Hover action bar: Copy / Bookmark -->
+        <div v-if="turn.id !== streamingTurnId && isAssistantRunEnd(ti)" class="hover-bar hb-bubble" @click.stop>
+          <button
+            v-if="canCopyTurn(ti)"
+            type="button"
+            class="hb-btn"
+            :title="t('conversation.copyMessage')"
+            @click="copyAnyTurn(ti)"
+          >
+            <svg v-if="copiedTurn !== turn.id" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="9" height="9" rx="1.5"/>
+              <path d="M6 1h7a1 1 0 0 1 1 1v7"/>
+            </svg>
+            <svg v-else viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="3,8 6.5,11.5 13,5"/>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="hb-btn"
+            :class="{ on: isBookmarked(turn.id) }"
+            :title="isBookmarked(turn.id) ? t('conversation.removeBookmark') : t('conversation.bookmark')"
+            @click="toggleBookmark(turn)"
+          >
+            <svg viewBox="0 0 16 16" width="13" height="13" :fill="isBookmarked(turn.id) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3.5 2h9a.5.5 0 0 1 .5.5v12l-5-3.5L3 14.5v-12a.5.5 0 0 1 .5-.5z"/>
+            </svg>
           </button>
         </div>
       </div>
@@ -645,6 +818,16 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
               </svg>
               <span class="cpbtn-text">{{ t('filePreview.copy') }}</span>
             </button>
+            <!-- Regenerate button: last assistant turn only, while idle -->
+            <button v-if="canRegenerate(turn)" class="cpbtn regen-btn" :title="t('conversation.regenerate')" @click="emit('regenerate')" tabindex="-1">
+              <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2.5 8a5.5 5.5 0 0 1 9.4-3.9"/>
+                <path d="M12 2v3h-3"/>
+                <path d="M13.5 8a5.5 5.5 0 0 1-9.4 3.9"/>
+                <path d="M4 14v-3h3"/>
+              </svg>
+              <span class="cpbtn-text">{{ t('conversation.regenerate') }}</span>
+            </button>
             <span v-if="turn.durationMs !== undefined && turn.role === 'assistant'" class="turn-duration" :title="`${turn.durationMs} ms`">{{ formatDuration(turn.durationMs) }}</span>
           </div>
 
@@ -664,7 +847,7 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
           <template v-else>
             <template v-for="(blk, bi) in assistantRenderBlocks(turn)" :key="renderBlockKey(blk, bi)">
               <ThinkingBlock v-if="blk.kind === 'thinking'" :text="blk.thinking" :streaming="isStreamingRenderBlock(turn, blk)" @open="emit('openThinking', { turnId: turn.id, blockIndex: blk.sourceIndex })" />
-              <Markdown v-else-if="blk.kind === 'text' && blk.text" :text="blk.text" :streaming="isStreamingRenderBlock(turn, blk)" :open-file="(target) => emit('openFile', target)" />
+              <Markdown v-else-if="blk.kind === 'text' && blk.text" :text="blk.text" :streaming="isStreamingRenderBlock(turn, blk)" :open-file="(target) => emit('openFile', target)" :insert-code="(code) => emit('insertCode', code)" />
               <div v-else-if="blk.kind === 'tool-stack'" class="tool-stack">
                 <ToolCall v-for="(item, si) in blk.tools" :key="toolStackKey(item)" :tool="item.tool" :stack-position="toolStackPosition(si, blk.tools.length)" @open-media="emit('openMedia', $event)" />
               </div>
@@ -676,8 +859,49 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
           </template>
         </div>
 
+        <!-- Hover action bar: Copy / Bookmark / Edit -->
+        <div v-if="turn.id !== streamingTurnId && (canCopyTurn(ti) || turn.role === 'assistant' || turn.role === 'user')" class="hover-bar" @click.stop>
+          <button
+            v-if="canCopyTurn(ti)"
+            type="button"
+            class="hb-btn"
+            :title="t('conversation.copyMessage')"
+            @click="copyAnyTurn(ti)"
+          >
+            <svg v-if="copiedTurn !== turn.id" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="9" height="9" rx="1.5"/>
+              <path d="M6 1h7a1 1 0 0 1 1 1v7"/>
+            </svg>
+            <svg v-else viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="3,8 6.5,11.5 13,5"/>
+            </svg>
+          </button>
+          <button
+            v-if="turn.role === 'assistant' && isAssistantRunEnd(ti)"
+            type="button"
+            class="hb-btn"
+            :class="{ on: isBookmarked(turn.id) }"
+            :title="isBookmarked(turn.id) ? t('conversation.removeBookmark') : t('conversation.bookmark')"
+            @click="toggleBookmark(turn)"
+          >
+            <svg viewBox="0 0 16 16" width="13" height="13" :fill="isBookmarked(turn.id) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3.5 2h9a.5.5 0 0 1 .5.5v12l-5-3.5L3 14.5v-12a.5.5 0 0 1 .5-.5z"/>
+            </svg>
+          </button>
+          <button
+            v-if="turn.role === 'user' && !turn.skillActivation"
+            type="button"
+            class="hb-btn"
+            :title="t('conversation.editMessage')"
+            @click="handleFillComposer(turn)"
+          >
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M11.5 2.5l2 2L6 12l-2.5.5L4 10l7.5-7.5z"/>
+            </svg>
+          </button>
+        </div>
+
         <div
-          v-if="turn.role === 'user' && canEditTurn(turn)"
           class="u-edit-wrap ln-edit-wrap"
           :class="{ undoing: undoingTurnId === turn.id }"
         >
@@ -1429,6 +1653,100 @@ function isStreamingRenderBlock(turn: ChatTurn, block: { sourceIndex: number }):
   gap: 8px;
   color: var(--muted);
   font-size: var(--ui-font-size-sm);
+}
+
+/* ===================== Hover action bar ===================== */
+/* Small floating action buttons (Copy / Bookmark / Edit) that appear when the
+   user hovers a message turn. Dim by default, visible on hover or touch. */
+.hover-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+/* Desktop line layout: sit in the gutter after .tx */
+.ln > .hover-bar {
+  flex: none;
+  align-self: flex-start;
+  padding-top: 2px;
+  margin-left: -4px;
+}
+.ln:hover > .hover-bar,
+.ln:focus-within > .hover-bar {
+  opacity: 1;
+  pointer-events: auto;
+}
+/* Bubble layout: position at the edge of the bubble */
+.hb-bubble {
+  position: absolute;
+  z-index: 5;
+}
+/* Assistant bubble: hover bar at the top-right corner */
+.a-msg > .hb-bubble {
+  top: -2px;
+  right: 0;
+  flex-direction: row;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.a-msg:hover > .hb-bubble,
+.a-msg:focus-within > .hb-bubble {
+  opacity: 1;
+  pointer-events: auto;
+}
+/* User bubble: hover bar at the bottom-left (outside the bubble) */
+.u-bub > .hb-bubble {
+  bottom: -2px;
+  left: -8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.u-bub:hover > .hb-bubble,
+.u-bub:focus-within > .hb-bubble {
+  opacity: 1;
+  pointer-events: auto;
+}
+/* Need position:relative on bubble containers for absolute hover bar */
+.a-msg { position: relative; }
+.u-bub { position: relative; }
+.hb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.12s, background-color 0.12s;
+}
+.hb-btn:hover {
+  color: var(--blue);
+  background: var(--hover);
+}
+.hb-btn.on {
+  color: var(--accent);
+}
+.hb-btn.on:hover {
+  color: var(--accent);
+}
+/* Touch devices: always show the hover bars */
+@media (hover: none) {
+  .hover-bar {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 </style>

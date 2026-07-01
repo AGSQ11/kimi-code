@@ -101,6 +101,7 @@ const emit = defineEmits<{
   /** Chat header / files pane: focus the diff detail layer and refresh git status. */
   openChanges: [];
   openNotes: [];
+  openGitPanel: [];
   refreshGitStatus: [];
   /** Edit + resend the last user message (App undoes, then refills composer). */
   editMessage: [text: string];
@@ -794,6 +795,7 @@ defineExpose({ loadComposerForEdit });
       @fork-session="(id) => emit('forkSession', id)"
       @archive-session="(id) => emit('archiveSession', id)"
       @open-notes="emit('openNotes')"
+      @open-git-panel="emit('openGitPanel')"
     />
 
     <!-- Beta conversation outline: right edge, proportional bubbles, viewport indicator, hover tooltip. -->

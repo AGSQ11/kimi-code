@@ -12,8 +12,18 @@ import { serverEndpointLabel } from '../api/config';
 import { downloadTraceLog, isTraceEnabled } from '../debug/trace';
 import type { ColorScheme, Theme } from '../composables/useKimiWebClient';
 import type { AppConfig, AppConfigProvider, AppModel, ThinkingLevel } from '../api/types';
+import { useAppearance, ACCENT_PRESETS } from '../composables/client/useAppearance';
 
 const { t } = useI18n();
+
+// Custom accent colour (self-contained UI preference; useAppearance is the
+// module-level singleton that persists + applies the choice to :root).
+const { customAccent, setCustomAccent } = useAppearance();
+const showAccentPicker = computed(() => props.theme !== 'kimi');
+const accentPresets = ACCENT_PRESETS;
+const isPresetActive = computed(() =>
+  accentPresets.some((p) => p.hex === customAccent.value),
+);
 
 const props = defineProps<{
   theme: Theme;
@@ -25,6 +35,8 @@ const props = defineProps<{
   notify: boolean;
   /** OS permission state ('default' | 'granted' | 'denied') for the hint. */
   notifyPermission?: string;
+  /** Sound alert preference for completion/approval/error cues. */
+  soundAlerts?: boolean;
   /** Beta conversation TOC (proportional, viewport, hover tooltip). */
   betaToc?: boolean;
   /** Global daemon config from GET /api/v1/config. Secrets are redacted server-side. */
@@ -46,6 +58,7 @@ const emit = defineEmits<{
   setColorScheme: [colorScheme: ColorScheme];
   setUiFontSize: [size: number];
   setNotify: [on: boolean];
+  setSoundAlerts: [on: boolean];
   setBetaToc: [on: boolean];
   setThinkingLevel: [level: ThinkingLevel];
   setExternalEditor: [cmd: string];
@@ -252,6 +265,48 @@ function setTab(tab: SettingsTab): void {
                 <span class="rlabel">{{ t('sidebar.language') }}</span>
                 <LanguageSwitcher />
               </div>
+              <div v-if="showAccentPicker" class="row accent-row">
+                <span class="rlabel">
+                  {{ t('settings.accentColor') }}
+                  <span class="hint">{{ t('settings.accentColorHint') }}</span>
+                </span>
+                <div class="accent-picker">
+                  <button
+                    v-for="preset in accentPresets"
+                    :key="preset.id"
+                    type="button"
+                    class="swatch"
+                    :class="{ on: customAccent === preset.hex }"
+                    :style="{ '--swatch-color': preset.hex }"
+                    :title="t(preset.labelKey)"
+                    :aria-label="t(preset.labelKey)"
+                    :aria-pressed="customAccent === preset.hex"
+                    @click="setCustomAccent(preset.hex)"
+                  />
+                  <label class="swatch custom-swatch" :class="{ on: customAccent && !isPresetActive }" :title="t('settings.accentCustom')">
+                    <input
+                      type="color"
+                      class="color-input"
+                      :value="customAccent ?? '#1783ff'"
+                      @input="setCustomAccent(($event.target as HTMLInputElement).value)"
+                    />
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M6 1.5v9M1.5 6h9" stroke-linecap="round"/>
+                    </svg>
+                  </label>
+                  <button
+                    v-if="customAccent"
+                    type="button"
+                    class="swatch-reset"
+                    :title="t('settings.accentReset')"
+                    @click="setCustomAccent(null)"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </section>
 
             <section class="sec">
@@ -269,6 +324,22 @@ function setTab(tab: SettingsTab): void {
                   :aria-checked="notify"
                   :disabled="notifyPermission === 'denied'"
                   @click="emit('setNotify', !notify)"
+                >
+                  <span class="knob" />
+                </button>
+              </div>
+              <div class="row">
+                <span class="rlabel">
+                  {{ t('settings.soundAlerts') }}
+                  <span class="hint">{{ t('settings.soundAlertsHint') }}</span>
+                </span>
+                <button
+                  type="button"
+                  class="switch"
+                  role="switch"
+                  :class="{ on: soundAlerts }"
+                  :aria-checked="soundAlerts"
+                  @click="emit('setSoundAlerts', !soundAlerts)"
                 >
                   <span class="knob" />
                 </button>
@@ -691,6 +762,60 @@ function setTab(tab: SettingsTab): void {
 .opt:hover { color: var(--ink); }
 .opt.on { background: var(--soft); color: var(--blue2); font-weight: 600; }
 .opt:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Accent colour picker */
+.accent-row { flex-wrap: wrap; }
+.accent-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--swatch-color, var(--blue));
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  transition: transform 0.12s, border-color 0.12s;
+}
+.swatch:hover { transform: scale(1.12); }
+.swatch.on { border-color: var(--ink); }
+.custom-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  color: var(--muted);
+  background: conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+.custom-swatch svg { position: relative; z-index: 1; filter: drop-shadow(0 0 1px var(--bg)); }
+.custom-swatch.on { border-color: var(--ink); }
+.color-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.swatch-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+}
+.swatch-reset:hover { background: var(--soft); color: var(--ink); }
 
 .select-field {
   min-width: 220px;

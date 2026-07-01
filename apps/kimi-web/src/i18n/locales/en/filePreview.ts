@@ -24,6 +24,7 @@ export default {
   binaryNoPreview: 'Binary file · {mime} · {size} bytes · preview unavailable',
   unknownType: 'unknown type',
   copyCode: 'Copy code',
+  insertIntoComposer: 'Insert into composer',
 
   // AI selection enhance actions
   aiRefine: 'Refine',

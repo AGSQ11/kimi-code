@@ -23,6 +23,11 @@ const props = withDefaults(
     text: string;
     openFile?: (target: FilePreviewRequest) => void;
     /**
+     * Called when the user clicks "insert into composer" on a code block.
+     * Receives the raw code text so the parent can fill the composer.
+     */
+    insertCode?: (code: string) => void;
+    /**
      * True only for the assistant turn that is actively streaming. Drives BOTH
      * `final` (= !streaming) AND markstream's `smooth-streaming`. We bind
      * smooth-streaming to this (not the hardcoded "auto") because "auto" still
@@ -224,10 +229,98 @@ function processMarkdownLinks(): void {
   }
 }
 
+/**
+ * Inject "insert into composer" and "open in editor" action buttons into
+ * markstream's code-block headers. Runs as a post-render DOM enhancement,
+ * the same pattern as `processFileLinks` / `processMarkdownLinks`.
+ *
+ * - "Insert into composer" calls the `insertCode` prop callback with the raw
+ *   code text extracted from the rendered <pre>/<code>.
+ * - "Open in editor" appears only when a file path can be detected from the
+ *   language label (e.g. it contains "/" or ".") or from the first comment
+ *   line inside the code, then calls `openFile`.
+ */
+function enhanceCodeBlocks(): void {
+  if (!mdRef.value || props.streaming) return;
+  const containers = mdRef.value.querySelectorAll<HTMLElement>('.code-block-container');
+  for (const container of containers) {
+    if (container.dataset.codeActionsAdded === 'true') continue;
+    const header = container.querySelector<HTMLElement>('.code-block-header');
+    if (!header) continue;
+    container.dataset.codeActionsAdded = 'true';
+
+    // Extract raw code text from the rendered pre/code element.
+    const pre = container.querySelector('pre');
+    const code = pre?.textContent ?? '';
+    if (!code.trim()) continue;
+
+    // Detect a possible file path from the language label or the first
+    // comment line of the code block.
+    const langLabel = header.querySelector('.code-language, [class*="language"]');
+    const langText = langLabel?.textContent?.trim() ?? '';
+    const filePath = detectFilePath(langText, code);
+
+    // "Insert into composer" button
+    if (props.insertCode) {
+      const insertBtn = document.createElement('button');
+      insertBtn.type = 'button';
+      insertBtn.className = 'code-action-btn md-code-insert';
+      insertBtn.title = t('filePreview.insertIntoComposer');
+      insertBtn.setAttribute('aria-label', t('filePreview.insertIntoComposer'));
+      insertBtn.innerHTML = INSERT_ICON_SVG;
+      insertBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        props.insertCode?.(code);
+      });
+      header.append(insertBtn);
+    }
+
+    // "Open in editor" button — only when a file path was detected
+    if (filePath && props.openFile) {
+      const openBtn = document.createElement('button');
+      openBtn.type = 'button';
+      openBtn.className = 'code-action-btn md-code-open';
+      openBtn.title = t('filePreview.openInEditor');
+      openBtn.setAttribute('aria-label', t('filePreview.openInEditor'));
+      openBtn.innerHTML = OPEN_ICON_SVG;
+      openBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        props.openFile?.({ path: filePath! });
+      });
+      header.append(openBtn);
+    }
+  }
+}
+
+/** Attempt to find a file path from the code block's language label or its
+    first comment line. Returns the path string or null. */
+function detectFilePath(langText: string, code: string): string | null {
+  // Language label that looks like a file path (contains "/" or has an extension)
+  if (langText && (langText.includes('/') || /^\w+\.\w+$/.test(langText))) {
+    return langText;
+  }
+  // First-line comment patterns: "// path/to/file.ts", "# path/to/file.py",
+  // "<!-- path/to/file.html -->"
+  const firstLine = code.split('\n')[0]?.trim() ?? '';
+  const commentMatch = firstLine.match(/^(?:(?:\/\/|#)\s*|<!--\s*)([\w./][-/\w.]*?)(?:\s*(?:-->|$))/);
+  if (commentMatch?.[1] && /\.\w+$/.test(commentMatch[1])) {
+    return commentMatch[1];
+  }
+  return null;
+}
+
+const INSERT_ICON_SVG =
+  '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 13l3.5-1L13 4.5a1.5 1.5 0 0 0-2.1-2.1L3.4 9.9 2 13z"/><path d="M10.5 3.5l2 2"/></svg>';
+const OPEN_ICON_SVG =
+  '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13V4a1 1 0 0 1 1-1h3l1.5 2H12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>';
+
 function scheduleFileLinkProcessing(): void {
   void nextTick().then(() => {
     processFileLinks();
     processMarkdownLinks();
+    enhanceCodeBlocks();
   });
 }
 

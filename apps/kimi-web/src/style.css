@@ -1133,3 +1133,15 @@ html[data-theme="kimi"] .md .md-file-link:hover {
     font-size: max(16px, var(--ui-font-size-xl));
   }
 }
+
+/* Search highlight marks (created via DOM API, so styles must be global) */
+mark.search-hl {
+  background: color-mix(in srgb, var(--warn) 30%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+mark.search-hl.search-current {
+  background: var(--warn);
+  color: var(--bg);
+}

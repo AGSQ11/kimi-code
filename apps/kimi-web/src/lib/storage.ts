@@ -7,6 +7,8 @@
 // source of truth.
 
 export const STORAGE_KEYS = {
+  // useAppearance
+  customAccent: 'kimi-web.custom-accent',
   // useKimiWebClient
   permission: 'kimi-web.permission',
   activeWorkspace: 'kimi-active-workspace',
@@ -34,6 +36,7 @@ export const STORAGE_KEYS = {
   clientId: 'kimi-web.client-id',
   debug: 'kimi-web.debug',
   openInLastTarget: 'kimi-web.open-in.last-target',
+  bookmarks: 'kimi-web.bookmarks',
   sidebarCollapsed: 'kimi-web.sidebar-collapsed',
   sidebarWidth: 'kimi-web.sidebar-width',
   // deprecated cleanups (kept so the removals still fire for old users)

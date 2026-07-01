@@ -36,6 +36,7 @@ const emit = defineEmits<{
   renameSession: [id: string, title: string];
   forkSession: [id: string];
   archiveSession: [id: string];
+  toggleSearch: [];
 }>();
 
 const ahead = computed(() => props.ahead ?? 0);
@@ -220,6 +221,20 @@ function startArchive(): void {
       />
       <span v-else-if="sessionTitle" class="ch-ses" :title="sessionTitle">{{ sessionTitle }}</span>
     </div>
+
+    <!-- Search toggle -->
+    <button
+      type="button"
+      class="ch-act ch-act-search"
+      :title="t('header.search')"
+      :aria-label="t('header.search')"
+      @click.stop="emit('toggleSearch')"
+    >
+      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.5" />
+        <path d="m10.5 10.5 3 3" />
+      </svg>
+    </button>
 
     <!-- More menu trigger: copy-all + session actions -->
     <button
@@ -429,6 +444,17 @@ function startArchive(): void {
 }
 .ch-act-more:hover { background: var(--panel2); }
 .ch-act-more:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+.ch-act-search {
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+.ch-act-search:hover { background: var(--panel2); }
+.ch-act-search:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: -2px;
 }

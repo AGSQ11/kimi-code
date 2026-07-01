@@ -63,6 +63,10 @@ import en_notes from './en/notes';
 import zh_notes from './zh/notes';
 import en_palette from './en/palette';
 import zh_palette from './zh/palette';
+import en_gitPanel from './en/gitPanel';
+import zh_gitPanel from './zh/gitPanel';
+import en_fileExplorer from './en/fileExplorer';
+import zh_fileExplorer from './zh/fileExplorer';
 
 export const messages = {
   en: {
@@ -98,6 +102,8 @@ export const messages = {
     sideChat: en_sideChat,
     notes: en_notes,
     palette: en_palette,
+    gitPanel: en_gitPanel,
+    fileExplorer: en_fileExplorer,
   },
   zh: {
     common: zh_common,
@@ -132,6 +138,8 @@ export const messages = {
     sideChat: zh_sideChat,
     notes: zh_notes,
     palette: zh_palette,
+    gitPanel: zh_gitPanel,
+    fileExplorer: zh_fileExplorer,
   },
 } as const;
 
