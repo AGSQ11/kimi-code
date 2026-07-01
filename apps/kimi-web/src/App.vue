@@ -27,6 +27,8 @@ import MobileSwitcherSheet from './components/MobileSwitcherSheet.vue';
 import MobileSettingsSheet from './components/MobileSettingsSheet.vue';
 import Onboarding from './components/Onboarding.vue';
 import GlobalLoading from './components/GlobalLoading.vue';
+import ShortcutsHelp from './components/ShortcutsHelp.vue';
+import TourOverlay from './components/TourOverlay.vue';
 import DebugPanel from './debug/DebugPanel.vue';
 import { isTraceEnabled } from './debug/trace';
 import MemoryDialog from './components/MemoryDialog.vue';
@@ -63,6 +65,7 @@ const showMobileSettings = ref(false);
 
 // Command Palette
 const showCommandPalette = ref(false);
+const showShortcutsHelp = ref(false);
 
 // Active session title for the mobile top bar.
 const activeSessionTitle = computed<string>(() => {
@@ -203,10 +206,69 @@ onUnmounted(() => {
 
 // Command palette global keydown handler
 function onCommandPaletteKeydown(e: KeyboardEvent): void {
+  // Ctrl/Cmd+K: open command palette
   if ((e.metaKey || e.ctrlKey) && e.key === 'k' && !e.shiftKey && !e.altKey) {
     e.preventDefault();
     e.stopPropagation();
     showCommandPalette.value = true;
+    return;
+  }
+  // Ctrl/Cmd+N: new session
+  if ((e.metaKey || e.ctrlKey) && e.key === 'n' && !e.shiftKey && !e.altKey) {
+    e.preventDefault();
+    e.stopPropagation();
+    handleCreateSession();
+    return;
+  }
+  // Ctrl/Cmd+L: focus composer textarea
+  if ((e.metaKey || e.ctrlKey) && e.key === 'l' && !e.shiftKey && !e.altKey) {
+    e.preventDefault();
+    e.stopPropagation();
+    const textarea = document.querySelector('.composer textarea') as HTMLTextAreaElement | null;
+    if (textarea) {
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+    return;
+  }
+  // Ctrl/Cmd+B: toggle sidebar
+  if ((e.metaKey || e.ctrlKey) && e.key === 'b' && !e.shiftKey && !e.altKey) {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleSidebarCollapse();
+    return;
+  }
+  // Ctrl+Shift+S: toggle settings
+  if ((e.metaKey || e.ctrlKey) && e.key === 's' && e.shiftKey && !e.altKey) {
+    e.preventDefault();
+    e.stopPropagation();
+    showSettings.value = !showSettings.value;
+    return;
+  }
+  // Ctrl+/: show/hide shortcuts help
+  if ((e.metaKey || e.ctrlKey) && e.key === '/' && !e.shiftKey && !e.altKey) {
+    e.preventDefault();
+    e.stopPropagation();
+    showShortcutsHelp.value = !showShortcutsHelp.value;
+    return;
+  }
+  // Alt+1-9: switch to session N
+  if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+    const num = Number(e.key);
+    if (num >= 1 && num <= 9) {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      const sessions = client.sessionsForView.value;
+      const session = sessions[num - 1];
+      if (session) {
+        void client.selectSession(session.id);
+      }
+      return;
+    }
   }
 }
 
@@ -747,7 +809,8 @@ const anyOverlayOpen = computed<boolean>(() =>
   showExportDialog.value ||
   showGoalQueue.value ||
   showFeedbackDialog.value ||
-  showCommandPalette.value,
+  showCommandPalette.value ||
+  showShortcutsHelp.value,
 );
 
 // Loading state for model/provider fetches
@@ -1721,6 +1784,12 @@ function openPr(url: string): void {
       <GlobalLoading v-if="!client.initialized.value" />
     </Transition>
 
+    <!-- Keyboard shortcuts help overlay -->
+    <ShortcutsHelp
+      :open="showShortcutsHelp"
+      @close="showShortcutsHelp = false"
+    />
+
     <!-- First-run onboarding overlay (theme / language / welcome greeting) -->
     <Onboarding
       v-if="showOnboarding && !showAuthGate"
@@ -1729,6 +1798,9 @@ function openPr(url: string): void {
       @complete="completeOnboarding"
       @skip="completeOnboarding"
     />
+
+    <!-- Guided tour for first-time users -->
+    <TourOverlay />
 
     <!-- Floating warnings / agent errors (e.g. a 403 from the model provider) -->
     <WarningToasts :warnings="client.warnings.value" @dismiss="client.dismissWarning" />

@@ -67,6 +67,10 @@ import en_gitPanel from './en/gitPanel';
 import zh_gitPanel from './zh/gitPanel';
 import en_fileExplorer from './en/fileExplorer';
 import zh_fileExplorer from './zh/fileExplorer';
+import en_shortcuts from './en/shortcuts';
+import zh_shortcuts from './zh/shortcuts';
+import en_tour from './en/tour';
+import zh_tour from './zh/tour';
 
 export const messages = {
   en: {
@@ -104,6 +108,8 @@ export const messages = {
     palette: en_palette,
     gitPanel: en_gitPanel,
     fileExplorer: en_fileExplorer,
+    shortcuts: en_shortcuts,
+    tour: en_tour,
   },
   zh: {
     common: zh_common,
@@ -140,6 +146,8 @@ export const messages = {
     palette: zh_palette,
     gitPanel: zh_gitPanel,
     fileExplorer: zh_fileExplorer,
+    shortcuts: zh_shortcuts,
+    tour: zh_tour,
   },
 } as const;
 

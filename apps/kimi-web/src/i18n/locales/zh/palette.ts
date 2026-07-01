@@ -1,4 +1,5 @@
 export default {
+  title: '命令面板',
   placeholder: '输入命令或搜索…',
   noResults: '没有匹配的命令',
   newSession: '新建会话',

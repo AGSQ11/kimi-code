@@ -1,4 +1,5 @@
 export default {
+  title: 'Command Palette',
   placeholder: 'Type a command or search…',
   noResults: 'No matching commands',
   newSession: 'New Session',
