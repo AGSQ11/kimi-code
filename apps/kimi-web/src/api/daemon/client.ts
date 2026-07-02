@@ -1220,7 +1220,7 @@ export class DaemonKimiWebApi implements KimiWebApi {
 
   async getMcpServers(): Promise<AppMcpServer[]> {
     const data = await this.http.get<WireMcpServerListResult>('/mcp/servers');
-    return data.items.map(toAppMcpServer);
+    return (data.items ?? []).map(toAppMcpServer);
   }
 
   // -------------------------------------------------------------------------
