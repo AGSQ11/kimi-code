@@ -1517,82 +1517,86 @@ function openPr(url: string): void {
       :aria-label="t('layout.detailPanelAria')"
       :aria-hidden="!sidePanelVisible"
     >
-      <ThinkingPanel
-        v-if="detailTarget === 'thinking' && thinkingVisible"
-        :text="thinkingPanelText ?? ''"
-        @close="closeThinkingPanel"
-      />
-      <ThinkingPanel
-        v-else-if="detailTarget === 'compaction' && compactionPanelVisible"
-        :text="compactionPanelText ?? ''"
-        :subtitle="t('conversation.summaryTitle')"
-        @close="closeCompactionPanel"
-      />
-      <AgentDetailPanel
-        v-else-if="detailTarget === 'agent' && agentPanelMember"
-        :member="agentPanelMember"
-        @close="closeAgentPanel"
-      />
-      <SideChatPanel
-        v-else-if="detailTarget === 'btw' && btwVisible"
-        :turns="client.sideChatTurns.value"
-        :running="client.sideChatRunning.value"
-        :sending="client.sideChatSending.value"
-        @send="client.sendSideChatPrompt($event)"
-        @close="closeSideChat"
-      />
-      <DiffView
-        v-else-if="detailTarget === 'diff'"
-        :mode="detailDiffMode"
-        :changes="client.changes.value"
-        :git-info="client.gitInfo.value"
-        :file-diff="client.fileDiff.value"
-        :selected-diff-path="client.selectedDiffPath.value"
-        :file-diff-loading="client.fileDiffLoading.value"
-        closable
-        @open="selectDiffFile"
-        @back="detailDiffMode = 'list'; detailDiffPath = null; client.clearFileDiff()"
-        @close="closeDiffDetail"
-      />
-      <GitPanel
-        v-else-if="detailTarget === 'git'"
-        :changes="client.changes.value"
-        :git-info="client.gitInfo.value"
-        :file-diff="client.fileDiff.value"
-        :selected-diff-path="gitPanelDiffMode === 'detail' ? gitPanelDiffPath : null"
-        :file-diff-loading="client.fileDiffLoading.value"
-        @open="selectGitPanelFile"
-        @back="backGitPanel"
-        @close="closeGitPanel"
-      />
-      <FileExplorer
-        v-else-if="detailTarget === 'explorer'"
-        :workspace-root="client.visibleWorkspace.value?.root ?? client.status.value.cwd"
-        :current-file="previewNormalizedPath"
-        :list-dir="client.listDir"
-        @open-file="openFilePreview($event)"
-        @close="closeFileExplorer"
-      />
-      <NotesPanel
-        v-else-if="detailTarget === 'notes' && notesPanelVisible"
-        @close="closeNotesPanel"
-        @insert="conversationPaneRef?.loadComposerForEdit($event)"
-      />
-      <FilePreview
-        v-else-if="detailTarget === 'file'"
-        :file="previewFile"
-        :loading="previewLoading"
-        :error="previewError"
-        :line="previewTarget?.line"
-        :download-url="previewDownloadUrl"
-        closable
-        :external-actions="previewExternalActions"
-        :open-file="openFilePreview"
-        @close="closeFilePreview"
-        @open-external="openPreviewInEditor"
-        @reveal="revealPreviewFile"
-        @ai-action="handleAiAction"
-      />
+      <Transition name="panel-slide" mode="out-in">
+        <div v-if="sidePanelVisible" class="right-panel">
+          <ThinkingPanel
+            v-if="detailTarget === 'thinking' && thinkingVisible"
+            :text="thinkingPanelText ?? ''"
+            @close="closeThinkingPanel"
+          />
+          <ThinkingPanel
+            v-else-if="detailTarget === 'compaction' && compactionPanelVisible"
+            :text="compactionPanelText ?? ''"
+            :subtitle="t('conversation.summaryTitle')"
+            @close="closeCompactionPanel"
+          />
+          <AgentDetailPanel
+            v-else-if="detailTarget === 'agent' && agentPanelMember"
+            :member="agentPanelMember"
+            @close="closeAgentPanel"
+          />
+          <SideChatPanel
+            v-else-if="detailTarget === 'btw' && btwVisible"
+            :turns="client.sideChatTurns.value"
+            :running="client.sideChatRunning.value"
+            :sending="client.sideChatSending.value"
+            @send="client.sendSideChatPrompt($event)"
+            @close="closeSideChat"
+          />
+          <DiffView
+            v-else-if="detailTarget === 'diff'"
+            :mode="detailDiffMode"
+            :changes="client.changes.value"
+            :git-info="client.gitInfo.value"
+            :file-diff="client.fileDiff.value"
+            :selected-diff-path="client.selectedDiffPath.value"
+            :file-diff-loading="client.fileDiffLoading.value"
+            closable
+            @open="selectDiffFile"
+            @back="detailDiffMode = 'list'; detailDiffPath = null; client.clearFileDiff()"
+            @close="closeDiffDetail"
+          />
+          <GitPanel
+            v-else-if="detailTarget === 'git'"
+            :changes="client.changes.value"
+            :git-info="client.gitInfo.value"
+            :file-diff="client.fileDiff.value"
+            :selected-diff-path="gitPanelDiffMode === 'detail' ? gitPanelDiffPath : null"
+            :file-diff-loading="client.fileDiffLoading.value"
+            @open="selectGitPanelFile"
+            @back="backGitPanel"
+            @close="closeGitPanel"
+          />
+          <FileExplorer
+            v-else-if="detailTarget === 'explorer'"
+            :workspace-root="client.visibleWorkspace.value?.root ?? client.status.value.cwd"
+            :current-file="previewNormalizedPath"
+            :list-dir="client.listDir"
+            @open-file="openFilePreview($event)"
+            @close="closeFileExplorer"
+          />
+          <NotesPanel
+            v-else-if="detailTarget === 'notes' && notesPanelVisible"
+            @close="closeNotesPanel"
+            @insert="conversationPaneRef?.loadComposerForEdit($event)"
+          />
+          <FilePreview
+            v-else-if="detailTarget === 'file'"
+            :file="previewFile"
+            :loading="previewLoading"
+            :error="previewError"
+            :line="previewTarget?.line"
+            :download-url="previewDownloadUrl"
+            closable
+            :external-actions="previewExternalActions"
+            :open-file="openFilePreview"
+            @close="closeFilePreview"
+            @open-external="openPreviewInEditor"
+            @reveal="revealPreviewFile"
+            @ai-action="handleAiAction"
+          />
+        </div>
+      </Transition>
     </aside>
 
     <!-- Model Picker overlay -->
@@ -2069,6 +2073,21 @@ function openPr(url: string): void {
   box-sizing: border-box;
   border-left: 1px solid var(--line);
 }
+
+/* Panel slide transition */
+.panel-slide-enter-active,
+.panel-slide-leave-active {
+  transition: opacity 0.2s, transform 0.2s;
+}
+.panel-slide-enter-from {
+  opacity: 0;
+  transform: translateX(12px);
+}
+.panel-slide-leave-to {
+  opacity: 0;
+  transform: translateX(12px);
+}
+
 .global-preview.mobile {
   position: fixed;
   inset: 0;

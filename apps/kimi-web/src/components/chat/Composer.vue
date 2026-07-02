@@ -452,6 +452,7 @@ function applyQuickAction(promptKey: string): void {
 
 const sendLabel = computed(() => props.running ? t('composer.interrupt') : t('composer.send'));
 const hasUpload = computed(() => !!props.uploadImage);
+const isFocused = ref(false);
 
 // ---------------------------------------------------------------------------
 // Bottom toolbar — split into individual controls
@@ -720,6 +721,8 @@ function selectModel(modelId: string): void {
             @compositionstart="handleCompositionStart"
             @compositionend="handleCompositionEnd"
             @input="handleInput"
+            @focus="isFocused = true"
+            @blur="isFocused = false"
           />
 
           <button
@@ -757,6 +760,8 @@ function selectModel(modelId: string): void {
             </svg>
           </button>
         </div>
+        <!-- Keyboard shortcut hint -->
+        <div v-if="!isFocused && !text" class="composer-hint">{{ t('composer.shortcutHint') }}</div>
       </div>
 
       <!-- Hidden file input -->
@@ -1199,6 +1204,15 @@ function selectModel(modelId: string): void {
   padding: 10px 12px 8px;
 }
 
+.composer-hint {
+  padding: 2px 0 0;
+  font-size: var(--text-xs);
+  color: var(--faint);
+  text-align: center;
+  user-select: none;
+  pointer-events: none;
+}
+
 /* Input row */
 .input-row {
   display: flex;
@@ -1215,9 +1229,8 @@ function selectModel(modelId: string): void {
   font-family: var(--mono);
   font-size: var(--ui-font-size);
   background: transparent;
-  height: 56px;
-  min-height: 56px;
-  max-height: 56px;
+  min-height: 44px;
+  max-height: 200px;
   overflow-y: auto;
   line-height: 1.5;
   margin-bottom: 6px;
@@ -1899,7 +1912,7 @@ function selectModel(modelId: string): void {
     font-size: 16px;
     height: 44px;
     min-height: 44px;
-    max-height: 44px;
+    max-height: 200px;
   }
   .model-pill,
   .attach-btn {

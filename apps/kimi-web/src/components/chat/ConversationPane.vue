@@ -129,6 +129,27 @@ const emit = defineEmits<{
   archiveSession: [id: string];
 }>();
 
+function fillSuggestion(prompt: string): void {
+  loadComposerForEdit(prompt);
+  // Focus the composer textarea after filling
+  void nextTick(() => {
+    const textarea = document.querySelector('.empty-composer textarea') as HTMLTextAreaElement | null;
+    if (textarea) {
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+  });
+}
+
+const suggestions = computed(() => [
+  { icon: '💬', label: t('composer.suggestionDebug'), prompt: t('composer.suggestionDebugPrompt') },
+  { icon: '📝', label: t('composer.suggestionExplain'), prompt: t('composer.suggestionExplainPrompt') },
+  { icon: '🧪', label: t('composer.suggestionTests'), prompt: t('composer.suggestionTestsPrompt') },
+  { icon: '🔧', label: t('composer.suggestionRefactor'), prompt: t('composer.suggestionRefactorPrompt') },
+  { icon: '📄', label: t('composer.suggestionSummarize'), prompt: t('composer.suggestionSummarizePrompt') },
+  { icon: '🎨', label: t('composer.suggestionCreate'), prompt: t('composer.suggestionCreatePrompt') },
+]);
+
 // Empty-composer workspace picker.
 const wsPickOpen = ref(false);
 const wsPickExpanded = ref(false);
@@ -1085,12 +1106,34 @@ defineExpose({ loadComposerForEdit });
       >
         <div class="content-wrap" :class="[mobile ? 'align-mobile' : 'align-center']">
           <template v-if="turns.length === 0 && !sessionLoading">
-            <!-- Empty session: Composer rendered in the centre of the pane -->
+            <!-- Empty session: premium welcome screen + centered composer -->
             <div class="empty-spacer" />
-            <div class="empty-hint">
-              <span class="empty-hint-title">{{ t('composer.emptyConversationTitle') }}</span>
-              <span class="empty-hint-text">{{ t('composer.emptyConversation') }}</span>
-              <!-- Workspace picker: choose where this new conversation starts. -->
+            <div class="welcome-screen">
+              <!-- Logo icon -->
+              <div class="welcome-logo">
+                <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <rect x="8" y="8" width="48" height="48" rx="12" stroke-dasharray="4 3" />
+                  <circle cx="24" cy="26" r="3" fill="currentColor" stroke="none" />
+                  <circle cx="40" cy="26" r="3" fill="currentColor" stroke="none" />
+                  <path d="M20 40c4 4 20 4 24 0" stroke-linecap="round" />
+                </svg>
+              </div>
+              <h1 class="welcome-title">{{ t('composer.emptyConversationTitle') }}</h1>
+              <p class="welcome-subtitle">{{ t('composer.emptyConversation') }}</p>
+              <!-- Suggestion prompt cards -->
+              <div class="suggestion-grid">
+                <button
+                  v-for="(s, i) in suggestions"
+                  :key="i"
+                  type="button"
+                  class="suggestion-card"
+                  @click="fillSuggestion(s.prompt)"
+                >
+                  <span class="suggestion-icon">{{ s.icon }}</span>
+                  <span class="suggestion-text">{{ s.label }}</span>
+                </button>
+              </div>
+              <!-- Workspace picker -->
               <div v-if="hasWorkspaces" class="ws-pick">
                 <button type="button" class="ws-pick-btn" :title="t('conversation.switchWorkspace')" @click.stop="wsPickOpen = !wsPickOpen">
                   <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
@@ -1394,62 +1437,88 @@ defineExpose({ loadComposerForEdit });
 /* Empty-workspace spacers: push the centred Composer to the vertical middle. */
 .empty-spacer { flex: 1; }
 
-/* Empty-session hint above the centred composer */
-.empty-hint {
+/* Empty-session welcome screen */
+.welcome-screen {
   flex: none;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   text-align: center;
-  padding: 0 16px 16px;
+  padding: 0 16px 20px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+.welcome-logo {
+  color: var(--blue);
+  margin-bottom: 4px;
+}
+.welcome-title {
+  font-size: var(--text-2xl, 24px);
+  font-weight: 700;
   color: var(--ink);
+  margin: 0;
   font-family: var(--sans);
 }
-.empty-hint-title {
-  font-size: calc(var(--ui-font-size) + 16px);
-  font-weight: 600;
-}
-.empty-hint-text {
-  display: inline-block;
-  font-size: calc(var(--ui-font-size) + 2px);
+.welcome-subtitle {
+  font-size: var(--text-base, 15px);
   color: var(--dim);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin: 0 0 8px;
+  font-family: var(--sans);
 }
-.empty-add-workspace {
-  display: inline-flex;
+
+/* Suggestion cards grid */
+.suggestion-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  width: 100%;
+  margin: 8px 0 4px;
+}
+.suggestion-card {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 34px;
-  padding: 7px 12px;
+  gap: 10px;
+  padding: 14px;
+  background: var(--soft);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  color: var(--dim);
-  font-family: var(--mono);
-  font-size: var(--ui-font-size-sm);
+  border-radius: 10px;
   cursor: pointer;
+  text-align: left;
+  font-family: var(--sans);
+  font-size: var(--text-sm, 13px);
+  color: var(--text);
+  transition: background-color 0.18s ease, border-color 0.18s ease;
 }
-.empty-add-workspace:hover {
-  border-color: var(--bd);
-  color: var(--ink);
+.suggestion-card:hover {
+  background: var(--panel2);
+  border-color: var(--accent, var(--blue));
 }
-.empty-add-workspace:focus-visible {
+.suggestion-card:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
-.empty-add-workspace svg {
+.suggestion-icon {
   flex: none;
+  font-size: 16px;
+  line-height: 1;
+}
+.suggestion-text {
+  line-height: 1.3;
+}
+
+@media (max-width: 520px) {
+  .suggestion-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Empty-composer workspace picker */
 .ws-pick {
   position: relative;
   font-family: var(--mono);
+  margin-top: 4px;
 }
 .ws-pick-btn {
   display: inline-flex;
@@ -1537,6 +1606,33 @@ defineExpose({ loadComposerForEdit });
 }
 .ws-pick-action:hover { background: var(--panel2); color: var(--ink); }
 .ws-pick-action svg { flex: none; }
+
+.empty-add-workspace {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: var(--ui-font-size-sm);
+  cursor: pointer;
+}
+.empty-add-workspace:hover {
+  border-color: var(--bd);
+  color: var(--ink);
+}
+.empty-add-workspace:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.empty-add-workspace svg {
+  flex: none;
+}
 
 /* Chat scroll area: owns only messages; the dock is the bottom sibling. */
 .chat-scroll {

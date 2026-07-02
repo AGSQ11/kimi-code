@@ -35,4 +35,14 @@ export default {
   prevMatch: 'Previous match',
   nextMatch: 'Next match',
   closeSearch: 'Close search',
+
+  // Empty state welcome screen
+  welcomeTitle: 'Kimi Code',
+  welcomeSubtitle: 'Your AI-powered workspace',
+  suggestionDebug: 'Help me debug an error',
+  suggestionExplain: 'Explain this code',
+  suggestionTests: 'Write tests for...',
+  suggestionRefactor: 'Refactor this function',
+  suggestionSummarize: 'Summarize this document',
+  suggestionCreate: 'Create a new project',
 } as const;

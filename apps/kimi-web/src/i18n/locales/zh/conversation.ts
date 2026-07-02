@@ -35,4 +35,14 @@ export default {
   prevMatch: '上一个匹配',
   nextMatch: '下一个匹配',
   closeSearch: '关闭搜索',
+
+  // Empty state welcome screen
+  welcomeTitle: 'Kimi Code',
+  welcomeSubtitle: '你的 AI 驱动工作空间',
+  suggestionDebug: '帮我调试一个错误',
+  suggestionExplain: '解释这段代码',
+  suggestionTests: '为...编写测试',
+  suggestionRefactor: '重构这个函数',
+  suggestionSummarize: '总结这份文档',
+  suggestionCreate: '创建一个新项目',
 } as const;

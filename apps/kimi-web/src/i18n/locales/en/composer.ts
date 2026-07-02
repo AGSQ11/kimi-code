@@ -53,6 +53,9 @@ export default {
   queued: 'Queued',
   queuedCount: '{n} queued',
 
+  // Keyboard shortcut hint
+  shortcutHint: '⏎ Send · Shift+⏎ Newline',
+
   // Quick action prompt templates
   quickActions: 'Quick Actions',
   quickActionExplain: 'Explain this code',
@@ -65,5 +68,19 @@ export default {
   quickActionRefactorPrompt: 'Refactor the following code for better readability:\n\n',
   quickActionFindBugsPrompt: 'Review the following code for potential bugs:\n\n',
   quickActionDocumentPrompt: 'Add documentation/comments to:\n\n',
+
+  // Suggestion prompt cards (empty state)
+  suggestionDebug: 'Help me debug an error',
+  suggestionExplain: 'Explain this code',
+  suggestionTests: 'Write tests for...',
+  suggestionRefactor: 'Refactor this function',
+  suggestionSummarize: 'Summarize this document',
+  suggestionCreate: 'Create a new project',
+  suggestionDebugPrompt: 'Help me debug an error:',
+  suggestionExplainPrompt: 'Explain this code:\n\n',
+  suggestionTestsPrompt: 'Write tests for the following:\n\n',
+  suggestionRefactorPrompt: 'Refactor this function:\n\n',
+  suggestionSummarizePrompt: 'Summarize this document:\n\n',
+  suggestionCreatePrompt: 'Create a new project:',
 
 } as const;

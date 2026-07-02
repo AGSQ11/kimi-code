@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n';
 import type { Session, WorkspaceGroup, WorkspaceView } from '../types';
 import type { AppMessage } from '../api/types';
 import SessionRow from './SessionRow.vue';
+import LoadingSkeleton from './LoadingSkeleton.vue';
 import { serverEndpointLabel } from '../api/config';
 import { getKimiWebApi } from '../api';
 import { copyTextToClipboard } from '../lib/clipboard';
@@ -43,6 +44,8 @@ const props = withDefaults(
     unreadBySession?: Record<string, boolean>;
     /** Width (px) of the session column, driven by the App resize handle. */
     colWidth?: number;
+    /** True while the initial session list is being fetched. */
+    loading?: boolean;
   }>(),
   {
     activeWorkspace: null,
@@ -51,6 +54,7 @@ const props = withDefaults(
     pendingBySession: () => ({}),
     unreadBySession: () => ({}),
     colWidth: 220,
+    loading: false,
   },
 );
 
@@ -899,9 +903,13 @@ function blinkOnce(): void {
 
       <!-- Session list — grouped by workspace -->
       <div v-else class="sessions">
+        <!-- Loading skeleton for initial session load -->
+        <div v-if="loading" class="sidebar-loading">
+          <LoadingSkeleton :lines="4" />
+        </div>
         <!-- Empty state — only when no workspace is registered at all; empty
              workspaces still render their group header (with the + button). -->
-        <div v-if="groups.length === 0" class="empty">
+        <div v-else-if="groups.length === 0" class="empty">
           {{ t('workspace.noWorkspace') }}
         </div>
 
@@ -1384,6 +1392,10 @@ function blinkOnce(): void {
   border-radius: 2px;
 }
 .sessions::-webkit-scrollbar-thumb:hover { background: var(--bd); }
+
+.sidebar-loading {
+  padding: 16px 12px;
+}
 
 .empty {
   padding: 24px 12px;

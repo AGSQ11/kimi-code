@@ -10,7 +10,7 @@ import ActivityNotice from './ActivityNotice.vue';
 import AgentCard from './AgentCard.vue';
 import AgentGroup from './AgentGroup.vue';
 import CompareCard from '../CompareCard.vue';
-import MoonSpinner from '../MoonSpinner.vue';
+import LoadingSkeleton from '../LoadingSkeleton.vue';
 import { formatMessageTime } from '../../lib/formatMessageTime';
 import { copyTextToClipboard } from '../../lib/clipboard';
 import { safeGetJson, safeSetJson, STORAGE_KEYS } from '../../lib/storage';
@@ -495,8 +495,7 @@ watch(() => props.sessionId, loadBookmarks, { immediate: true });
        showing in order: thinking → message text → tool cards. -->
   <div v-if="childBubble" class="chat">
     <div v-if="sessionLoading" class="chat-loading">
-      <span class="dot-pulse" aria-hidden="true" />
-      <span class="chat-loading-text">{{ t('conversation.loading') }}</span>
+      <LoadingSkeleton :lines="3" avatar />
     </div>
     <div v-else-if="turns.length === 0 && (!approvals || approvals.length === 0)" class="chat-empty" />
 
@@ -742,8 +741,7 @@ watch(() => props.sessionId, loadBookmarks, { immediate: true });
   <div v-else class="term">
     <!-- Loading state: shown while fetching a historical session's turns -->
     <div v-if="sessionLoading" class="chat-loading">
-      <span class="dot-pulse" aria-hidden="true" />
-      <span class="chat-loading-text">{{ t('conversation.loading') }}</span>
+      <LoadingSkeleton :lines="3" avatar />
     </div>
     <!-- Empty state: a fresh/empty session shows a blank pane (Composer lives in
          the dock, moved here by ConversationPane when workspaceEmpty). -->
@@ -1467,7 +1465,7 @@ watch(() => props.sessionId, loadBookmarks, { immediate: true });
   font-size: var(--ui-font-size);
   line-height: 1.6;
   color: var(--ink);
-  font-weight: 500;
+  font-weight: 400;
 }
 .a-msg .msg :deep(p) { margin: 0; }
 .a-msg .msg :deep(p + p) { margin-top: 8px; }
@@ -1493,11 +1491,10 @@ watch(() => props.sessionId, loadBookmarks, { immediate: true });
 .a-msg :deep(code) {
   font-family: var(--mono);
   font-size: var(--ui-font-size-sm);
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: var(--line2);
   border-radius: 5px;
-  padding: 1px 5px;
-  color: var(--blue2);
+  padding: 1px 4px;
+  color: var(--ink);
 }
 
 .u-imgs {
@@ -1688,11 +1685,12 @@ watch(() => props.sessionId, loadBookmarks, { immediate: true });
   top: -2px;
   right: 0;
   flex-direction: row;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 1px 2px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 2px 4px;
+  display: flex;
+  gap: 2px;
 }
 .a-msg:hover > .hb-bubble,
 .a-msg:focus-within > .hb-bubble {
@@ -1703,11 +1701,12 @@ watch(() => props.sessionId, loadBookmarks, { immediate: true });
 .u-bub > .hb-bubble {
   bottom: -2px;
   left: -8px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 1px 2px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 2px 4px;
+  display: flex;
+  gap: 2px;
 }
 .u-bub:hover > .hb-bubble,
 .u-bub:focus-within > .hb-bubble {
@@ -1729,9 +1728,11 @@ watch(() => props.sessionId, loadBookmarks, { immediate: true });
   color: var(--muted);
   cursor: pointer;
   padding: 0;
-  transition: color 0.12s, background-color 0.12s;
+  opacity: 0.3;
+  transition: opacity 0.15s, color 0.12s, background-color 0.12s;
 }
 .hb-btn:hover {
+  opacity: 1;
   color: var(--blue);
   background: var(--hover);
 }

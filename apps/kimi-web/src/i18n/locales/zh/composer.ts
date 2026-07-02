@@ -53,6 +53,9 @@ export default {
   queued: '已排队',
   queuedCount: '{n} 条排队',
 
+  // 键盘快捷键提示
+  shortcutHint: '⏎ 发送 · Shift+⏎ 换行',
+
   // Quick action prompt templates
   quickActions: '快捷操作',
   quickActionExplain: '解释代码',
@@ -65,5 +68,19 @@ export default {
   quickActionRefactorPrompt: '重构以下代码以提高可读性：\n\n',
   quickActionFindBugsPrompt: '审查以下代码中潜在的 Bug：\n\n',
   quickActionDocumentPrompt: '为以下内容添加文档/注释：\n\n',
+
+  // Suggestion prompt cards (empty state)
+  suggestionDebug: '帮我调试一个错误',
+  suggestionExplain: '解释这段代码',
+  suggestionTests: '为这段代码写测试',
+  suggestionRefactor: '重构这个函数',
+  suggestionSummarize: '总结这份文档',
+  suggestionCreate: '创建一个新项目',
+  suggestionDebugPrompt: '帮我调试一个错误：',
+  suggestionExplainPrompt: '解释这段代码：\n\n',
+  suggestionTestsPrompt: '为以下代码编写测试：\n\n',
+  suggestionRefactorPrompt: '重构这个函数：\n\n',
+  suggestionSummarizePrompt: '总结这份文档：\n\n',
+  suggestionCreatePrompt: '创建一个新项目：',
 
 } as const;
